@@ -1,0 +1,15 @@
+[general]
+refresh_ms = 500
+history_len = 60
+
+[display]
+show_temps = true
+show_power = true
+process_count = 10
+
+[ai]
+vram_threshold_gb = 1.0
+known_ai_processes = ["ollama", "ollama_llama_server", "python", "lm_studio"]
+
+[lhm]
+url = "http://localhost:8085"
