@@ -125,29 +125,46 @@ For best visual results, set your terminal font size to **9-10pt** (e.g., in Win
 
 ## Configuration
 
-Config is loaded from (in order): `--config` flag, `./dofek.toml`, `%APPDATA%\dofek\dofek.toml`.
+### Config file location
+
+dofek loads its config from the first file found, in this order:
+
+1. `--config <path>` flag (TUI only)
+2. `./dofek.toml` (current working directory)
+3. `%APPDATA%\dofek\dofek.toml` (user config directory)
+
+**Recommended:** Place your config at `%APPDATA%\dofek\dofek.toml` — this works reliably for both the TUI and GUI regardless of working directory. The GUI doesn't support `--config`, so it always checks `./dofek.toml` then `%APPDATA%`.
+
+To find your `%APPDATA%` path, run `echo %APPDATA%` in a terminal (typically `C:\Users\<you>\AppData\Roaming`).
+
+A `dofek.toml.example` is included in the repository with all available options.
+
+### All options
 
 ```toml
 [general]
-refresh_ms = 500          # Poll interval in milliseconds
-history_len = 60          # Number of chart samples to keep
+refresh_ms = 500          # Poll interval in milliseconds (default: 500)
+history_len = 60          # Number of chart samples to keep (default: 60)
 
 [display]
-show_temps = true         # Show temperature bars
-show_power = true         # Show power draw bars
+show_temps = true         # Show temperature bars (default: true)
+show_power = true         # Show power draw bars (default: true)
 process_count = 50        # Max processes (watchlist auto-fits to panel height)
 
 [ai]
-vram_threshold_gb = 1.0   # VRAM above this flags a process as AI
-known_ai_processes = ["ollama", "ollama_llama_server", "python", "lm_studio"]
+vram_threshold_gb = 1.0   # VRAM above this flags a process as AI (default: 1.0)
+known_ai_processes = ["ollama", "ollama_llama_server", "python", "lm_studio", "claude"]
 
 [categories]
 dev_processes = ["code", "cargo", "rustc", "node", "npm", "git", "docker", "go"]
-watch_pids = []           # User-pinned PIDs for close monitoring
+watch_processes = ["ffmpeg", "obs"]   # Process names to pin as WATCH (case-insensitive substring match)
+watch_pids = []                       # Specific PIDs to pin as WATCH
 
 [lhm]
 url = "http://localhost:8085"  # LibreHardwareMonitor web server (optional fallback)
 ```
+
+All sections are optional — missing sections use sensible defaults. You only need to include settings you want to override.
 
 ## Process Categories
 
@@ -155,11 +172,13 @@ Processes are classified into three tiers, each with a distinct visual indicator
 
 | Category | Icon | Color | How assigned |
 |----------|------|-------|-------------|
-| AI | `●` | Purple | Auto-detected via VRAM/name matching, or user config |
-| DEV | `■` | Blue | Matches `categories.dev_processes` list |
-| WATCH | `★` | Amber | User-pinned via `categories.watch_pids` |
+| AI | `●` | Purple | Auto-detected via VRAM/name matching, or listed in `ai.known_ai_processes` |
+| DEV | `■` | Blue | Name matches `categories.dev_processes` (case-insensitive substring) |
+| WATCH | `★` | Amber | Name matches `categories.watch_processes` or PID listed in `categories.watch_pids` |
 
 Priority: WATCH > AI > DEV > None. Use `1`-`4` keys to filter the watchlist by category.
+
+**Extending categories:** Add process names to the relevant list in `dofek.toml`. Names are matched as case-insensitive substrings — e.g., `"code"` matches `Code.exe`, `code.exe`, and `Visual Studio Code.exe`.
 
 ## AI Workload Detection
 

@@ -115,6 +115,11 @@ fn render_category_tabs(f: &mut Frame, area: Rect, app: &App) {
 fn render_process_table(f: &mut Frame, area: Rect, app: &App) {
     let show_vram = app.data.nvml_available || app.data.processes.iter().any(|p| p.vram_bytes.is_some());
 
+    // Compute available width for the name column:
+    // Fixed columns: PID(6) + CPU%(5) + MEM(6) + STATUS(8) = 25, plus VRAM(6) if shown
+    let fixed_cols: u16 = if show_vram { 31 } else { 25 };
+    let name_width = (area.width.saturating_sub(fixed_cols)) as usize;
+
     // Header
     let header_cells = if show_vram {
         vec!["  NAME", "PID", "CPU%", "MEM", "VRAM", ""]
@@ -190,7 +195,7 @@ fn render_process_table(f: &mut Frame, area: Rect, app: &App) {
 
         let mut cells = vec![
             Span::styled(
-                format!("{}{}", cat_icon, truncate(&p.name, 12)),
+                format!("{}{}", cat_icon, truncate(&p.name, name_width.saturating_sub(2))),
                 name_style,
             ),
             Span::styled(format!("{:>5}", p.pid), Style::default().fg(theme::TEXT_DIM)),

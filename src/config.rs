@@ -68,6 +68,8 @@ pub struct CategoriesConfig {
     #[serde(default = "default_dev_processes")]
     pub dev_processes: Vec<String>,
     #[serde(default)]
+    pub watch_processes: Vec<String>,
+    #[serde(default)]
     pub watch_pids: Vec<u32>,
 }
 
@@ -75,6 +77,7 @@ impl Default for CategoriesConfig {
     fn default() -> Self {
         Self {
             dev_processes: default_dev_processes(),
+            watch_processes: Vec::new(),
             watch_pids: Vec::new(),
         }
     }
@@ -99,6 +102,7 @@ fn default_ai_processes() -> Vec<String> {
         "ollama_llama_server".to_string(),
         "python".to_string(),
         "lm_studio".to_string(),
+        "claude".to_string(),
     ]
 }
 

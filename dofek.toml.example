@@ -9,7 +9,12 @@ process_count = 10
 
 [ai]
 vram_threshold_gb = 1.0
-known_ai_processes = ["ollama", "ollama_llama_server", "python", "lm_studio"]
+known_ai_processes = ["ollama", "ollama_llama_server", "python", "lm_studio", "claude"]
+
+[categories]
+dev_processes = ["code", "cargo", "rustc", "node", "npm", "git", "docker", "go"]
+watch_processes = ["ffmpeg", "obs"]
+# watch_pids = [1234]
 
 [lhm]
 url = "http://localhost:8085"

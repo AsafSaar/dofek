@@ -12,12 +12,16 @@ pub fn classify_process(
     classify_ai_workload(proc, ai_config, gpu_utilization, prev_vram);
 
     // Assign category. Priority: Watch > Ai > Dev > None
-    if categories_config.watch_pids.contains(&proc.pid) {
+    let name_lower = proc.name.to_lowercase();
+    let is_watch = categories_config.watch_pids.contains(&proc.pid)
+        || categories_config.watch_processes.iter().any(|w| {
+            name_lower.contains(&w.to_lowercase())
+        });
+    if is_watch {
         proc.category = ProcessCategory::Watch;
     } else if proc.is_ai_workload {
         proc.category = ProcessCategory::Ai;
     } else {
-        let name_lower = proc.name.to_lowercase();
         let is_dev = categories_config.dev_processes.iter().any(|dev| {
             name_lower.contains(&dev.to_lowercase())
         });
