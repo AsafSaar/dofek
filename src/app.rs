@@ -103,6 +103,7 @@ pub struct App {
     pub sort_column: SortColumn,
     pub sort_ascending: bool,
     pub show_help: bool,
+    pub show_about: bool,
     pub should_quit: bool,
     pub refresh_ms: u64,
     pub selected_process: Option<usize>,
@@ -125,6 +126,7 @@ impl App {
             sort_column: SortColumn::Memory,
             sort_ascending: false,
             show_help: false,
+            show_about: false,
             should_quit: false,
             refresh_ms,
             selected_process: None,
@@ -199,10 +201,15 @@ impl App {
             self.show_help = false;
             return;
         }
+        if self.show_about {
+            self.show_about = false;
+            return;
+        }
 
         match key.code {
             KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Char('?') => self.show_help = true,
+            KeyCode::Char('a') => self.show_about = true,
             KeyCode::Tab => {
                 self.sort_column = self.sort_column.next();
                 self.sort_processes();

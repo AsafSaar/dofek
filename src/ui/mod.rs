@@ -6,6 +6,7 @@ pub mod cpu;
 pub mod footer;
 pub mod gpu;
 pub mod header;
+pub mod about;
 pub mod help;
 pub mod memory;
 pub mod network_disk;
@@ -45,6 +46,9 @@ pub fn render(f: &mut Frame, app: &App) {
 
     if app.show_help {
         help::render(f);
+    }
+    if app.show_about {
+        about::render(f);
     }
 }
 

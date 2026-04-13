@@ -969,6 +969,20 @@ document.querySelectorAll('.gpu-tab').forEach(btn=>{
 document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
 
+  // If any overlay is open, any key closes it
+  const helpEl = document.getElementById('help-overlay');
+  const aboutEl = document.getElementById('about-overlay');
+  if (helpEl.classList.contains('visible')) {
+    helpEl.classList.remove('visible');
+    e.preventDefault();
+    return;
+  }
+  if (aboutEl.classList.contains('visible')) {
+    aboutEl.classList.remove('visible');
+    e.preventDefault();
+    return;
+  }
+
   // Chart tab switching: c/g/m/n
   const chartKeys = {c:'cpu', g:'gpu', m:'mem', n:'net'};
   if (chartKeys[k]) {
@@ -1014,10 +1028,30 @@ document.addEventListener('keydown', e => {
   if (k === 's' && invoke) {
     invoke('get_snapshot').then(snap => {
       const ts = new Date().toISOString().replace(/[:.]/g,'-');
-      const txt = `dofek snapshot — ${ts}\n\nCPU: ${snap.cpu.name} — ${snap.cpu.total_load.toFixed(1)}%\nMemory: ${snap.mem?.used_gb?.toFixed(1) || '?'} / ${snap.mem?.total_gb || '?'} GB\nGPU: ${snap.gpus.map(g=>g.name+' '+g.utilization.toFixed(1)+'%').join(', ')||'N/A'}\nProcesses: ${snap.processes.length}`;
-      console.log('Snapshot:', txt);
+      const txt = `dofek snapshot — ${ts}\n\nCPU: ${snap.cpu.name} — ${snap.cpu.total_load.toFixed(1)}%\nMemory: ${snap.memory.used_gb.toFixed(1)} / ${snap.memory.total_gb.toFixed(1)} GB (${snap.memory.used_percent.toFixed(1)}%)\nGPU: ${snap.gpus.map(g=>g.name+' '+g.utilization.toFixed(1)+'%').join(', ')||'N/A'}\nProcesses: ${snap.processes.length}`;
+      const blob = new Blob([txt], {type:'text/plain'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `dofek-snapshot-${ts}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Snapshot saved');
     });
+    return;
   }
+
+  // Toggle help: ?
+  if (k === '?' || (e.shiftKey && e.key === '?')) {
+    document.getElementById('help-overlay').classList.toggle('visible');
+    return;
+  }
+
+  // Toggle about: a
+  if (k === 'a') {
+    document.getElementById('about-overlay').classList.toggle('visible');
+    return;
+  }
+
 });
 
 /* ═══ RESIZE ═════════════════════════════════════════════ */
@@ -1066,6 +1100,74 @@ async function frame(){
 }
 frame();
 setInterval(frame,500);
+/* ═══ TOAST ══════════════════════════════════════════════ */
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+document.getElementById('help-overlay').addEventListener('click',e=>{
+  if(e.target.id==='help-overlay') e.target.classList.remove('visible');
+});
+document.getElementById('about-overlay').addEventListener('click',e=>{
+  if(e.target.id==='about-overlay') e.target.classList.remove('visible');
+});
+document.querySelector('.logo').style.cursor='pointer';
+document.querySelector('.logo').addEventListener('click',()=>{
+  document.getElementById('about-overlay').classList.toggle('visible');
+});
 </script>
+
+<!-- Help overlay -->
+<div class="help-overlay" id="help-overlay">
+  <div class="help-box">
+    <div class="help-title">dofek — help</div>
+    <table class="help-table">
+      <tr><td class="hk">tab</td><td class="hd">Cycle sort column</td></tr>
+      <tr><td class="hk">c / g / m / n</td><td class="hd">CPU / GPU / MEM / NET chart</td></tr>
+      <tr><td class="hk">1-4</td><td class="hd">Filter ALL / AI / DEV / WATCH</td></tr>
+      <tr><td class="hk">[ ]</td><td class="hd">Resize chart / watchlist</td></tr>
+      <tr><td class="hk">s</td><td class="hd">Save snapshot</td></tr>
+      <tr><td class="hk">a</td><td class="hd">About dofek</td></tr>
+      <tr><td class="hk">?</td><td class="hd">Toggle this help</td></tr>
+    </table>
+    <div class="help-footer">press any key to close</div>
+  </div>
+</div>
+
+<!-- About overlay -->
+<div class="help-overlay" id="about-overlay">
+  <div class="help-box" style="text-align:center;min-width:340px;">
+    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v0.2</span></div>
+    <div style="font-size:14px;color:var(--dim);margin-bottom:20px;">Terminal / GUI, AI-aware system monitor</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+      <a href="https://github.com/AsafSaar/dofek" target="_blank" class="about-link">github.com/AsafSaar/dofek</a>
+      <a href="https://linkedin.com/in/asafsaar" target="_blank" class="about-link">linkedin.com/in/asafsaar</a>
+    </div>
+    <div style="font-size:10px;color:var(--muted);border-top:1px solid var(--bdr);padding-top:10px;">
+      Built by <span style="color:var(--dim);font-weight:500;">Asaf Saar</span><br>
+      &copy; 2026 — MIT License
+    </div>
+    <div class="help-footer">press any key to close</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<style>
+.help-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(6,8,16,.85);z-index:100;align-items:center;justify-content:center;}
+.help-overlay.visible{display:flex;}
+.help-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:4px;padding:20px 28px;min-width:320px;max-width:400px;}
+.help-title{font-size:13px;font-weight:700;color:var(--cpu);margin-bottom:14px;letter-spacing:.06em;}
+.help-table{border-collapse:collapse;width:100%;}
+.hk{color:var(--cpu);font-weight:600;padding:3px 12px 3px 0;white-space:nowrap;text-align:right;width:90px;font-size:11px;}
+.hd{color:var(--dim);padding:3px 0;font-size:11px;}
+.help-footer{color:var(--muted);font-size:10px;margin-top:14px;text-align:center;}
+.about-link{color:var(--cpu);text-decoration:none;font-size:11px;transition:color .15s;}
+.about-link:hover{color:var(--text);text-decoration:underline;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surf2);color:var(--text);border:1px solid var(--bdr2);padding:6px 18px;border-radius:3px;font-size:11px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200;}
+.toast.show{opacity:1;}
+</style>
 </body>
 </html>
