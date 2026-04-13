@@ -2,15 +2,34 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::config::Config;
 use crate::data::DataSnapshot;
-use crate::ui::sparkline_buf::SparklineBuf;
+use crate::ui::sparkline_buf::{CandleBuf, SparklineBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PanelFocus {
     Dashboard,
-    Cpu,
-    Memory,
-    Gpu,
     Processes,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ChartTab {
+    Cpu,
+    Gpu,
+    Mem,
+    Net,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CategoryFilter {
+    All,
+    Ai,
+    Dev,
+    Watch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GpuTab {
+    All,
+    Device(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -46,20 +65,27 @@ impl SortColumn {
 
 pub struct HistoryBuffers {
     pub cpu_total: SparklineBuf,
+    pub cpu_candle: CandleBuf,
     pub memory_used: SparklineBuf,
     pub gpu_util: SparklineBuf,
     pub gpu_vram: SparklineBuf,
+    /// Per-GPU utilization history (indexed by GPU device order).
+    pub gpu_util_per_device: Vec<SparklineBuf>,
     pub net_rx: SparklineBuf,
     pub net_tx: SparklineBuf,
 }
 
 impl HistoryBuffers {
     pub fn new(capacity: usize) -> Self {
+        // 10 samples per candle: at 500ms refresh = 5s per candle
+        let samples_per_candle = 10;
         Self {
             cpu_total: SparklineBuf::new(capacity),
+            cpu_candle: CandleBuf::new(capacity, samples_per_candle),
             memory_used: SparklineBuf::new(capacity),
             gpu_util: SparklineBuf::new(capacity),
             gpu_vram: SparklineBuf::new(capacity),
+            gpu_util_per_device: Vec::new(),
             net_rx: SparklineBuf::new(capacity),
             net_tx: SparklineBuf::new(capacity),
         }
@@ -71,11 +97,17 @@ pub struct App {
     pub history: HistoryBuffers,
     pub config: Config,
     pub focus: PanelFocus,
+    pub chart_tab: ChartTab,
+    pub category_filter: CategoryFilter,
+    pub gpu_tab: GpuTab,
     pub sort_column: SortColumn,
     pub sort_ascending: bool,
     pub show_help: bool,
     pub should_quit: bool,
     pub refresh_ms: u64,
+    pub selected_process: Option<usize>,
+    /// Chart/watchlist horizontal split percentage (chart gets this %, watchlist gets the rest).
+    pub split_pct: u16,
 }
 
 impl App {
@@ -87,20 +119,34 @@ impl App {
             history: HistoryBuffers::new(history_len),
             config,
             focus: PanelFocus::Dashboard,
+            chart_tab: ChartTab::Cpu,
+            category_filter: CategoryFilter::All,
+            gpu_tab: GpuTab::All,
             sort_column: SortColumn::Memory,
             sort_ascending: false,
             show_help: false,
             should_quit: false,
             refresh_ms,
+            selected_process: None,
+            split_pct: 58,
         }
     }
 
+    /// Returns the primary (first) GPU, if any.
+    pub fn primary_gpu(&self) -> Option<&crate::data::lhm::GpuSensors> {
+        self.data.gpus.first()
+    }
+
     pub fn update_data(&mut self, snapshot: DataSnapshot) {
+        let history_len = self.config.general.history_len;
+
         // Update sparkline history
         self.history.cpu_total.push_percent(snapshot.cpu.total_load);
+        self.history.cpu_candle.push(snapshot.cpu.total_load);
         self.history.memory_used.push_percent(snapshot.memory.used_percent);
 
-        if let Some(ref gpu) = snapshot.gpu {
+        // Aggregate GPU history (first GPU for backward compat)
+        if let Some(gpu) = snapshot.gpus.first() {
             self.history.gpu_util.push_percent(gpu.utilization);
             let vram_pct = if gpu.vram_total_mb > 0.0 {
                 gpu.vram_used_mb / gpu.vram_total_mb * 100.0
@@ -108,6 +154,14 @@ impl App {
                 0.0
             };
             self.history.gpu_vram.push_percent(vram_pct);
+        }
+
+        // Per-GPU history: grow vector if new GPUs appear
+        while self.history.gpu_util_per_device.len() < snapshot.gpus.len() {
+            self.history.gpu_util_per_device.push(SparklineBuf::new(history_len));
+        }
+        for (i, gpu) in snapshot.gpus.iter().enumerate() {
+            self.history.gpu_util_per_device[i].push_percent(gpu.utilization);
         }
 
         // Network: push bytes/sec (use raw values scaled to KB/s)
@@ -153,11 +207,20 @@ impl App {
                 self.sort_column = self.sort_column.next();
                 self.sort_processes();
             }
+            // Chart tab switching
+            KeyCode::Char('c') => self.chart_tab = ChartTab::Cpu,
+            KeyCode::Char('g') => self.chart_tab = ChartTab::Gpu,
+            KeyCode::Char('m') => self.chart_tab = ChartTab::Mem,
+            KeyCode::Char('n') => self.chart_tab = ChartTab::Net,
+            // Full-screen process view
             KeyCode::Char('p') => self.focus = PanelFocus::Processes,
-            KeyCode::Char('g') => self.focus = PanelFocus::Gpu,
-            KeyCode::Char('c') => self.focus = PanelFocus::Cpu,
-            KeyCode::Char('m') => self.focus = PanelFocus::Memory,
             KeyCode::Esc => self.focus = PanelFocus::Dashboard,
+            // Category filter
+            KeyCode::Char('1') => self.category_filter = CategoryFilter::All,
+            KeyCode::Char('2') => self.category_filter = CategoryFilter::Ai,
+            KeyCode::Char('3') => self.category_filter = CategoryFilter::Dev,
+            KeyCode::Char('4') => self.category_filter = CategoryFilter::Watch,
+            // Refresh rate
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 if self.refresh_ms > 100 {
                     self.refresh_ms = self.refresh_ms.saturating_sub(100);
@@ -169,13 +232,24 @@ impl App {
             KeyCode::Char('s') => {
                 self.save_snapshot();
             }
+            // Resize chart/watchlist split
+            KeyCode::Char('[') => {
+                self.split_pct = self.split_pct.saturating_sub(5).max(25);
+            }
+            KeyCode::Char(']') => {
+                self.split_pct = (self.split_pct + 5).min(85);
+            }
             _ => {}
         }
     }
 
     fn save_snapshot(&self) {
         let timestamp = chrono_lite_timestamp();
-        let filename = format!("dofek-snapshot-{timestamp}.txt");
+        let dir = dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("dofek-snapshots");
+        let _ = std::fs::create_dir_all(&dir);
+        let filename = dir.join(format!("dofek-snapshot-{timestamp}.txt"));
         let content = format!(
             "dofek snapshot — {timestamp}\n\
              \n\
@@ -188,14 +262,14 @@ impl App {
             self.data.memory.used_gb,
             self.data.memory.total_gb,
             self.data.memory.used_percent,
-            self.data.gpu.as_ref().map(|g| format!(
+            self.primary_gpu().map(|g| format!(
                 "{} — {:.1}% util, {:.0}/{:.0} MB VRAM, {:.0}°C",
                 g.name, g.utilization, g.vram_used_mb, g.vram_total_mb, g.temperature
             )).unwrap_or_else(|| "N/A".to_string()),
             self.data.processes.len(),
         );
         let _ = std::fs::write(&filename, content);
-        log::info!("Snapshot saved to {filename}");
+        log::info!("Snapshot saved to {}", filename.display());
     }
 }
 

@@ -1,11 +1,11 @@
 use std::time::Instant;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct NetworkStats {
     pub interfaces: Vec<InterfaceStats>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct InterfaceStats {
     pub name: String,
     pub rx_bytes_per_sec: f64,
@@ -94,6 +94,13 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
     tracker.prev_tx = curr_tx;
     tracker.prev_names = curr_names;
     tracker.prev_time = Some(now);
+
+    // Sort by traffic (busiest first) so .first() returns the active interface
+    interfaces.sort_by(|a, b| {
+        let ta = a.rx_bytes_per_sec + a.tx_bytes_per_sec;
+        let tb = b.rx_bytes_per_sec + b.tx_bytes_per_sec;
+        tb.partial_cmp(&ta).unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     NetworkStats { interfaces }
 }

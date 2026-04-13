@@ -11,7 +11,7 @@ pub fn render(f: &mut Frame) {
 
     // Center the help overlay
     let width = 50.min(area.width.saturating_sub(4));
-    let height = 16.min(area.height.saturating_sub(4));
+    let height = 18.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(width)) / 2;
     let y = (area.height.saturating_sub(height)) / 2;
     let popup = Rect::new(x, y, width, height);
@@ -35,6 +35,7 @@ pub fn render(f: &mut Frame) {
         help_line("m", "Focus memory panel"),
         help_line("esc", "Return to dashboard"),
         help_line("+/-", "Adjust refresh rate"),
+        help_line("[ ]", "Resize chart/watchlist"),
         help_line("s", "Save snapshot"),
         help_line("?", "Toggle this help"),
         Line::from(""),

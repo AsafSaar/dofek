@@ -1,53 +1,63 @@
 # dofek
 
-**Terminal-native, AI-aware system monitor for Windows.**
+**Terminal-native, AI-aware system monitor for Windows — with a Tauri GUI companion.**
 
 > *dofek* (Hebrew: דּוֹפֶק) means "pulse" or "heartbeat"
 
 Most system monitors were designed before LLMs ran locally. They treat GPU as an afterthought and VRAM as a footnote. dofek is built for the developer who has `ollama` running in the background, is watching a model load into VRAM, and needs to know at a glance whether their system can handle the next task.
 
+## Screenshot
+
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│ dofek v0.1                 ● ollama inferring            HOSTNAME  │
-├───────────────────────────┬─────────────────────────────────────────┤
-│ CPU Intel Core i7-13700K  │ MEM 24.3 / 64.0 GB                    │
-│ C0  ████████░░░░░  62.1%  │ Used ██████████░░░░  68.2%             │
-│ C1  ███░░░░░░░░░░  23.4%  │ Swap █░░░░░░░░░░░░░   8.1%            │
-│ C2  █████████████  98.7%  │                                        │
-│ ▁▂▃▅▇█▇▅▃▂▁▂▃▅▇█ total   │ ▁▂▃▄▄▅▅▅▅▅▅▅▆▆▆▆▆▆ used              │
-├───────────────────────────┼─────────────────────────────────────────┤
-│ GPU RTX 4090 · 24576 MB   │ NET + DISK                             │
-│ Util ███████░░░░░  55.2%  │ Realtek Gaming 2.5GbE                  │
-│ VRAM █████████░░░ 18.2 GB │  ↓ 12.4 MB/s   ↑ 1.2 MB/s             │
-│ Temp ████░░░░░░░░  67°C   │                                        │
-│ ▁▃▅▇█▇▅▃▅▇█▇▅▃▅▇ util    │ ▁▁▂▃▅▇█▇▅▃▂▁▁▂▃▅▇█ rx                │
-├───────────────────────────┴─────────────────────────────────────────┤
-│ PROCESSES                                              sort: MEM   │
-│ NAME                    PID   CPU%     MEM      VRAM   AI          │
-│ ollama_llama_server    1234   12.3   2.1 GB  18.0 GB  ● infer     │
-│ chrome.exe             5678    8.1   1.8 GB       —                │
-│ python.exe             9012    4.2   1.2 GB   2.1 GB  ○ idle      │
-├─────────────────────────────────────────────────────────────────────┤
-│ q quit  tab sort  p proc  g gpu  c cpu  m mem  ? help       500ms │
-└─────────────────────────────────────────────────────────────────────┘
+dofek v0.2  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+-----------------------------------------------------------------------------------------------
+ [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES     CPU [MEM] VRAM
+ 9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%     ALL  AI  DEV  WATCH    sort:MEM
+                                                -- crit 90%    NAME       PID  CPU%  MEM  VRAM
+           ___   _                                             node.exe  35488  0.0 2.3G   --
+    ___ __|   |_| |  _     _                                   vmmem    17252  0.0 1.8G   --
+   |   |  |   | | |_| |___| |__                                claude.. 13596  2.8 1.1G   --
+                                                                chrome.. 29328  0.5 689M   --
+   Candlestick chart area (CPU)                                 claude.. 25180  0.0 668M   --
+   with threshold lines at 80/90%                               chrome.. 25252  1.6 441M   --
+                                                                MsMpEng  5168   0.0 433M   --
+                                                               Code.exe 21356  0.4 425M   --
+                                                                explor.. 12412  6.1 415M   --
+                                                               Code.exe 20380  0.0 402M   --
+                                                                ...more processes...
+                                                               PLUGINS ---
+                                                               No plugins connected
+-----------------------------------------------------------------------------------------------
+ CPU AMD Ryzen 7 7800X  | GPU NVIDIA RTX 5080  | MEM 21.5/63.2 GB  | NET Hyper-V Virtual
+ C0 15% C1 13% C2 19%  | Util     1.0%        | Used [###..] 34.0% | down 0 B/s
+ C3  9% C4 10% C5 12%  | VRAM     1.7 GB      | Swap [.....] 0.0%  | up   0 B/s
+ C6 15% C7 12% C8  5%  | Temp    36.0 C       |                    |
+-----------------------------------------------------------------------------------------------
+ q quit  tab sort  p proc  c cpu  g gpu  m mem  n net  [] resize  1-4 filter  ? help      500ms
 ```
 
 ## Features
 
-- **AI-first monitoring** — VRAM per-process, AI workload detection, inference/loading/idle badges
-- **Full hardware dashboard** — CPU per-core, memory, GPU (util/VRAM/temp/power), network
-- **Process table with VRAM column** — the column Windows Task Manager doesn't have
-- **Sparkline history** — 60-sample rolling graphs for CPU, memory, GPU, and network
+- **Dual interface** — terminal TUI and Tauri-based GUI from the same codebase
+- **Trading-terminal layout** — dominant chart panel + process watchlist + compact bottom strip
+- **Resizable panes** — `[`/`]` in TUI, drag handle in GUI to adjust chart vs. process split
+- **Candlestick CPU chart** — min/max wicks, IQR bodies, mean ticks. Shows CPU variance at a glance
+- **Area charts** — smooth filled charts for GPU, memory, and network with threshold lines at 80%/90%
+- **AI workload detection** — VRAM per-process, inference/loading/idle badges, auto-classification
+- **Process watchlist with categories** — AI (●), DEV (■), WATCH (★) with color-coded rows and filter tabs
+- **Multi-GPU support** — per-device metrics, overlaid chart lines, aggregate views
+- **Top ticker bar** — live metric pills for CPU, GPU, VRAM, MEM, TEMP, NET at a glance
+- **Snapshot export** — press `s` to save system state to `~/dofek-snapshots/`
 - **Single binary** — one `.exe`, no runtime dependencies
-- **Configurable** — TOML config for refresh rate, AI process names, display options
+- **Configurable** — TOML config for refresh rate, AI process names, dev tools, display options
 
 ## Requirements
 
 - **Windows 10** (build 19041+) or **Windows 11**
-- **[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)** — for CPU/GPU/memory sensor data
+- **NVIDIA GPU + drivers** *(optional)* — for GPU metrics and per-process VRAM via NVML. Gracefully degrades without it.
+- **[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)** *(optional fallback)* — for GPU data on non-NVIDIA systems
   - Download the latest release ZIP, extract, and run as administrator
   - Enable the web server: **Options > Remote Web Server > Run** (default port 8085)
-- **NVIDIA GPU + drivers** *(optional)* — for per-process VRAM via NVML. Gracefully degrades without it.
 
 ## Install
 
@@ -56,40 +66,53 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 ```bash
 git clone https://github.com/AsafSaar/dofek.git
 cd dofek
+
+# TUI (terminal)
 cargo build --release
-# Binary at target/release/dofek.exe
+# Binary at target/release/dofek-tui.exe
+
+# GUI (Tauri desktop app)
+cargo tauri build
 ```
 
 ### Prerequisites
 
-- [Rust toolchain](https://rustup.rs/) (stable)
+- [Rust toolchain](https://rustup.rs/) (stable, edition 2024)
 - [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with C++ workload
+- For GUI: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 ## Usage
 
 ```bash
-# Start LibreHardwareMonitor first (as admin, with web server on port 8085)
-# Then run dofek:
-dofek
+# Run the TUI:
+dofek-tui
 
 # With a custom config:
-dofek --config path/to/dofek.toml
+dofek-tui --config path/to/dofek.toml
 ```
 
-## Keybindings
+For best visual results, set your terminal font size to **9-10pt** (e.g., in Windows Terminal: Settings > Profile > Appearance > Font size).
+
+## Keybindings (TUI)
 
 | Key | Action |
-|-----|--------|
-| `q` | Quit |
-| `tab` | Cycle sort column in process table |
-| `p` | Focus process table (full screen) |
-| `g` | Focus GPU panel (full screen) |
-| `c` | Focus CPU panel (full screen) |
-| `m` | Focus memory panel (full screen) |
-| `esc` | Return to dashboard |
-| `?` | Toggle help overlay |
+|-------|--------|
+| `c` | Switch main chart to CPU (candlestick mode) |
+| `g` | Switch main chart to GPU (area chart) |
+| `m` | Switch main chart to Memory (area chart) |
+| `n` | Switch main chart to Network (area chart) |
+| `p` | Full-screen process view |
+| `tab` | Cycle sort column (Name / PID / CPU% / MEM / VRAM) |
+| `1` | Process filter: ALL |
+| `2` | Process filter: AI only |
+| `3` | Process filter: DEV only |
+| `4` | Process filter: WATCH only |
+| `[` / `]` | Resize chart / watchlist split |
 | `+` / `-` | Increase / decrease refresh rate |
-| `s` | Save snapshot to file |
+| `s` | Save snapshot to `~/dofek-snapshots/` |
+| `?` | Toggle help overlay |
+| `esc` | Return to dashboard |
+| `q` | Quit |
 
 ## Configuration
 
@@ -98,20 +121,36 @@ Config is loaded from (in order): `--config` flag, `./dofek.toml`, `%APPDATA%\do
 ```toml
 [general]
 refresh_ms = 500          # Poll interval in milliseconds
-history_len = 60          # Number of sparkline samples to keep
+history_len = 60          # Number of chart samples to keep
 
 [display]
 show_temps = true         # Show temperature bars
 show_power = true         # Show power draw bars
-process_count = 10        # Max processes to display
+process_count = 50        # Max processes (watchlist auto-fits to panel height)
 
 [ai]
 vram_threshold_gb = 1.0   # VRAM above this flags a process as AI
 known_ai_processes = ["ollama", "ollama_llama_server", "python", "lm_studio"]
 
+[categories]
+dev_processes = ["code", "cargo", "rustc", "node", "npm", "git", "docker", "go"]
+watch_pids = []           # User-pinned PIDs for close monitoring
+
 [lhm]
-url = "http://localhost:8085"  # LibreHardwareMonitor web server
+url = "http://localhost:8085"  # LibreHardwareMonitor web server (optional fallback)
 ```
+
+## Process Categories
+
+Processes are classified into three tiers, each with a distinct visual indicator:
+
+| Category | Icon | Color | How assigned |
+|----------|------|-------|-------------|
+| AI | `●` | Purple | Auto-detected via VRAM/name matching, or user config |
+| DEV | `■` | Blue | Matches `categories.dev_processes` list |
+| WATCH | `★` | Amber | User-pinned via `categories.watch_pids` |
+
+Priority: WATCH > AI > DEV > None. Use `1`-`4` keys to filter the watchlist by category.
 
 ## AI Workload Detection
 
@@ -125,27 +164,126 @@ A process is classified as an AI workload if:
 |-------|-----------|
 | `● inferring` | VRAM > threshold **and** GPU utilization > 20% |
 | `● loading` | VRAM increasing rapidly (>200 MB in last poll) |
-| `○ idle` | Known AI process but VRAM < 500 MB |
+| `○ idle` | Known AI process but low utilization |
 
 ## Architecture
 
 ```
-LibreHardwareMonitor (elevated, HTTP on :8085)
-         │  GET /data.json
-    dofek (unprivileged)
-         ├── Data collector thread → polls LHM, Windows API, NVML
-         ├── Event reader thread   → crossterm keyboard events
-         └── Main thread           → render loop (Ratatui)
-                    ↑ mpsc::channel
+    dofek
+    ├── dofek-tui ─── Terminal UI (Ratatui + crossterm)
+    │     ├── sysinfo crate ──── CPU, memory, processes (with CPU%)
+    │     ├── NVML ──────────── GPU metrics + per-process VRAM (NVIDIA, multi-GPU)
+    │     ├── LHM HTTP ─────── GPU fallback (optional, non-NVIDIA)
+    │     ├── Windows API ───── network stats (GetIfTable2)
+    │     └── Ratatui TUI ───── rendering (trading-terminal layout)
+    │
+    └── dofek-gui ─── Tauri Desktop App (WebView2)
+          ├── Same Rust backend ── reuses data collection from core
+          ├── Tauri IPC ────────── get_snapshot / get_gpu_info commands
+          └── Vanilla HTML/CSS/JS ── canvas charts, CSS bars, drag-resize
 ```
 
-Sync threaded model — no async runtime. Three threads communicate via `mpsc::channel`.
+### Threading Model (sync, no tokio)
+
+| Thread | Role | Rate |
+|--------|------|------|
+| Main | Render loop + event handling via `mpsc::channel` | ~60fps (16ms) |
+| Data collector | Refreshes sysinfo, queries NVML/LHM, classifies AI workloads | Configurable (default 500ms) |
+| Event reader | Reads crossterm keyboard/resize events | ~60fps (16ms) |
+
+### Module Structure
+
+```
+src/
+  main.rs              Entry point: terminal init, thread spawning, main loop
+  lib.rs               Shared library (used by both TUI and GUI)
+  app.rs               App state: DataSnapshot, HistoryBuffers, ChartTab, split_pct
+  config.rs            CLI (clap) + TOML config loading with categories support
+  event.rs             Crossterm event reader thread, AppEvent enum
+
+  data/
+    mod.rs             DataSnapshot struct, collector thread orchestration
+    sysinfo_source.rs  sysinfo-backed CPU, memory, process extraction
+    gpu.rs             NVML wrapper: multi-GPU device metrics + per-process VRAM
+    lhm.rs             LHM HTTP client (optional GPU fallback, multi-GPU aware)
+    network.rs         GetIfTable2 for per-interface rx/tx bytes
+    process.rs         ProcessInfo, AiState, ProcessCategory definitions
+    ai_detect.rs       AI workload + category classification
+
+  ui/
+    mod.rs             Master layout: ticker + chart/watchlist + bottom strip + status
+    theme.rs           Trading-terminal color palette (sky blue, violet, emerald, etc.)
+    ticker.rs          Top ticker bar: metric pills, AI badge, hostname, clock
+    chart.rs           Main chart panel: tab switching, meta line, threshold legend
+    candlestick.rs     Custom candlestick chart widget (Buffer manipulation, half-blocks)
+    area_chart.rs      Custom area chart widget (filled area, multi-series, thresholds)
+    watchlist.rs       Process watchlist: category tabs, sort buttons, plugin dock
+    bottom_strip.rs    Compact 4-panel row: CPU grid, GPU stats, MEM, NET
+    status.rs          Bottom status bar with keybindings
+    sparkline_buf.rs   Ring buffers: SparklineBuf (u64) + CandleBuf (OHLC-style samples)
+    cpu.rs             CPU panel renderer (full-screen mode)
+    gpu.rs             GPU panel renderer (full-screen mode)
+    memory.rs          Memory panel renderer
+    network_disk.rs    Network panel renderer
+    process_table.rs   Full-screen process table (via 'p' key)
+    help.rs            Help overlay popup
+
+gui/
+  src/lib.rs           Tauri backend: AppState, IPC commands, data collector
+  frontend/
+    index.html         Single-file frontend: HTML + CSS + Canvas charts + JS
+  tauri.conf.json      Tauri app configuration
+```
+
+### Key Data Flow
+
+```
+sysinfo refresh ──> extract CPU/memory/processes ──> DataSnapshot ──> App.update_data()
+NVML query ─────> multi-GPU device info + per-process VRAM ──────┘        │
+LHM fallback ──> GPU sensors (if NVML unavailable) ─────────────┘        │
+                                                                          v
+                                                              HistoryBuffers (sparklines + candles)
+                                                                          │
+                                                                          v
+                                                                    ui::render()
+```
+
+### Chart Rendering
+
+**TUI**: Charts use **direct `Buffer` manipulation** with Unicode half-block characters (`▀▄█`) for 2x vertical sub-pixel resolution. Metric bars use a custom `ColorBar` widget with explicit background colors for reliable rendering across terminals.
+
+- **Candlestick**: wick lines (`│`), IQR bodies (`█▄▀`), mean ticks (`─`), live dot (`●`)
+- **Area chart**: filled gradient area, line overlay, multi-series support
+- **Threshold lines**: dashed `╌` at configurable warn/crit levels
+
+**GUI**: Canvas-based rendering with Bezier-smoothed area charts, CSS progress bars, and dynamic auto-scaling for sparklines.
+
+### Tech Stack
+
+| Component | Crate | Version |
+|-----------|-------|---------|
+| TUI framework | ratatui | 0.29 |
+| Terminal backend | crossterm | 0.28 |
+| System info | sysinfo | 0.33 |
+| NVIDIA GPU | nvml-wrapper | 0.10 |
+| HTTP client | ureq | 2 |
+| Config | toml + clap | 0.8 / 4 |
+| Serialization | serde + serde_json | 1 |
+| Win32 API | windows | 0.58 |
+| Error handling | anyhow | 1 |
+| Logging | log + env_logger | 0.4 / 0.11 |
+| Home directory | dirs | 6 |
+| GUI framework | tauri | 2 |
+
+**Rust edition**: 2024 | **Target**: `x86_64-pc-windows-msvc` (also builds on `aarch64-pc-windows-msvc`)
+
+Release build: LTO enabled, symbols stripped, opt-level 3.
 
 ## Roadmap
 
-- **v0.1** (current) — Full dashboard with real sensor data, AI workload detection
-- **v0.2** — Plugin system (stdout JSON protocol), `dofek-ollama` and `dofek-docker` plugins
-- **v0.3** — User themes and configurable panel layout
+- **v0.2** (current) — Trading-terminal layout, candlestick charts, multi-GPU, process categories, Tauri GUI, resizable panes
+- **v0.3** — Plugin system (stdout JSON protocol), `dofek-ollama` and `dofek-docker` plugins
+- **v0.4** — User themes and configurable panel layout
 - **v1.0** — GUI tray companion with live sparkline in taskbar
 
 ## License

@@ -25,7 +25,7 @@
   --green:   #4ade80;
   --text:    #e2e8f0;
   --dim:     #94a3b8;
-  --muted:   #3d5070;
+  --muted:   #6b839e;
   --font:    'JetBrains Mono','Cascadia Code','Fira Code','Consolas',monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -59,7 +59,9 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 .main{display:flex;flex:1;min-height:0;border-bottom:1px solid var(--bdr);}
 
 /* CHART PANEL */
-.chart-panel{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--bdr);min-width:0;}
+.chart-panel{flex:1;display:flex;flex-direction:column;min-width:200px;min-height:0;}
+.resize-handle{width:5px;cursor:col-resize;background:var(--bdr);flex-shrink:0;transition:background .15s;}
+.resize-handle:hover,.resize-handle.active{background:var(--cpu);}
 .chart-head{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--bdr);background:rgba(255,255,255,.01);flex-shrink:0;}
 .tabs{display:flex;gap:2px;}
 .tab{padding:3px 11px;border:1px solid transparent;background:transparent;color:var(--muted);font-family:var(--font);font-size:10px;font-weight:500;letter-spacing:.08em;cursor:pointer;border-radius:2px;transition:all .15s;}
@@ -90,7 +92,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 .tl-line.c{background:rgba(248,113,113,.55);}
 
 /* WATCHLIST */
-.watchlist{width:345px;flex-shrink:0;display:flex;flex-direction:column;background:var(--surf);}
+.watchlist{width:345px;min-width:200px;flex-shrink:0;display:flex;flex-direction:column;background:var(--surf);}
 .wl-head{display:flex;align-items:center;padding:7px 12px;border-bottom:1px solid var(--bdr2);font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--dim);}
 .sort-grp{display:flex;gap:3px;margin-left:auto;}
 .sort-btn{padding:2px 8px;border:1px solid var(--bdr2);background:transparent;color:var(--muted);font-family:var(--font);font-size:9px;cursor:pointer;border-radius:2px;letter-spacing:.06em;}
@@ -134,7 +136,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 .cat-dot.watch{color:var(--watch);}
 .cat-dot.none{color:var(--muted);}
 
-.pname{font-weight:500;font-size:11px;color:var(--text);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pname{font-weight:500;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ppid{color:var(--muted);font-size:10px;}
 .pcpu{color:var(--dim);}
 .pcpu.warn{color:var(--warn);} .pcpu.crit{color:var(--crit);}
@@ -259,8 +261,11 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
     </div>
   </div>
 
+  <!-- RESIZE HANDLE -->
+  <div class="resize-handle" id="resize-handle"></div>
+
   <!-- WATCHLIST -->
-  <div class="watchlist">
+  <div class="watchlist" id="watchlist-panel">
     <div class="wl-head">
       PROCESSES
       <div class="sort-grp">
@@ -932,11 +937,101 @@ document.querySelectorAll('.gpu-tab').forEach(btn=>{
   });
 });
 
+/* ═══ KEYBOARD SHORTCUTS ═════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+
+  // Chart tab switching: c/g/m/n
+  const chartKeys = {c:'cpu', g:'gpu', m:'mem', n:'net'};
+  if (chartKeys[k]) {
+    S.metric = chartKeys[k];
+    document.querySelectorAll('.tab').forEach(b => {
+      b.classList.toggle('on', b.dataset.m === chartKeys[k]);
+    });
+    upMainChart();
+    return;
+  }
+
+  // Category filter: 1-4
+  const catKeys = {'1':'all', '2':'ai', '3':'dev', '4':'watch'};
+  if (catKeys[k]) {
+    activeCat = catKeys[k];
+    document.querySelectorAll('.cat-tab').forEach(b => {
+      b.classList.toggle('on', b.dataset.cat === catKeys[k]);
+    });
+    upProcs();
+    return;
+  }
+
+  // Sort cycling: tab
+  if (k === 'tab') {
+    e.preventDefault();
+    const order = ['cpu','mem','vram'];
+    const idx = order.indexOf(S.sortBy);
+    S.sortBy = order[(idx + 1) % order.length];
+    document.querySelectorAll('.sort-btn').forEach(b => {
+      b.classList.toggle('on', b.dataset.sort === S.sortBy);
+    });
+    upProcs();
+    return;
+  }
+
+  // Resize panes: [ / ]
+  const wl = document.getElementById('watchlist-panel');
+  if (wl && (k === '[' || k === ']')) {
+    const cur = wl.offsetWidth;
+    const mainW = document.querySelector('.main').offsetWidth;
+    const delta = k === ']' ? -30 : 30;
+    wl.style.width = Math.max(200, Math.min(mainW - 200, cur + delta)) + 'px';
+    return;
+  }
+
+  // Save snapshot: s
+  if (k === 's' && invoke) {
+    invoke('get_snapshot').then(snap => {
+      const ts = new Date().toISOString().replace(/[:.]/g,'-');
+      const txt = `dofek snapshot — ${ts}\n\nCPU: ${snap.cpu.name} — ${snap.cpu.total_load.toFixed(1)}%\nMemory: ${snap.mem?.used_gb?.toFixed(1) || '?'} / ${snap.mem?.total_gb || '?'} GB\nGPU: ${snap.gpus.map(g=>g.name+' '+g.utilization.toFixed(1)+'%').join(', ')||'N/A'}\nProcesses: ${snap.processes.length}`;
+      console.log('Snapshot:', txt);
+    });
+  }
+});
+
 /* ═══ RESIZE ═════════════════════════════════════════════ */
 const ro=new ResizeObserver(()=>{upMainChart();upCores();upGPU();upMEM();upNET();});
 ['mainCanvas','sp-cpu','sp-gpu','sp-mem','sp-net'].forEach(id=>{
   const el=document.getElementById(id); if(el) ro.observe(el);
 });
+
+/* ═══ PANEL RESIZE DRAG ══════════════════════════════════ */
+{
+  const handle=document.getElementById('resize-handle');
+  const wl=document.getElementById('watchlist-panel');
+  const main=document.querySelector('.main');
+  let dragging=false, startX=0, startW=0;
+
+  handle.addEventListener('mousedown',e=>{
+    dragging=true; startX=e.clientX; startW=wl.offsetWidth;
+    handle.classList.add('active');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove',e=>{
+    if(!dragging) return;
+    const dx=startX-e.clientX;
+    const newW=Math.max(200, Math.min(main.offsetWidth-200, startW+dx));
+    wl.style.width=newW+'px';
+  });
+
+  document.addEventListener('mouseup',()=>{
+    if(!dragging) return;
+    dragging=false;
+    handle.classList.remove('active');
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+  });
+}
 
 /* ═══ MAIN LOOP ══════════════════════════════════════════ */
 async function frame(){
