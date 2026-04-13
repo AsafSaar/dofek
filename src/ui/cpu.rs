@@ -1,7 +1,8 @@
+use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Gauge, Paragraph, Sparkline};
+use ratatui::widgets::{Block, Borders, Paragraph, Sparkline, Widget};
 use ratatui::Frame;
 
 use crate::app::App;
@@ -104,16 +105,42 @@ fn render_core_bars(f: &mut Frame, area: Rect, app: &App) {
             cols[0],
         );
 
-        let gauge = Gauge::default()
-            .ratio((pct as f64 / 100.0).clamp(0.0, 1.0))
-            .gauge_style(Style::default().fg(theme::CPU_COLOR).bg(theme::BG_PRIMARY))
-            .label("");
-        f.render_widget(gauge, cols[1]);
+        f.render_widget(ColorBar::new((pct as f64 / 100.0).clamp(0.0, 1.0), theme::CPU_COLOR), cols[1]);
 
         f.render_widget(
             Paragraph::new(value).style(Style::default().fg(theme::TEXT_PRIMARY)),
             cols[2],
         );
+    }
+}
+
+struct ColorBar {
+    ratio: f64,
+    color: ratatui::style::Color,
+}
+
+impl ColorBar {
+    fn new(ratio: f64, color: ratatui::style::Color) -> Self {
+        Self { ratio: ratio.clamp(0.0, 1.0), color }
+    }
+}
+
+impl Widget for ColorBar {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        if area.is_empty() {
+            return;
+        }
+        let filled = (area.width as f64 * self.ratio).round() as u16;
+        for y in area.top()..area.bottom() {
+            for x in area.left()..area.right() {
+                let cell = &mut buf[(x, y)];
+                if x < area.left() + filled {
+                    cell.set_char(' ').set_bg(self.color);
+                } else {
+                    cell.set_char(' ').set_bg(theme::BG_SURFACE2);
+                }
+            }
+        }
     }
 }
 

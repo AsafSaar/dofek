@@ -1,14 +1,15 @@
+use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Gauge, Paragraph, Sparkline};
+use ratatui::widgets::{Block, Borders, Paragraph, Sparkline, Widget};
 use ratatui::Frame;
 
 use crate::app::App;
 use crate::ui::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
-    let gpu = app.data.gpu.as_ref();
+    let gpu = app.primary_gpu();
 
     let title_detail = gpu.map(|g| {
         format!("{} · {:.0} MB", g.name, g.vram_total_mb)
@@ -92,9 +93,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
     // Sparkline
     let spark_data = app.history.gpu_util.as_slice();
+    let max_val = spark_data.iter().copied().max().unwrap_or(1).max(1);
     let sparkline = Sparkline::default()
         .data(&spark_data)
-        .max(100)
+        .max(max_val)
         .style(Style::default().fg(theme::GPU_COLOR));
     f.render_widget(sparkline, chunks[1]);
 }
@@ -124,11 +126,7 @@ fn render_bar(f: &mut Frame, area: Rect, label: &str, value: f32, max: f32, unit
     );
 
     let ratio = (value as f64 / max as f64).clamp(0.0, 1.0);
-    let gauge = Gauge::default()
-        .ratio(ratio)
-        .gauge_style(Style::default().fg(color).bg(theme::BG_PRIMARY))
-        .label("");
-    f.render_widget(gauge, cols[1]);
+    f.render_widget(ColorBar::new(ratio, color), cols[1]);
 
     f.render_widget(
         Paragraph::new(value_str).style(Style::default().fg(theme::TEXT_PRIMARY)),
@@ -159,16 +157,46 @@ fn render_bar_with_value(f: &mut Frame, area: Rect, label: &str, percent: f32, v
         cols[0],
     );
 
-    let gauge = Gauge::default()
-        .ratio((percent as f64 / 100.0).clamp(0.0, 1.0))
-        .gauge_style(Style::default().fg(color).bg(theme::BG_PRIMARY))
-        .label("");
-    f.render_widget(gauge, cols[1]);
+    f.render_widget(
+        ColorBar::new((percent as f64 / 100.0).clamp(0.0, 1.0), color),
+        cols[1],
+    );
 
     f.render_widget(
         Paragraph::new(value_str.to_string()).style(Style::default().fg(theme::TEXT_PRIMARY)),
         cols[2],
     );
+}
+
+/// Simple bar widget using background colors. Avoids Gauge rendering quirks.
+struct ColorBar {
+    ratio: f64,
+    color: ratatui::style::Color,
+}
+
+impl ColorBar {
+    fn new(ratio: f64, color: ratatui::style::Color) -> Self {
+        Self { ratio: ratio.clamp(0.0, 1.0), color }
+    }
+}
+
+impl Widget for ColorBar {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        if area.is_empty() {
+            return;
+        }
+        let filled = (area.width as f64 * self.ratio).round() as u16;
+        for y in area.top()..area.bottom() {
+            for x in area.left()..area.right() {
+                let cell = &mut buf[(x, y)];
+                if x < area.left() + filled {
+                    cell.set_char(' ').set_bg(self.color);
+                } else {
+                    cell.set_char(' ').set_bg(theme::BG_SURFACE2);
+                }
+            }
+        }
+    }
 }
 
 fn truncate(s: &str, max_len: usize) -> String {
