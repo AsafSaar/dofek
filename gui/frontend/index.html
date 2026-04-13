@@ -331,7 +331,12 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
         <button class="gpu-tab" data-g="1">RTX 3060</button>
       </div>
     </div>
-    <div id="gpu-stats"></div>
+    <div id="gpu-stats">
+      <div class="srow"><span class="skey">Util</span><div class="strack"><div class="sfill util" id="g-util" style="width:0%"></div></div><span class="sval" id="g-util-v">0.0%</span></div>
+      <div class="srow" id="g-vram-row"><span class="skey">VRAM</span><div class="strack" id="g-vram-track"><div class="sfill vram" id="g-vram" style="width:0%"></div></div><span class="sval" id="g-vram-v">0 MB</span></div>
+      <div class="srow"><span class="skey">Temp</span><div class="strack"><div class="sfill temp" id="g-temp" style="width:0%"></div></div><span class="sval" id="g-temp-v">0°C</span></div>
+      <div class="srow"><span class="skey">Powr</span><div class="strack"><div class="sfill powr" id="g-powr" style="width:0%"></div></div><span class="sval" id="g-powr-v">0W</span></div>
+    </div>
     <canvas class="spark" id="sp-gpu"></canvas>
   </div>
 
@@ -796,55 +801,54 @@ function upCores(){
 }
 
 function upGPU(){
-  const div=document.getElementById('gpu-stats');
-  if(!S.gpus.length || !GPUS.length) { div.innerHTML='<span style="color:var(--muted)">No GPU data</span>'; return; }
+  if(!S.gpus.length || !GPUS.length) return;
   const g=S.gpu;
+
+  let util, vramPct, vramLabel, temp, tempMax, power, powerPct, hist;
 
   if(g==='all'){
     const n=S.gpus.length;
-    const avgUtil=S.gpus.reduce((s,g)=>s+g.util,0)/n;
+    util=S.gpus.reduce((s,g)=>s+g.util,0)/n;
     const totalVram=GPUS.reduce((s,g)=>s+g.vramMax,0)||1;
     const usedVram=S.gpus.reduce((s,g)=>s+g.vram,0);
-    const maxTemp=Math.max(...S.gpus.map(g=>g.temp));
+    vramPct=(usedVram/totalVram)*100;
+    vramLabel=fmtMB(usedVram);
+    temp=Math.max(...S.gpus.map(g=>g.temp));
+    tempMax=100;
     const totalPow=S.gpus.reduce((s,g)=>s+g.power,0);
     const maxPow=GPUS.reduce((s,g)=>s+g.powerMax,0)||1;
-
-    let vramBarHtml;
+    power=totalPow;
+    powerPct=(totalPow/maxPow)*100;
     if(n>=2){
-      const v0pct=(S.gpus[0].vram/totalVram)*100, v1pct=(S.gpus[1].vram/totalVram)*100;
-      vramBarHtml=`<div class="vram-dual"><div class="vd0" style="width:${v0pct}%"></div><div class="vd1" style="width:${v1pct}%"></div></div>`;
+      hist=S.gpus[0].hist.map((v,i)=>(v+(S.gpus[1].hist[i]||0))/2);
     } else {
-      const vpct=(usedVram/totalVram)*100;
-      vramBarHtml=`<div class="strack"><div class="sfill vram" style="width:${vpct}%"></div></div>`;
-    }
-
-    div.innerHTML=`
-      <div class="srow"><span class="skey">Util</span><div class="strack"><div class="sfill util" style="width:${avgUtil}%"></div></div><span class="sval">${avgUtil.toFixed(1)}%</span></div>
-      <div class="srow"><span class="skey">VRAM</span>${vramBarHtml}<span class="sval">${fmtMB(usedVram)}</span></div>
-      <div class="srow"><span class="skey">Temp</span><div class="strack"><div class="sfill temp" style="width:${maxTemp}%"></div></div><span class="sval">${maxTemp.toFixed(1)}°C</span></div>
-      <div class="srow"><span class="skey">Powr</span><div class="strack"><div class="sfill powr" style="width:${(totalPow/maxPow)*100}%"></div></div><span class="sval">${totalPow.toFixed(0)}W</span></div>
-    `;
-    if(n>=2){
-      const combined=S.gpus[0].hist.map((v,i)=>(v+(S.gpus[1].hist[i]||0))/2);
-      const gpuMax=Math.max(1,...combined);
-      drawArea(document.getElementById('sp-gpu'),combined,'#a78bfa',0,gpuMax);
-    } else {
-      const gpuMax=Math.max(1,...S.gpus[0].hist);
-      drawArea(document.getElementById('sp-gpu'),S.gpus[0].hist,'#a78bfa',0,gpuMax);
+      hist=S.gpus[0].hist;
     }
   } else {
     const gi=parseInt(g);
     const gd=S.gpus[gi]; if(!gd) return;
     const gdef=GPUS[gi]; if(!gdef) return;
-    div.innerHTML=`
-      <div class="srow"><span class="skey">Util</span><div class="strack"><div class="sfill util" style="width:${gd.util}%"></div></div><span class="sval">${gd.util.toFixed(1)}%</span></div>
-      <div class="srow"><span class="skey">VRAM</span><div class="strack"><div class="sfill vram" style="width:${(gd.vram/gdef.vramMax)*100}%"></div></div><span class="sval">${fmtMB(gd.vram)}</span></div>
-      <div class="srow"><span class="skey">Temp</span><div class="strack"><div class="sfill temp" style="width:${gd.temp}%"></div></div><span class="sval">${gd.temp.toFixed(1)}°C</span></div>
-      <div class="srow"><span class="skey">Powr</span><div class="strack"><div class="sfill powr" style="width:${(gd.power/gdef.powerMax)*100}%"></div></div><span class="sval">${gd.power.toFixed(1)}W</span></div>
-    `;
-    const gpuMax=Math.max(1,...S.gpus[gi].hist);
-    drawArea(document.getElementById('sp-gpu'),S.gpus[gi].hist,'#a78bfa',0,gpuMax);
+    util=gd.util;
+    vramPct=(gd.vram/gdef.vramMax)*100;
+    vramLabel=fmtMB(gd.vram);
+    temp=gd.temp;
+    tempMax=100;
+    power=gd.power;
+    powerPct=(gd.power/gdef.powerMax)*100;
+    hist=S.gpus[gi].hist;
   }
+
+  document.getElementById('g-util').style.width=util+'%';
+  document.getElementById('g-util-v').textContent=util.toFixed(1)+'%';
+  document.getElementById('g-vram').style.width=vramPct+'%';
+  document.getElementById('g-vram-v').textContent=vramLabel;
+  document.getElementById('g-temp').style.width=(temp/tempMax*100)+'%';
+  document.getElementById('g-temp-v').textContent=temp.toFixed(1)+'°C';
+  document.getElementById('g-powr').style.width=powerPct+'%';
+  document.getElementById('g-powr-v').textContent=power.toFixed(0)+'W';
+
+  const gpuMax=Math.max(1,...hist);
+  drawArea(document.getElementById('sp-gpu'),hist,'#a78bfa',0,gpuMax);
 }
 
 function upMEM(){
