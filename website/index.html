@@ -80,9 +80,8 @@ nav {
 
 /* ── HERO ─────────────────────────────────── */
 .hero {
-  min-height: 100vh;
   display: flex; align-items: center;
-  padding: 100px 48px 80px;
+  padding: 96px 48px 64px;
   gap: 60px;
   position: relative;
   overflow: hidden;
@@ -437,31 +436,37 @@ h2 .hl-watch { color: var(--watch); }
 
 /* ── ABOUT ────────────────────────────────── */
 .about-section { border-top: 1px solid var(--bdr); }
-.about-card {
-  display: flex; align-items: flex-start; gap: 40px;
-  max-width: 680px; margin: 0 auto;
-  padding: 40px; border: 1px solid var(--bdr2);
-  background: var(--surf); border-radius: 4px;
+.about-layout {
+  display: grid; grid-template-columns: 200px 1fr; gap: 56px;
+  max-width: 900px;
 }
+.about-sidebar { display: flex; flex-direction: column; gap: 20px; }
 .about-avatar {
-  width: 72px; height: 72px; border-radius: 2px;
-  background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.2);
+  width: 100%; aspect-ratio: 1; border-radius: 4px;
+  background: rgba(56,189,248,.06); border: 1px solid rgba(56,189,248,.15);
   display: flex; align-items: center; justify-content: center;
-  font-size: 24px; font-weight: 700; color: var(--cpu); flex-shrink: 0;
+  font-size: 48px; font-weight: 700; color: var(--cpu);
   letter-spacing: .04em;
 }
-.about-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-.about-title { font-size: 11px; color: var(--muted); letter-spacing: .08em; margin-bottom: 14px; }
-.about-bio { font-size: 13px; color: var(--dim); line-height: 1.8; font-weight: 300; margin-bottom: 20px; }
-.about-links { display: flex; gap: 12px; }
+.about-name { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+.about-title { font-size: 10px; color: var(--muted); letter-spacing: .1em; line-height: 1.7; }
+.about-links { display: flex; flex-direction: column; gap: 6px; }
 .about-link {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 14px; border: 1px solid var(--bdr2);
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border: 1px solid var(--bdr2);
   border-radius: 2px; font-size: 11px; color: var(--dim);
   text-decoration: none; font-weight: 500; transition: all .15s; letter-spacing: .06em;
+  width: 100%;
 }
-.about-link:hover { border-color: var(--cpu); color: var(--cpu); }
-.about-link svg { width: 14px; height: 14px; fill: currentColor; }
+.about-link:hover { border-color: var(--cpu); color: var(--cpu); background: rgba(56,189,248,.04); }
+.about-link svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+.about-body { display: flex; flex-direction: column; justify-content: center; }
+.about-bio {
+  font-size: 14px; color: var(--dim); line-height: 1.9; font-weight: 300; margin-bottom: 20px;
+}
+.about-bio:last-of-type { margin-bottom: 0; }
+.about-bio strong { color: var(--text); font-weight: 500; }
+.about-bio em { font-style: normal; color: var(--cpu); }
 
 /* ── FOOTER ───────────────────────────────── */
 footer {
@@ -479,7 +484,7 @@ footer {
 
 /* ── RESPONSIVE ───────────────────────────── */
 @media (max-width: 900px) {
-  .hero { flex-direction: column; padding: 80px 24px 60px; }
+  .hero { flex-direction: column; padding: 76px 24px 48px; }
   .hero-terminal { width: 100%; }
   .feature-split, .feature-split.rev { flex-direction: column; gap: 40px; }
   .feature-text { flex: none; }
@@ -488,7 +493,11 @@ footer {
   nav { padding: 0 24px; }
   nav .nav-links { gap: 16px; }
   section { padding: 72px 24px; }
-  .about-card { flex-direction: column; padding: 28px; }
+  .about-layout { grid-template-columns: 1fr; gap: 32px; }
+  .about-sidebar { flex-direction: row; align-items: center; gap: 20px; }
+  .about-avatar { width: 80px; aspect-ratio: 1; font-size: 28px; }
+  .about-links { flex-direction: row; }
+  .about-link { width: auto; }
   footer { padding: 32px 24px; flex-direction: column; text-align: center; }
   .footer-meta { order: 3; }
   h1 { font-size: 30px; }
@@ -844,19 +853,15 @@ footer {
 </section>
 
 <!-- ── ABOUT ────────────────────────────────────── -->
-<section id="about" class="about-section" style="padding:100px 48px;text-align:center">
-  <div class="section-tag reveal" style="justify-content:center;margin-bottom:12px">THE DEVELOPER</div>
-  <div class="about-card reveal" style="margin-top:40px">
-    <div class="about-avatar">AS</div>
-    <div>
-      <div class="about-name">Asaf Saar</div>
-      <div class="about-title">DEVELOPER · PRODUCT BUILDER · AI TOOLING</div>
-      <p class="about-bio">
-        Asaf spends most of his time at the intersection of systems, AI tooling, and developer experience. When local LLMs became serious — models loading into VRAM, inference running in the background, GPU memory becoming a first-class concern — he found himself staring at Task Manager and coming up empty. The tool for this moment simply didn't exist.
-      </p>
-      <p class="about-bio">
-        dofek is the result. Built in Rust because performance isn't optional for a monitor, designed around trading terminal principles because developers making real-time decisions deserve the same visual language as traders making real-time ones. Asaf believes the best developer tools are opinionated, visually sharp, and built by people who were frustrated enough to stop waiting for someone else to do it.
-      </p>
+<section id="about" class="about-section" style="padding:100px 48px">
+  <div class="section-tag reveal" style="margin-bottom:40px">THE DEVELOPER</div>
+  <div class="about-layout reveal">
+    <div class="about-sidebar">
+      <div class="about-avatar">AS</div>
+      <div>
+        <div class="about-name">Asaf Saar</div>
+        <div class="about-title">DEVELOPER · PRODUCT BUILDER<br>AI TOOLING</div>
+      </div>
       <div class="about-links">
         <a href="https://www.linkedin.com/in/asafsaar" target="_blank" rel="noopener" class="about-link">
           <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
@@ -867,6 +872,14 @@ footer {
           GitHub
         </a>
       </div>
+    </div>
+    <div class="about-body">
+      <p class="about-bio">
+        Asaf spends most of his time at the intersection of <strong>systems, AI tooling, and developer experience</strong>. When local LLMs became serious — models loading into VRAM, inference running in the background, GPU memory becoming a first-class concern — he found himself staring at Task Manager and coming up empty. <em>The tool for this moment simply didn't exist.</em>
+      </p>
+      <p class="about-bio">
+        dofek is the result. Built in <strong>Rust</strong> because performance isn't optional for a monitor, designed around <strong>trading terminal principles</strong> because developers making real-time decisions deserve the same visual language as traders making real-time ones. Asaf believes the best developer tools are opinionated, visually sharp, and built by people who were frustrated enough to stop waiting for someone else to do it.
+      </p>
     </div>
   </div>
 </section>
