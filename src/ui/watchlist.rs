@@ -6,6 +6,7 @@ use ratatui::Frame;
 
 use crate::app::{App, CategoryFilter};
 use crate::data::process::{AiState, ProcessCategory};
+use crate::plugin::PluginState;
 use crate::ui::theme;
 
 /// Render the process watchlist panel with category tabs and plugin dock.
@@ -22,8 +23,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         return;
     }
 
-    // Split: header (1) + category tabs (1) + process list (flex) + plugin dock (3)
-    let plugin_dock_height = 3u16;
+    // Dock height: 2 (border + empty message) if no plugins,
+    // 2 + number of plugin lines (1 per plugin) if plugins present, capped at 6.
+    let plugin_line_count = if app.data.plugin_statuses.is_empty() {
+        1u16 // "No plugins connected"
+    } else {
+        app.data.plugin_statuses.len() as u16
+    };
+    let plugin_dock_height = (1 + plugin_line_count).min(6); // 1 for border
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -37,7 +45,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     render_header(f, chunks[0], app);
     render_category_tabs(f, chunks[1], app);
     render_process_table(f, chunks[2], app);
-    render_plugin_dock(f, chunks[3]);
+    render_plugin_dock(f, chunks[3], app);
 }
 
 fn render_header(f: &mut Frame, area: Rect, app: &App) {
@@ -243,7 +251,7 @@ fn render_process_table(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(table, area);
 }
 
-fn render_plugin_dock(f: &mut Frame, area: Rect) {
+fn render_plugin_dock(f: &mut Frame, area: Rect, app: &App) {
     let block = Block::default()
         .title(Span::styled(" PLUGINS ", Style::default().fg(theme::TEXT_DIM)))
         .borders(Borders::TOP)
@@ -253,10 +261,71 @@ fn render_plugin_dock(f: &mut Frame, area: Rect) {
     let inner = block.inner(area);
     f.render_widget(block, area);
 
-    let msg = Paragraph::new(Line::from(vec![
-        Span::styled("No plugins connected", Style::default().fg(theme::TEXT_DIM)),
-    ]));
-    f.render_widget(msg, inner);
+    if app.data.plugin_statuses.is_empty() {
+        let msg = Paragraph::new(Line::from(vec![
+            Span::styled("No plugins connected", Style::default().fg(theme::TEXT_DIM)),
+        ]));
+        f.render_widget(msg, inner);
+        return;
+    }
+
+    let lines: Vec<Line> = app
+        .data
+        .plugin_statuses
+        .iter()
+        .take(inner.height as usize)
+        .map(|status| {
+            let (dot, dot_color) = match status.state {
+                PluginState::Healthy => ("●", theme::GREEN_COLOR),
+                PluginState::Starting => ("○", theme::TEXT_DIM),
+                PluginState::Unhealthy => ("●", theme::WARN_COLOR),
+                PluginState::Crashed => ("●", theme::CRIT_COLOR),
+            };
+
+            let mut spans = vec![
+                Span::styled(format!("{dot} "), Style::default().fg(dot_color)),
+                Span::styled(
+                    status.display_name.to_uppercase(),
+                    Style::default().fg(theme::TEXT_SECONDARY).add_modifier(Modifier::BOLD),
+                ),
+            ];
+
+            // Show first panel's content inline if available
+            if let Some(ref response) = status.response {
+                if let Some(panel) = response.panels.first() {
+                    for entry in panel.content.iter().take(2) {
+                        let style = match entry.style.as_str() {
+                            "accent" => Style::default().fg(theme::CPU_COLOR),
+                            "dim" => Style::default().fg(theme::TEXT_DIM),
+                            "warn" => Style::default().fg(theme::WARN_COLOR),
+                            "error" => Style::default().fg(theme::CRIT_COLOR),
+                            _ => Style::default().fg(theme::TEXT_SECONDARY),
+                        };
+                        spans.push(Span::raw("  "));
+                        spans.push(Span::styled(&entry.value, style));
+                    }
+                }
+            }
+
+            // Show state label for non-healthy states
+            match status.state {
+                PluginState::Crashed => {
+                    spans.push(Span::styled("  crashed", Style::default().fg(theme::CRIT_COLOR)));
+                }
+                PluginState::Unhealthy => {
+                    spans.push(Span::styled("  unhealthy", Style::default().fg(theme::WARN_COLOR)));
+                }
+                PluginState::Starting => {
+                    spans.push(Span::styled("  starting...", Style::default().fg(theme::TEXT_DIM)));
+                }
+                _ => {}
+            }
+
+            Line::from(spans)
+        })
+        .collect();
+
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 fn format_bytes(bytes: u64) -> String {

@@ -60,6 +60,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
     }
 
+    // Plugin metrics
+    for status in &app.data.plugin_statuses {
+        if let Some(ref response) = status.response {
+            for metric in &response.metrics {
+                pill(&mut spans, &metric.label, &format!("{:.1}{}", metric.value, metric.unit), theme::TEXT_SECONDARY);
+            }
+        }
+    }
+
     // AI badge
     let ai_procs: Vec<_> = app.data.processes.iter()
         .filter(|p| p.is_ai_workload && p.ai_state != AiState::None)

@@ -4,6 +4,7 @@ mod app;
 mod config;
 mod data;
 mod event;
+mod plugin;
 mod ui;
 
 use anyhow::Result;

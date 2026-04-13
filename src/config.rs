@@ -23,7 +23,23 @@ pub struct Config {
     pub lhm: LhmConfig,
     #[serde(default)]
     pub categories: CategoriesConfig,
+    #[serde(default, rename = "plugins")]
+    pub plugins: Vec<PluginConfig>,
 }
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct PluginConfig {
+    pub name: String,
+    pub command: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_timeout_ms")]
+    pub timeout_ms: u64,
+}
+
+fn default_timeout_ms() -> u64 { 2000 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct GeneralConfig {
@@ -138,6 +154,7 @@ impl Default for Config {
             ai: AiConfig::default(),
             lhm: LhmConfig::default(),
             categories: CategoriesConfig::default(),
+            plugins: Vec::new(),
         }
     }
 }

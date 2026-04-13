@@ -16,6 +16,9 @@ pub struct ProcessInfo {
     pub is_ai_workload: bool,
     pub ai_state: AiState,
     pub category: ProcessCategory,
+    /// Optional label from a plugin (e.g., model name for an AI process).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugin_label: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]

@@ -857,6 +857,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dofek-docker"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
 name = "dofek-gui"
 version = "0.2.0"
 dependencies = [
@@ -869,6 +878,15 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-shell",
  "tauri-plugin-window-state",
+]
+
+[[package]]
+name = "dofek-ollama"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "ureq",
 ]
 
 [[package]]

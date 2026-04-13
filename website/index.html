@@ -514,6 +514,7 @@ footer {
     <a href="#features">Features</a>
     <a href="#gui">Desktop</a>
     <a href="#plugins">Plugins</a>
+    <a href="plugins/">Plugin Docs</a>
     <a href="#install">Install</a>
     <a href="#about">About</a>
     <a href="https://github.com/AsafSaar/dofek" target="_blank" rel="noopener" class="nav-cta">
@@ -707,8 +708,8 @@ footer {
           <tbody id="pd-tbody"></tbody>
         </table>
         <div class="plugin-demo">
-          <div class="plugin-demo-head">PLUGINS <span class="pc">coming soon</span></div>
-          <div class="plugin-empty-state">Plugin dock — planned feature.<br><span class="link">→ Extend dofek via stdout JSON protocol</span></div>
+          <div class="plugin-demo-head">PLUGINS</div>
+          <div class="plugin-empty-state"><span style="color:var(--mem)">●</span> <span style="color:var(--dim)">OLLAMA</span> <span style="color:var(--cpu)">llama3:8b</span> <span style="color:var(--muted)">idle</span><br><a href="plugins/" class="link" style="color:rgba(56,189,248,.55);text-decoration:none">→ Build your own plugin</a></div>
         </div>
       </div>
     </div>
@@ -783,33 +784,28 @@ footer {
 <!-- ── PLUGINS ─────────────────────────────────── -->
 <section id="plugins" class="plugins-section">
   <div style="max-width:860px;margin:0 auto">
-    <div class="section-tag reveal">PLUGIN ECOSYSTEM <span style="color:var(--warn);border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.07);padding:1px 8px;border-radius:2px;font-size:9px;letter-spacing:.1em;margin-left:8px">COMING SOON</span></div>
+    <div class="section-tag reveal">PLUGIN ECOSYSTEM</div>
     <h2 class="reveal">The <span class="hl-ai">viral engine</span>.<br>Build what dofek doesn't ship.</h2>
     <p class="section-sub reveal" style="margin-bottom:40px">
-      The planned plugin system will let any process that writes JSON to stdout become a dofek plugin. One config line, and your plugin gets a live widget in the dock. The protocol is intentionally minimal — here's what it will look like.
+      Any process that writes JSON to stdout can be a dofek plugin. One config line, and your plugin gets a live widget in the dock, process annotations in the watchlist, and metrics in the ticker bar.
     </p>
     <div class="code-block reveal">
-<span class="cm">// dofek-ollama — example plugin output (stdout, 500ms interval)</span>
-{
-  <span class="ck">"plugin"</span>: <span class="cv">"dofek-ollama"</span>,
-  <span class="ck">"version"</span>: <span class="cv">"0.1.0"</span>,
-  <span class="ck">"label"</span>: <span class="cv">"llama3.1:8b"</span>,
-  <span class="ck">"status"</span>: <span class="cs">"inferring"</span>,
-  <span class="ck">"metrics"</span>: {
-    <span class="ck">"tokens_per_sec"</span>: <span class="cn">3.2</span>,
-    <span class="ck">"context_used_pct"</span>: <span class="cn">82</span>,
-    <span class="ck">"queue_depth"</span>: <span class="cn">1</span>
-  }
-}
+<span class="cm"># dofek.toml — one entry per plugin</span>
+<span class="ck">[[plugins]]</span>
+<span class="cs">name</span>    = <span class="cv">"ollama"</span>
+<span class="cs">command</span> = <span class="cv">"dofek-ollama"</span>
+<span class="cs">args</span>    = [<span class="cv">"--host"</span>, <span class="cv">"http://localhost:11434"</span>]
+
+<span class="cm"># That's it. dofek spawns it, polls it, restarts it on crash.</span>
     </div>
     <div class="plugin-cards reveal reveal-d1">
       <div class="plugin-card">
         <div class="plugin-card-name">dofek-ollama <span class="tag">official · v0.1</span></div>
-        <p>Token/s, context usage, active model, queue depth. Live inference metrics directly in the dock.</p>
+        <p>Loaded models, inference state, process annotations. See which model is running and what it's doing.</p>
       </div>
       <div class="plugin-card">
-        <div class="plugin-card-name">dofek-docker <span class="tag">official · coming</span></div>
-        <p>Container CPU/MEM per service, health status, restart count. Your compose stack at a glance.</p>
+        <div class="plugin-card-name">dofek-docker <span class="tag">official · v0.1</span></div>
+        <p>Running containers, image names, process annotations. Your compose stack at a glance.</p>
       </div>
       <div class="plugin-card">
         <div class="plugin-card-name">dofek-lmstudio <span class="tag">community</span></div>
@@ -817,7 +813,7 @@ footer {
       </div>
       <div class="plugin-card">
         <div class="plugin-card-name">build your own <span class="tag">any language</span></div>
-        <p>Rust, Python, Node, Go — any process that can write JSON to stdout can be a plugin. See the protocol docs on GitHub.</p>
+        <p>Python, Rust, Node, Go — <a href="plugins/" style="color:var(--cpu)">read the plugin dev guide</a> and build one in under 50 lines.</p>
       </div>
     </div>
   </div>

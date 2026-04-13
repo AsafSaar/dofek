@@ -18,3 +18,20 @@ watch_processes = ["ffmpeg", "obs"]
 
 [lhm]
 url = "http://localhost:8085"
+
+# Plugins: external processes that inject data into the dashboard.
+# Each [[plugins]] entry spawns a child process communicating via JSON-over-stdio.
+
+# [[plugins]]
+# name = "ollama"
+# command = "dofek-ollama"
+# args = ["--host", "http://localhost:11434"]
+# enabled = true
+# timeout_ms = 2000
+
+# [[plugins]]
+# name = "docker"
+# command = "dofek-docker"
+# args = ["--host", "http://localhost:2375"]
+# enabled = true
+# timeout_ms = 2000

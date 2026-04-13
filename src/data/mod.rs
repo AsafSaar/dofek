@@ -6,6 +6,8 @@ pub mod process;
 pub mod sysinfo_source;
 
 use crate::config::Config;
+use crate::plugin::{PluginManager, PluginStatus};
+use crate::plugin::protocol::ProcessContext;
 use lhm::{CpuSensors, GpuSensors, MemorySensors};
 use network::{NetworkStats, NetworkTracker};
 use process::ProcessInfo;
@@ -28,6 +30,8 @@ pub struct DataSnapshot {
     pub lhm_connected: bool,
     #[serde(skip)]
     pub timestamp: Instant,
+    #[serde(skip)]
+    pub plugin_statuses: Vec<PluginStatus>,
 }
 
 impl Default for DataSnapshot {
@@ -41,6 +45,7 @@ impl Default for DataSnapshot {
             nvml_available: false,
             lhm_connected: false,
             timestamp: Instant::now(),
+            plugin_statuses: Vec::new(),
         }
     }
 }
@@ -54,6 +59,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
         let nvml = NvmlState::init();
         let mut prev_vram: HashMap<u32, u64> = HashMap::new();
         let mut lhm_failed = false; // stop retrying LHM after first failure
+        let mut plugin_manager = PluginManager::new(&config.plugins);
 
         // sysinfo::System persists across polls for CPU% delta computation
         let mut system = System::new();
@@ -116,6 +122,46 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 }
             }
 
+            // Poll plugins with process context
+            let proc_context: Vec<ProcessContext> = processes
+                .iter()
+                .map(|p| ProcessContext {
+                    pid: p.pid,
+                    name: p.name.clone(),
+                    vram_bytes: p.vram_bytes,
+                })
+                .collect();
+            let plugin_statuses = plugin_manager.poll_all(&proc_context);
+
+            // Apply plugin process annotations
+            for status in &plugin_statuses {
+                if let Some(ref response) = status.response {
+                    for ann in &response.process_annotations {
+                        if let Some(proc) = processes.iter_mut().find(|p| p.pid == ann.pid) {
+                            if let Some(ref label) = ann.label {
+                                proc.plugin_label = Some(label.clone());
+                            }
+                            if let Some(ref cat) = ann.category {
+                                match cat.as_str() {
+                                    "ai" => proc.category = process::ProcessCategory::Ai,
+                                    "dev" => proc.category = process::ProcessCategory::Dev,
+                                    "watch" => proc.category = process::ProcessCategory::Watch,
+                                    _ => {}
+                                }
+                            }
+                            if let Some(ref state) = ann.ai_state {
+                                match state.as_str() {
+                                    "idle" => proc.ai_state = process::AiState::Idle,
+                                    "loading" => proc.ai_state = process::AiState::Loading,
+                                    "inferring" => proc.ai_state = process::AiState::Inferring,
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             let snapshot = DataSnapshot {
                 cpu,
                 memory,
@@ -125,6 +171,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 nvml_available: nvml.is_available(),
                 lhm_connected: true, // sysinfo always provides data
                 timestamp: Instant::now(),
+                plugin_statuses,
             };
 
             if tx.send(snapshot).is_err() {

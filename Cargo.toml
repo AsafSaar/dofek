@@ -1,5 +1,5 @@
 [workspace]
-members = ["gui"]
+members = ["gui", "plugins/dofek-ollama", "plugins/dofek-docker"]
 
 [package]
 name = "dofek"

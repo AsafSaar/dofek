@@ -84,6 +84,7 @@ pub fn enumerate_processes(
                 is_ai_workload: false,
                 ai_state: AiState::None,
                 category: crate::data::process::ProcessCategory::None,
+                plugin_label: None,
             })
         })
         .collect()

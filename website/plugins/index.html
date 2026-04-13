@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dofek — Plugin Development</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <a href="../index.html" class="nav-logo">dofek</a>
+  <div class="nav-links">
+    <a href="../index.html">Home</a>
+    <a href="./" class="active">Plugins</a>
+    <a href="https://github.com/AsafSaar/dofek" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">DEVELOPER DOCS</div>
+    <h1>Build plugins for <span class="hl">dofek</span></h1>
+    <p class="hero-sub">Extend the dashboard with custom data sources. Plugins are standalone executables that communicate via JSON-over-stdio — write one in any language, in under 50 lines.</p>
+  </div>
+</div>
+
+<!-- How It Works -->
+<section>
+  <div class="section-tag">ARCHITECTURE</div>
+  <h2>How plugins <span class="hl-gpu">work</span></h2>
+  <p class="section-sub">dofek spawns your plugin as a child process. Every refresh cycle, it writes a poll request to stdin and reads your JSON response from stdout. That's the entire contract.</p>
+
+  <div class="diagram reveal"><span class="hl-cpu">dofek</span> (parent)                    <span class="hl-gpu">plugin</span> (child process)
+  │                                  │
+  │── spawns process ───────────────>│
+  │                                  │
+  │   [every refresh cycle]          │
+  │── <span class="hl-cpu">{"type":"poll",...}\n</span> ────────>│
+  │<── <span class="hl-gpu">{"type":"poll_response"}\n</span> ──│
+  │                                  │
+  │   [on exit]                      │
+  │── <span class="hl-mem">{"type":"shutdown"}\n</span> ───────>│
+  │── kills after 2s ──────────────>│</div>
+
+  <div class="proto-grid reveal reveal-d1">
+    <div class="proto-card">
+      <span class="proto-icon" style="color:var(--cpu)">⟶</span>
+      <h3>Pull Model</h3>
+      <p>dofek owns the tick rate. No backpressure, no buffering, no message floods. Your plugin just responds when asked.</p>
+    </div>
+    <div class="proto-card">
+      <span class="proto-icon" style="color:var(--gpu)">◇</span>
+      <h3>Stdio Pipes</h3>
+      <p>No ports, no sockets, no service discovery. stdin/stdout pipes are inherited at spawn. Use stderr for your debug logs.</p>
+    </div>
+    <div class="proto-card">
+      <span class="proto-icon" style="color:var(--mem)">↻</span>
+      <h3>Auto Recovery</h3>
+      <p>If your plugin crashes, dofek restarts it with exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s cap.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Protocol Reference -->
+<section class="section-alt">
+  <div class="section-tag">PROTOCOL</div>
+  <h2>Request &amp; <span class="hl-cpu">response</span></h2>
+  <p class="section-sub">Newline-delimited JSON. One object per line, terminated by <code>\n</code>. Your plugin receives poll requests on stdin and writes responses to stdout.</p>
+
+  <div class="two-col reveal">
+    <div>
+      <h3>Poll Request <span style="color:var(--muted);font-weight:400;font-size:12px">dofek → plugin</span></h3>
+      <div class="code-block"><span class="code-label">JSON</span>{
+  <span class="cs">"type"</span>: <span class="cv">"poll"</span>,
+  <span class="cs">"timestamp_ms"</span>: <span class="cn">1713020400000</span>,
+  <span class="cs">"processes"</span>: [
+    {
+      <span class="cs">"pid"</span>: <span class="cn">1234</span>,
+      <span class="cs">"name"</span>: <span class="cv">"ollama_llama_server.exe"</span>,
+      <span class="cs">"vram_bytes"</span>: <span class="cn">4294967296</span>
+    }
+  ]
+}</div>
+      <table class="spec-table">
+        <tr><th>FIELD</th><th>TYPE</th><th>DESCRIPTION</th></tr>
+        <tr><td>type</td><td><code>"poll"</code></td><td>Always "poll"</td></tr>
+        <tr><td>timestamp_ms</td><td><code>u64</code></td><td>Unix timestamp in milliseconds</td></tr>
+        <tr><td>processes</td><td><code>array</code></td><td>Current system processes — ignore if not needed</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Poll Response <span style="color:var(--muted);font-weight:400;font-size:12px">plugin → dofek</span></h3>
+      <div class="code-block"><span class="code-label">JSON</span>{
+  <span class="cs">"status"</span>: <span class="cv">"ok"</span>,
+  <span class="cs">"panels"</span>: [<span class="cm">...</span>],
+  <span class="cs">"process_annotations"</span>: [<span class="cm">...</span>],
+  <span class="cs">"metrics"</span>: [<span class="cm">...</span>]
+}</div>
+      <p style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.7">All three arrays are <strong style="color:var(--text)">optional</strong> — include only what your plugin provides. On the first response, include a <code>manifest</code> field to identify your plugin.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Response Types -->
+<section>
+  <div class="section-tag">RESPONSE FIELDS</div>
+  <h2>Three ways to inject <span class="hl-mem">data</span></h2>
+  <p class="section-sub">Each response can include panels (dock UI), process annotations (watchlist labels), and metrics (ticker pills). Mix and match as needed.</p>
+
+  <!-- Panels -->
+  <div class="reveal" style="margin-bottom:48px">
+    <h3 style="margin-bottom:16px"><code style="background:none;padding:0;color:var(--gpu)">panels</code> — Plugin Dock UI</h3>
+    <div class="two-col">
+      <div>
+        <div class="code-block"><span class="code-label">JSON</span><span class="cs">"panels"</span>: [{
+  <span class="cs">"id"</span>: <span class="cv">"ollama-status"</span>,
+  <span class="cs">"label"</span>: <span class="cv">"OLLAMA"</span>,
+  <span class="cs">"content"</span>: [
+    { <span class="cs">"key"</span>: <span class="cv">"Model"</span>, <span class="cs">"value"</span>: <span class="cv">"llama3:8b"</span>, <span class="cs">"style"</span>: <span class="cv">"accent"</span> },
+    { <span class="cs">"key"</span>: <span class="cv">"Status"</span>, <span class="cs">"value"</span>: <span class="cv">"idle"</span>, <span class="cs">"style"</span>: <span class="cv">"dim"</span> }
+  ]
+}]</div>
+      </div>
+      <div>
+        <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:16px">Panel content is rendered in the plugin dock at the bottom of the watchlist. The first panel's values appear inline next to the plugin name.</p>
+        <h3 style="margin-bottom:8px">Style values</h3>
+        <div class="style-grid">
+          <div class="style-swatch"><div class="style-dot" style="background:#94a3b8"></div> normal</div>
+          <div class="style-swatch"><div class="style-dot" style="background:#38bdf8"></div> accent</div>
+          <div class="style-swatch"><div class="style-dot" style="background:#3d5070"></div> dim</div>
+          <div class="style-swatch"><div class="style-dot" style="background:#fbbf24"></div> warn</div>
+          <div class="style-swatch"><div class="style-dot" style="background:#f87171"></div> error</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Process Annotations -->
+  <div class="reveal" style="margin-bottom:48px">
+    <h3 style="margin-bottom:16px"><code style="background:none;padding:0;color:var(--ai)">process_annotations</code> — Enrich Process Rows</h3>
+    <div class="two-col">
+      <div>
+        <div class="code-block"><span class="code-label">JSON</span><span class="cs">"process_annotations"</span>: [{
+  <span class="cs">"pid"</span>: <span class="cn">1234</span>,
+  <span class="cs">"label"</span>: <span class="cv">"llama3:8b"</span>,
+  <span class="cs">"category"</span>: <span class="cv">"ai"</span>,
+  <span class="cs">"ai_state"</span>: <span class="cv">"inferring"</span>
+}]</div>
+      </div>
+      <div>
+        <table class="spec-table">
+          <tr><th>FIELD</th><th>REQUIRED</th><th>VALUES</th></tr>
+          <tr><td>pid</td><td>yes</td><td>Must match a running process</td></tr>
+          <tr><td>label</td><td>no</td><td>Any string — shown on the process row</td></tr>
+          <tr><td>category</td><td>no</td><td><code>"ai"</code> <code>"dev"</code> <code>"watch"</code></td></tr>
+          <tr><td>ai_state</td><td>no</td><td><code>"idle"</code> <code>"loading"</code> <code>"inferring"</code></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="reveal">
+    <h3 style="margin-bottom:16px"><code style="background:none;padding:0;color:var(--cpu)">metrics</code> — Ticker Bar Pills</h3>
+    <div class="two-col">
+      <div>
+        <div class="code-block"><span class="code-label">JSON</span><span class="cs">"metrics"</span>: [{
+  <span class="cs">"id"</span>: <span class="cv">"ollama.requests_per_min"</span>,
+  <span class="cs">"label"</span>: <span class="cv">"Req/min"</span>,
+  <span class="cs">"value"</span>: <span class="cn">12.5</span>,
+  <span class="cs">"unit"</span>: <span class="cv">"req/m"</span>
+}]</div>
+      </div>
+      <div>
+        <table class="spec-table">
+          <tr><th>FIELD</th><th>TYPE</th><th>DESCRIPTION</th></tr>
+          <tr><td>id</td><td><code>string</code></td><td>Unique, namespaced (e.g., <code>"ollama.running"</code>)</td></tr>
+          <tr><td>label</td><td><code>string</code></td><td>Short label for the ticker pill</td></tr>
+          <tr><td>value</td><td><code>f64</code></td><td>Numeric value</td></tr>
+          <tr><td>unit</td><td><code>string</code></td><td>Suffix (empty string for no unit)</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Plugin States -->
+<section class="section-alt">
+  <div class="section-tag">LIFECYCLE</div>
+  <h2>Plugin <span class="hl-gpu">states</span></h2>
+  <p class="section-sub">dofek tracks each plugin's health and displays a colored indicator in the dock.</p>
+
+  <div class="state-grid reveal">
+    <div class="state-card">
+      <span class="state-dot" style="color:#3d5070">○</span>
+      <div>
+        <div style="font-weight:600;font-size:12px">Starting</div>
+        <div style="font-size:11px;color:var(--dim)">Just spawned, no successful poll yet</div>
+      </div>
+    </div>
+    <div class="state-card">
+      <span class="state-dot" style="color:#4ade80">●</span>
+      <div>
+        <div style="font-weight:600;font-size:12px">Healthy</div>
+        <div style="font-size:11px;color:var(--dim)">Last poll succeeded</div>
+      </div>
+    </div>
+    <div class="state-card">
+      <span class="state-dot" style="color:#fbbf24">●</span>
+      <div>
+        <div style="font-weight:600;font-size:12px">Unhealthy</div>
+        <div style="font-size:11px;color:var(--dim)">5+ consecutive errors or timeouts</div>
+      </div>
+    </div>
+    <div class="state-card">
+      <span class="state-dot" style="color:#f87171">●</span>
+      <div>
+        <div style="font-weight:600;font-size:12px">Crashed</div>
+        <div style="font-size:11px;color:var(--dim)">Process exited — respawns with backoff</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reveal reveal-d1" style="margin-top:32px">
+    <h3>Configuration</h3>
+    <div class="code-block" style="margin-top:12px"><span class="code-label">TOML</span><span class="cm"># dofek.toml</span>
+
+<span class="ck">[[plugins]]</span>
+<span class="cs">name</span> = <span class="cv">"my-plugin"</span>            <span class="cm"># Display name (overridden by manifest)</span>
+<span class="cs">command</span> = <span class="cv">"dofek-my-plugin"</span>   <span class="cm"># Binary name (PATH) or absolute path</span>
+<span class="cs">args</span> = [<span class="cv">"--flag"</span>, <span class="cv">"value"</span>]    <span class="cm"># Optional arguments</span>
+<span class="cs">enabled</span> = <span class="cn">true</span>                <span class="cm"># Default: true</span>
+<span class="cs">timeout_ms</span> = <span class="cn">2000</span>             <span class="cm"># Per-poll timeout (default: 2000)</span></div>
+  </div>
+</section>
+
+<!-- Playground -->
+<section>
+  <div class="section-tag">INTERACTIVE</div>
+  <h2>Protocol <span class="hl-cpu">playground</span></h2>
+  <p class="section-sub">Edit a plugin response and see how it renders in the dofek dock. Validates your JSON in real-time.</p>
+
+  <div class="playground-wrap reveal">
+    <div class="playground-bar">
+      <div class="playground-bar-left">
+        <div class="dots"><span class="td1"></span><span class="td2"></span><span class="td3"></span></div>
+        <span class="playground-title">PLUGIN RESPONSE EDITOR</span>
+      </div>
+      <div class="playground-actions">
+        <button class="btn-sm active" data-example="ollama">Ollama</button>
+        <button class="btn-sm" data-example="docker">Docker</button>
+        <button class="btn-sm" data-example="minimal">Minimal</button>
+      </div>
+    </div>
+    <div class="playground-body">
+      <div class="playground-editor">
+        <textarea id="pg-editor" spellcheck="false" placeholder="Paste your plugin response JSON here..."></textarea>
+      </div>
+      <div class="playground-preview">
+        <div>
+          <div class="preview-label">DOCK PREVIEW</div>
+          <div class="preview-dock" style="margin-top:8px">
+            <div class="preview-dock-title">PLUGINS</div>
+            <div class="preview-dock-body" id="preview-dock-body"></div>
+          </div>
+        </div>
+        <div>
+          <div class="preview-label">TICKER PREVIEW</div>
+          <div class="preview-ticker" id="preview-ticker" style="margin-top:8px"></div>
+        </div>
+        <div class="preview-error" id="pg-error"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Scaffolder -->
+<section class="section-alt">
+  <div class="section-tag">GENERATOR</div>
+  <h2>Plugin <span class="hl-mem">scaffolder</span></h2>
+  <p class="section-sub">Generate a starter template for your plugin. Fill in the details, pick a language, and copy the code.</p>
+
+  <div class="reveal">
+    <div class="scaffolder-form">
+      <div class="scaffolder-field">
+        <label>PLUGIN NAME</label>
+        <input type="text" id="scaffold-name" placeholder="dofek-my-plugin" value="dofek-my-plugin">
+      </div>
+      <div class="scaffolder-field">
+        <label>DESCRIPTION</label>
+        <input type="text" id="scaffold-desc" placeholder="What does it do?" value="A custom dofek plugin">
+      </div>
+      <div class="scaffolder-field">
+        <label>LANGUAGE</label>
+        <select id="scaffold-lang">
+          <option value="python">Python</option>
+          <option value="rust">Rust</option>
+          <option value="node">Node.js</option>
+        </select>
+      </div>
+      <button class="btn-generate" id="scaffolder-generate">GENERATE</button>
+    </div>
+
+    <div class="scaffolder-output">
+      <button class="btn-copy" id="scaffolder-copy">COPY</button>
+      <pre class="code-block" id="scaffold-output" style="min-height:200px;color:var(--dim)">← Click GENERATE to create a plugin template</pre>
+    </div>
+  </div>
+</section>
+
+<!-- Tips -->
+<section>
+  <div class="section-tag">BEST PRACTICES</div>
+  <h2>Tips for plugin <span class="hl-gpu">authors</span></h2>
+
+  <div class="two-col reveal">
+    <div>
+      <ul class="feature-bullets">
+        <li><strong style="color:var(--text)">Always flush stdout</strong> after writing a response — buffered output causes timeouts</li>
+        <li><strong style="color:var(--text)">Use stderr for logging</strong> — dofek captures it, stdout is reserved for the protocol</li>
+        <li><strong style="color:var(--text)">Respond quickly</strong> — you have <code>timeout_ms</code> (default 2s) to respond to each poll</li>
+        <li><strong style="color:var(--text)">Namespace metric IDs</strong> — use <code>plugin_name.metric_name</code> to avoid collisions</li>
+        <li><strong style="color:var(--text)">Ignore unknown fields</strong> — dofek may add new fields to poll requests in the future</li>
+      </ul>
+    </div>
+    <div>
+      <ul class="feature-bullets">
+        <li><strong style="color:var(--text)">Handle malformed input</strong> — skip lines you can't parse, don't crash</li>
+        <li><strong style="color:var(--text)">Include a manifest</strong> in your first response so dofek can identify your plugin</li>
+        <li><strong style="color:var(--text)">Test standalone</strong> before connecting to dofek:</li>
+      </ul>
+      <div class="code-block" style="margin-top:12px;font-size:11px"><span class="cm"># Quick test — pipe a poll request to your plugin</span>
+<span class="ck">echo</span> <span class="cv">'{"type":"poll","timestamp_ms":0,"processes":[]}'</span> | python my_plugin.py</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div>
+    <span class="footer-logo">dofek</span>
+    <span style="font-size:11px;color:var(--muted);margin-left:12px">Plugin System v0.3</span>
+  </div>
+  <div class="footer-links">
+    <a href="../index.html">Home</a>
+    <a href="https://github.com/AsafSaar/dofek" target="_blank">GitHub</a>
+    <a href="https://github.com/AsafSaar/dofek/tree/main/plugins" target="_blank">Example Plugins</a>
+  </div>
+</footer>
+
+<script src="playground.js"></script>
+</body>
+</html>

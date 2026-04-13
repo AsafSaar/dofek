@@ -162,9 +162,49 @@ watch_pids = []                       # Specific PIDs to pin as WATCH
 
 [lhm]
 url = "http://localhost:8085"  # LibreHardwareMonitor web server (optional fallback)
+
+# Plugins (optional — each entry spawns a child process)
+[[plugins]]
+name = "ollama"
+command = "dofek-ollama"              # resolved via PATH or absolute path
+args = ["--host", "http://localhost:11434"]
+enabled = true                        # default: true
+timeout_ms = 2000                     # per-poll timeout in ms (default: 2000)
 ```
 
 All sections are optional — missing sections use sensible defaults. You only need to include settings you want to override.
+
+## Plugins
+
+Plugins are external processes that inject data into the dofek dashboard. dofek spawns each plugin as a child process and communicates via newline-delimited JSON over stdio (stdin/stdout).
+
+### Available plugins
+
+| Plugin | Description | Requires |
+|--------|-------------|----------|
+| `dofek-ollama` | Shows loaded models, inference state, annotates Ollama processes | [Ollama](https://ollama.com/) running locally |
+| `dofek-docker` | Lists running containers, annotates Docker processes | Docker Desktop with TCP API enabled |
+
+### How it works
+
+1. dofek spawns the plugin process on startup
+2. Every refresh cycle, dofek sends a poll request (with process list) to the plugin's stdin
+3. The plugin responds with panels (dock UI), process annotations (watchlist labels), and metrics (ticker pills)
+4. If the plugin crashes, dofek restarts it with exponential backoff (1s → 30s)
+5. On shutdown, dofek sends a shutdown message and waits 2s before killing
+
+### Plugin status indicators
+
+In the plugin dock: `●` green = healthy, `●` yellow = unhealthy (5+ consecutive errors), `●` red = crashed, `○` gray = starting.
+
+### Building plugins
+
+```bash
+cargo build --release -p dofek-ollama   # Build Ollama plugin
+cargo build --release -p dofek-docker   # Build Docker plugin
+```
+
+Place the built binaries somewhere on your PATH, or use an absolute path in the `command` field.
 
 ## Process Categories
 
@@ -203,12 +243,17 @@ A process is classified as an AI workload if:
     │     ├── NVML ──────────── GPU metrics + per-process VRAM (NVIDIA, multi-GPU)
     │     ├── LHM HTTP ─────── GPU fallback (optional, non-NVIDIA)
     │     ├── Windows API ───── network stats (GetIfTable2)
+    │     ├── Plugin system ─── JSON-over-stdio child process plugins
     │     └── Ratatui TUI ───── rendering (trading-terminal layout)
     │
-    └── dofek-gui ─── Tauri Desktop App (WebView2)
-          ├── Same Rust backend ── reuses data collection from core
-          ├── Tauri IPC ────────── get_snapshot / get_gpu_info commands
-          └── Vanilla HTML/CSS/JS ── canvas charts, CSS bars, drag-resize
+    ├── dofek-gui ─── Tauri Desktop App (WebView2)
+    │     ├── Same Rust backend ── reuses data collection + plugins from core
+    │     ├── Tauri IPC ────────── get_snapshot / get_gpu_info commands
+    │     └── Vanilla HTML/CSS/JS ── canvas charts, CSS bars, drag-resize
+    │
+    └── plugins/
+          ├── dofek-ollama ─── Ollama model status + inference tracking
+          └── dofek-docker ─── Docker container monitoring
 ```
 
 ### Threading Model (sync, no tokio)
@@ -216,7 +261,7 @@ A process is classified as an AI workload if:
 | Thread | Role | Rate |
 |--------|------|------|
 | Main | Render loop + event handling via `mpsc::channel` | ~60fps (16ms) |
-| Data collector | Refreshes sysinfo, queries NVML/LHM, classifies AI workloads | Configurable (default 500ms) |
+| Data collector | Refreshes sysinfo, queries NVML/LHM, polls plugins, classifies AI workloads | Configurable (default 500ms) |
 | Event reader | Reads crossterm keyboard/resize events | ~60fps (16ms) |
 
 ### Module Structure
@@ -237,6 +282,11 @@ src/
     network.rs         GetIfTable2 for per-interface rx/tx bytes
     process.rs         ProcessInfo, AiState, ProcessCategory definitions
     ai_detect.rs       AI workload + category classification
+
+  plugin/
+    mod.rs             PluginManager: spawn, poll, restart, shutdown
+    protocol.rs        Serde structs for JSON request/response protocol
+    process.rs         Child process wrapper: stdio pipes, timeout, Job Object
 
   ui/
     mod.rs             Master layout: ticker + chart/watchlist + bottom strip + status
@@ -262,6 +312,10 @@ gui/
   frontend/
     index.html         Single-file frontend: HTML + CSS + Canvas charts + JS
   tauri.conf.json      Tauri app configuration
+
+plugins/
+  dofek-ollama/        Ollama plugin: model status, inference tracking
+  dofek-docker/        Docker plugin: container monitoring
 ```
 
 ### Key Data Flow
@@ -311,8 +365,8 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 
 ## Roadmap
 
-- **v0.2** (current) — Trading-terminal layout, candlestick charts, multi-GPU, process categories, Tauri GUI, resizable panes
-- **v0.3** — Plugin system (stdout JSON protocol), `dofek-ollama` and `dofek-docker` plugins
+- **v0.2** — Trading-terminal layout, candlestick charts, multi-GPU, process categories, Tauri GUI, resizable panes
+- **v0.3** (current) — Plugin system (JSON-over-stdio protocol), `dofek-ollama` and `dofek-docker` plugins
 - **v0.4** — User themes and configurable panel layout
 - **v1.0** — GUI tray companion with live sparkline in taskbar
 
