@@ -117,6 +117,9 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 .wl-table{width:100%;border-collapse:collapse;table-layout:fixed;}
 .wl-table thead th{padding:4px 5px;text-align:right;font-size:9px;font-weight:500;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--surf);z-index:1;overflow:hidden;}
 .wl-table thead th:first-child{text-align:left;padding-left:10px;}
+.th-sort{cursor:pointer;user-select:none;transition:color .15s;}
+.th-sort:hover{color:var(--dim);}
+.th-sort.active{color:var(--cpu);}
 .wl-table tbody td{padding:4px 5px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(24,32,53,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .wl-table tbody td:first-child{text-align:left;padding-left:0;}
 
@@ -292,8 +295,8 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
         </colgroup>
         <thead>
           <tr>
-            <th>NAME</th>
-            <th>PID</th><th>CPU%</th><th>MEM</th><th>VRAM</th><th>STATUS</th>
+            <th class="th-sort" data-sort="name">NAME</th>
+            <th class="th-sort" data-sort="pid">PID</th><th class="th-sort" data-sort="cpu">CPU%</th><th class="th-sort" data-sort="mem">MEM</th><th class="th-sort" data-sort="vram">VRAM</th><th>STATUS</th>
           </tr>
         </thead>
         <tbody id="proctbody"></tbody>
@@ -406,7 +409,7 @@ const S = {
   metric: 'cpu',
   gpu: 'all',
   cat: 'all',
-  sortBy: 'cpu',
+  sortBy: 'cpu', sortAsc: false,
   cpu: { hist:[], cores:[] },
   gpus: [],
   mem: { hist:[], usedGB:0, totalGB:1, swapPct:0 },
@@ -877,7 +880,17 @@ function upProcs(){
   const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
   const sorted=[...PROCS]
     .filter(p=> activeCat==='all' || p.cat===activeCat)
-    .sort((a,b)=>S.sortBy==='cpu'?b.cpu-a.cpu:S.sortBy==='vram'?(b.vram||0)-(a.vram||0):b.mem-a.mem);
+    .sort((a,b)=>{
+      let cmp=0;
+      switch(S.sortBy){
+        case 'name': cmp=a.name.toLowerCase().localeCompare(b.name.toLowerCase()); break;
+        case 'pid': cmp=a.pid-b.pid; break;
+        case 'cpu': cmp=a.cpu-b.cpu; break;
+        case 'vram': cmp=(a.vram||0)-(b.vram||0); break;
+        default: cmp=a.mem-b.mem;
+      }
+      return S.sortAsc ? cmp : -cmp;
+    });
 
   const tb=document.getElementById('proctbody'); tb.innerHTML='';
   sorted.forEach(p=>{
@@ -910,13 +923,28 @@ document.querySelectorAll('.tab').forEach(btn=>{
   });
 });
 
+/* Sort — shared helper */
+function setSort(col){
+  if(S.sortBy===col) S.sortAsc=!S.sortAsc;
+  else { S.sortBy=col; S.sortAsc=(col==='name'||col==='pid'); }
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.toggle('on',b.dataset.sort===S.sortBy));
+  document.querySelectorAll('.th-sort').forEach(th=>{
+    th.classList.toggle('active',th.dataset.sort===S.sortBy);
+    th.textContent=th.dataset.sort===S.sortBy
+      ? th.dataset.sort.toUpperCase()+(th.dataset.sort==='cpu'?'%':'')+(S.sortAsc?' ▲':' ▼')
+      : ({name:'NAME',pid:'PID',cpu:'CPU%',mem:'MEM',vram:'VRAM'}[th.dataset.sort]);
+  });
+  upProcs();
+}
+
 /* Sort buttons */
 document.querySelectorAll('.sort-btn').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    S.sortBy=btn.dataset.sort;
-    document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('on'));
-    btn.classList.add('on'); upProcs();
-  });
+  btn.addEventListener('click',()=>setSort(btn.dataset.sort));
+});
+
+/* Clickable column headers */
+document.querySelectorAll('.th-sort').forEach(th=>{
+  th.addEventListener('click',()=>setSort(th.dataset.sort));
 });
 
 /* Category filter tabs */
@@ -966,13 +994,9 @@ document.addEventListener('keydown', e => {
   // Sort cycling: tab
   if (k === 'tab') {
     e.preventDefault();
-    const order = ['cpu','mem','vram'];
+    const order = ['name','pid','cpu','mem','vram'];
     const idx = order.indexOf(S.sortBy);
-    S.sortBy = order[(idx + 1) % order.length];
-    document.querySelectorAll('.sort-btn').forEach(b => {
-      b.classList.toggle('on', b.dataset.sort === S.sortBy);
-    });
-    upProcs();
+    setSort(order[(idx + 1) % order.length]);
     return;
   }
 
