@@ -3,16 +3,18 @@ pub mod gpu;
 pub mod lhm;
 pub mod network;
 pub mod process;
+pub mod sysinfo_source;
 
 use crate::config::Config;
 use lhm::{CpuSensors, GpuSensors, MemorySensors};
 use network::{NetworkStats, NetworkTracker};
-use process::{ProcessCpuTracker, ProcessInfo};
+use process::ProcessInfo;
 use gpu::NvmlState;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
+use sysinfo::System;
 
 /// Complete snapshot of all system data at a point in time.
 #[derive(Debug, Clone)]
@@ -48,30 +50,53 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
 
     thread::spawn(move || {
         let mut net_tracker = NetworkTracker::default();
-        let mut cpu_tracker = ProcessCpuTracker::default();
         let nvml = NvmlState::init();
         let mut prev_vram: HashMap<u32, u64> = HashMap::new();
+        let mut lhm_failed = false; // stop retrying LHM after first failure
+
+        // sysinfo::System persists across polls for CPU% delta computation
+        let mut system = System::new();
 
         loop {
-            let lhm_data = lhm::fetch_lhm_data(&config.lhm.url);
+            // Refresh sysinfo data
+            system.refresh_cpu_all();
+            system.refresh_memory();
+            system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
-            let (cpu, memory, gpu_sensors, lhm_connected) = match &lhm_data {
-                Ok(root) => {
-                    let cpu = lhm::extract_cpu(root).unwrap_or_default();
-                    let mem = lhm::extract_memory(root).unwrap_or_default();
-                    let gpu = lhm::extract_gpu(root);
-                    (cpu, mem, gpu, true)
+            // CPU and memory from sysinfo (always available)
+            let cpu = sysinfo_source::extract_cpu(&system);
+            let memory = sysinfo_source::extract_memory(&system);
+
+            // GPU: try NVML first, fall back to LHM (only if NVML unavailable)
+            let nvml_snap = nvml.query();
+            let gpu_sensors = if let Some(ref dev) = nvml_snap.device {
+                Some(GpuSensors {
+                    name: dev.name.clone(),
+                    utilization: dev.utilization,
+                    vram_used_mb: dev.vram_used_mb,
+                    vram_total_mb: dev.vram_total_mb,
+                    temperature: dev.temperature,
+                    power_watts: dev.power_watts,
+                })
+            } else if !lhm_failed {
+                // Fallback: try LHM for GPU data (e.g. AMD GPUs)
+                match lhm::fetch_lhm_data(&config.lhm.url) {
+                    Ok(root) => lhm::extract_gpu(&root),
+                    Err(_) => {
+                        lhm_failed = true;
+                        log::info!("LHM not available, GPU panel disabled");
+                        None
+                    }
                 }
-                Err(e) => {
-                    log::debug!("LHM fetch failed: {e}");
-                    (CpuSensors::default(), MemorySensors::default(), None, false)
-                }
+            } else {
+                None
             };
 
-            let nvml_snap = nvml.query_per_process_vram();
             let network = network::query_network_stats(&mut net_tracker);
-            let mut processes = process::enumerate_processes(
-                &mut cpu_tracker,
+
+            // Processes from sysinfo (includes CPU%)
+            let mut processes = sysinfo_source::enumerate_processes(
+                &system,
                 &nvml_snap.per_process_vram,
             );
 
@@ -97,7 +122,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 network,
                 processes,
                 nvml_available: nvml.is_available(),
-                lhm_connected,
+                lhm_connected: true, // sysinfo always provides data
                 timestamp: Instant::now(),
             };
 

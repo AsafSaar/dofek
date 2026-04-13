@@ -35,10 +35,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     }
 
     let Some(gpu) = gpu else {
-        let msg = if app.data.lhm_connected {
-            "No GPU found in LHM data"
+        let msg = if app.data.nvml_available {
+            "No GPU data available"
         } else {
-            "LHM not connected"
+            "No NVIDIA GPU detected"
         };
         f.render_widget(
             Paragraph::new(msg).style(Style::default().fg(theme::TEXT_DIM)),

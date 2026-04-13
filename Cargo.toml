@@ -23,6 +23,9 @@ nvml-wrapper = "0.10"
 # CLI
 clap = { version = "4", features = ["derive"] }
 
+# System info (CPU, memory, processes — no elevation needed)
+sysinfo = "0.33"
+
 # Error handling
 anyhow = "1"
 

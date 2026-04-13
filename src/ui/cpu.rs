@@ -53,11 +53,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 fn render_core_bars(f: &mut Frame, area: Rect, app: &App) {
     let cores = &app.data.cpu.per_core_load;
     if cores.is_empty() {
-        let msg = if app.data.lhm_connected {
-            "Waiting for data..."
-        } else {
-            "LHM not connected"
-        };
+        let msg = "Waiting for data...";
         f.render_widget(
             Paragraph::new(msg).style(Style::default().fg(theme::TEXT_DIM)),
             area,
