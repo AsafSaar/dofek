@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="dofek — terminal-native, AI-aware system monitor for Windows. VRAM per process, candlestick CPU charts, AI workload detection.">
+<meta property="og:title" content="dofek — system monitor for the AI era">
+<meta property="og:description" content="Terminal-native, AI-aware system monitor for Windows. VRAM per process, candlestick CPU charts, AI workload detection.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="tui-screenshot.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="dofek — system monitor for the AI era">
+<meta name="twitter:description" content="Terminal-native, AI-aware system monitor for Windows. VRAM per process, candlestick CPU charts, AI workload detection.">
+<meta name="twitter:image" content="tui-screenshot.png">
+<title>dofek — system monitor for the AI era</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #060810;
+  --surf:   #0b1120;
+  --surf2:  #0f1929;
+  --bdr:    #182035;
+  --bdr2:   #1f2d48;
+  --cpu:    #38bdf8;
+  --gpu:    #a78bfa;
+  --mem:    #34d399;
+  --net-up: #fb923c;
+  --ai:     #c084fc;
+  --dev:    #60a5fa;
+  --watch:  #fbbf24;
+  --warn:   #fbbf24;
+  --crit:   #f87171;
+  --text:   #e2e8f0;
+  --dim:    #94a3b8;
+  --muted:  #3d5070;
+  --font:   'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── NAV ─────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px; height: 56px;
+  background: rgba(6,8,16,0.85);
+  border-bottom: 1px solid var(--bdr);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.nav-logo {
+  font-size: 16px; font-weight: 700; color: var(--cpu); letter-spacing: .08em;
+  text-decoration: none;
+}
+.nav-logo em { font-style: normal; font-weight: 300; color: var(--muted); font-size: 12px; margin-left: 6px; }
+.nav-links { display: flex; align-items: center; gap: 32px; }
+.nav-links a {
+  color: var(--dim); text-decoration: none; font-size: 12px;
+  letter-spacing: .08em; font-weight: 500; transition: color .15s;
+}
+.nav-links a:hover { color: var(--text); }
+.nav-cta {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 16px; border: 1px solid rgba(56,189,248,.35);
+  border-radius: 2px; background: rgba(56,189,248,.07);
+  color: var(--cpu) !important; font-weight: 600 !important;
+  transition: all .15s !important;
+}
+.nav-cta:hover { background: rgba(56,189,248,.14) !important; border-color: rgba(56,189,248,.6) !important; }
+
+/* ── HERO ─────────────────────────────────── */
+.hero {
+  min-height: 100vh;
+  display: flex; align-items: center;
+  padding: 100px 48px 80px;
+  gap: 60px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 65% 50%, rgba(56,189,248,.04) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 20% 80%, rgba(167,139,250,.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+/* subtle grid texture */
+.hero::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+.hero-text { flex: 0 0 480px; position: relative; z-index: 1; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 12px; border: 1px solid var(--bdr2);
+  border-radius: 2px; background: rgba(255,255,255,.03);
+  font-size: 11px; color: var(--dim); letter-spacing: .08em;
+  margin-bottom: 28px;
+}
+.hero-badge .dot { color: var(--mem); animation: blink 2s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+h1 {
+  font-size: 42px; font-weight: 700; line-height: 1.15;
+  letter-spacing: -.01em; color: var(--text);
+  margin-bottom: 20px;
+}
+h1 .accent-cpu { color: var(--cpu); }
+h1 .accent-gpu { color: var(--gpu); }
+
+.hero-sub {
+  font-size: 14px; font-weight: 300; color: var(--dim);
+  line-height: 1.8; margin-bottom: 36px; max-width: 420px;
+}
+
+.hero-ctas { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 28px; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 24px; border: 1px solid rgba(56,189,248,.5);
+  background: rgba(56,189,248,.1); color: var(--cpu);
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  letter-spacing: .06em; text-decoration: none; border-radius: 2px;
+  transition: all .15s; cursor: pointer;
+}
+.btn-primary:hover { background: rgba(56,189,248,.18); border-color: var(--cpu); }
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 24px; border: 1px solid var(--bdr2);
+  background: transparent; color: var(--dim);
+  font-family: var(--font); font-size: 13px; font-weight: 500;
+  letter-spacing: .06em; text-decoration: none; border-radius: 2px;
+  transition: all .15s; cursor: pointer;
+}
+.btn-secondary:hover { border-color: var(--dim); color: var(--text); }
+.hero-meta { font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+.hero-meta span { color: var(--bdr2); margin: 0 8px; }
+
+/* ── LIVE TERMINAL IN HERO ─────────────────── */
+.hero-terminal {
+  flex: 1; min-width: 0;
+  background: var(--surf);
+  border: 1px solid var(--bdr2);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative; z-index: 1;
+  box-shadow: 0 0 0 1px rgba(56,189,248,.06), 0 40px 80px rgba(0,0,0,.6);
+}
+.term-titlebar {
+  display: flex; align-items: center;
+  padding: 0 14px; height: 32px;
+  background: rgba(0,0,0,.3);
+  border-bottom: 1px solid var(--bdr);
+  gap: 8px;
+}
+.term-dots { display: flex; gap: 6px; }
+.term-dots span {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.td1 { background: #f87171; } .td2 { background: #fbbf24; } .td3 { background: #34d399; }
+.term-path {
+  font-size: 10px; color: var(--muted); letter-spacing: .04em;
+  flex: 1; text-align: center;
+}
+.term-body { padding: 0; }
+
+/* mini ticker */
+.mini-ticker {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 10px; border-bottom: 1px solid var(--bdr);
+  background: var(--surf); flex-wrap: nowrap; overflow: hidden;
+}
+.mini-pill {
+  display: flex; align-items: center; gap: 4px;
+  padding: 2px 7px; border: 1px solid var(--bdr2);
+  border-radius: 2px; white-space: nowrap; flex-shrink: 0;
+}
+.mini-pill .ml { color: var(--muted); font-size: 8px; letter-spacing: .1em; }
+.mini-pill .mv { font-size: 10px; font-weight: 600; }
+.mini-pill.ai-p {
+  background: rgba(192,132,252,.07); border-color: rgba(192,132,252,.25);
+  color: var(--ai); font-size: 10px;
+}
+.mini-pill.ai-p .dot { animation: blink 1.6s ease-in-out infinite; }
+
+/* mini layout */
+.mini-main { display: flex; height: 160px; border-bottom: 1px solid var(--bdr); }
+.mini-chart-area { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--bdr); min-width: 0; }
+.mini-chart-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px; border-bottom: 1px solid var(--bdr);
+  font-size: 10px; color: var(--muted);
+}
+.mini-chart-head .mv { color: var(--cpu); font-weight: 700; font-size: 14px; }
+.mini-chart-head .mb { font-size: 8px; border: 1px solid rgba(56,189,248,.25); color: var(--cpu); padding: 1px 5px; border-radius: 2px; background: rgba(56,189,248,.05); }
+#miniCanvas { flex: 1; width: 100%; display: block; }
+
+/* mini watchlist */
+.mini-wl { width: 190px; flex-shrink: 0; }
+.mini-wl-head { padding: 5px 8px; border-bottom: 1px solid var(--bdr); font-size: 8px; color: var(--muted); letter-spacing: .1em; font-weight: 700; }
+.mini-proc-row {
+  display: flex; align-items: center; gap: 0;
+  padding: 3px 0; border-bottom: 1px solid rgba(24,32,53,.6);
+  font-size: 9px; font-variant-numeric: tabular-nums;
+}
+.mini-proc-row.ai-r { background: rgba(192,132,252,.04); border-left: 2px solid rgba(192,132,252,.5); }
+.mini-proc-row.dev-r { background: rgba(96,165,250,.025); border-left: 2px solid rgba(96,165,250,.4); }
+.mini-proc-row:not(.ai-r):not(.dev-r) { border-left: 2px solid transparent; }
+.mp-name { width: 78px; padding-left: 6px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.mp-cpu  { width: 32px; text-align: right; color: var(--dim); }
+.mp-mem  { width: 44px; text-align: right; color: var(--mem); }
+.mp-ai   { width: 32px; text-align: right; padding-right: 4px; }
+.ai-inf { color: var(--ai); font-size: 8px; }
+.ai-dev { color: var(--dev); font-size: 8px; }
+
+/* mini bottom */
+.mini-bottom { display: flex; height: 72px; }
+.mini-bpanel { flex: 1; border-right: 1px solid var(--bdr); padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; }
+.mini-bpanel:last-child { border-right: none; }
+.mini-bpanel-label { font-size: 8px; font-weight: 700; letter-spacing: .1em; margin-bottom: 2px; }
+.mini-bpanel-label.cpu { color: var(--cpu); }
+.mini-bpanel-label.gpu { color: var(--gpu); }
+.mini-bpanel-label.mem { color: var(--mem); }
+.mini-bpanel-label.net { color: var(--net-up); }
+.mini-srow { display: flex; align-items: center; gap: 4px; }
+.mini-skey { font-size: 7px; color: var(--muted); width: 20px; }
+.mini-strack { flex: 1; height: 3px; background: rgba(255,255,255,.06); border-radius: 1px; overflow: hidden; }
+.mini-sfill { height: 100%; border-radius: 1px; transition: width .5s ease; }
+.mini-sfill.util { background: var(--gpu); }
+.mini-sfill.vr   { background: linear-gradient(90deg, var(--gpu), #db2777); }
+.mini-sfill.mu   { background: var(--mem); }
+.mini-sfill.cu   { background: var(--cpu); }
+.mini-sval { font-size: 8px; color: var(--dim); width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+canvas.mini-spark { width: 100%; height: 18px; display: block; margin-top: auto; }
+
+/* ── DIVIDER ──────────────────────────────── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--bdr2) 20%, var(--bdr2) 80%, transparent);
+  margin: 0 48px;
+}
+
+/* ── SECTIONS COMMON ───────────────────────── */
+section { padding: 100px 48px; }
+.section-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: .16em;
+  color: var(--muted); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-tag::after { content: ''; flex: 0 0 32px; height: 1px; background: var(--muted); }
+h2 { font-size: 30px; font-weight: 700; line-height: 1.25; margin-bottom: 16px; }
+h2 .hl-cpu { color: var(--cpu); } h2 .hl-gpu { color: var(--gpu); }
+h2 .hl-mem { color: var(--mem); } h2 .hl-ai  { color: var(--ai);  }
+h2 .hl-watch { color: var(--watch); }
+.section-sub { font-size: 14px; color: var(--dim); line-height: 1.8; max-width: 520px; font-weight: 300; }
+
+/* scroll-reveal */
+.reveal {
+  opacity: 0; transform: translateY(24px);
+  transition: opacity .6s ease, transform .6s ease;
+}
+.reveal.visible { opacity: 1; transform: none; }
+.reveal-d1 { transition-delay: .1s; }
+.reveal-d2 { transition-delay: .2s; }
+.reveal-d3 { transition-delay: .3s; }
+
+/* ── INSIGHT STRIP ─────────────────────────── */
+.insight {
+  padding: 72px 48px;
+  background: var(--surf);
+  border-top: 1px solid var(--bdr);
+  border-bottom: 1px solid var(--bdr);
+}
+.insight-quote {
+  font-size: 22px; font-weight: 500; color: var(--dim);
+  max-width: 760px; margin: 0 auto 56px;
+  text-align: center; line-height: 1.6;
+}
+.insight-quote strong { color: var(--text); font-weight: 600; }
+.insight-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.insight-card {
+  padding: 28px 24px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--bdr);
+}
+.insight-card-icon { font-size: 20px; margin-bottom: 12px; }
+.insight-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text); letter-spacing: .02em; }
+.insight-card p { font-size: 12px; color: var(--dim); line-height: 1.7; font-weight: 300; }
+.ic-cpu h3 { color: var(--cpu); } .ic-gpu h3 { color: var(--gpu); } .ic-ai h3 { color: var(--ai); }
+
+/* ── FEATURE: CANDLE ─────────────────────── */
+.feature-split { display: flex; align-items: center; gap: 72px; }
+.feature-split.rev { flex-direction: row-reverse; }
+.feature-text { flex: 0 0 380px; }
+.feature-visual { flex: 1; min-width: 0; }
+
+.feature-candle-wrap {
+  background: var(--surf); border: 1px solid var(--bdr2); border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(56,189,248,.05), 0 24px 48px rgba(0,0,0,.5);
+}
+.feat-chart-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--bdr);
+  font-size: 10px;
+}
+.feat-tab { padding: 3px 10px; border: 1px solid transparent; border-radius: 2px; font-family: var(--font); font-size: 10px; font-weight: 500; letter-spacing: .08em; color: var(--muted); cursor: pointer; background: transparent; }
+.feat-tab.on { color: var(--cpu); border-color: rgba(56,189,248,.3); background: rgba(56,189,248,.07); }
+.feat-val { font-size: 22px; font-weight: 700; color: var(--cpu); margin-left: 10px; font-variant-numeric: tabular-nums; }
+.feat-badge { font-size: 9px; border: 1px solid rgba(56,189,248,.25); color: var(--cpu); padding: 1px 6px; border-radius: 2px; background: rgba(56,189,248,.05); letter-spacing: .08em; }
+#candleChart { width: 100%; display: block; }
+
+.feature-bullets { list-style: none; margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+.feature-bullets li { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: var(--dim); font-weight: 300; }
+.feature-bullets li::before { content: '→'; color: var(--cpu); flex-shrink: 0; font-weight: 600; }
+
+/* ── FEATURE: AI FIRST ─────────────────────── */
+.ai-section { background: var(--surf); border-top: 1px solid var(--bdr); border-bottom: 1px solid var(--bdr); }
+.proc-demo {
+  background: var(--bg); border: 1px solid var(--bdr2); border-radius: 4px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(167,139,250,.05), 0 24px 48px rgba(0,0,0,.5);
+}
+.proc-demo-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-bottom: 1px solid var(--bdr);
+  font-size: 9px; font-weight: 700; letter-spacing: .12em; color: var(--dim);
+}
+.proc-demo-sort { display: flex; gap: 3px; }
+.pd-sort { padding: 2px 7px; border: 1px solid var(--bdr); background: transparent; font-family: var(--font); font-size: 8px; color: var(--muted); border-radius: 2px; }
+.pd-sort.on { color: var(--gpu); border-color: rgba(167,139,250,.3); background: rgba(167,139,250,.07); }
+.pd-cat-tabs { display: flex; border-bottom: 1px solid var(--bdr); }
+.pd-cat { flex: 1; padding: 5px 4px; border: none; border-bottom: 2px solid transparent; background: transparent; font-family: var(--font); font-size: 8px; font-weight: 500; letter-spacing: .07em; color: var(--muted); cursor: pointer; }
+.pd-cat.on[data-c="all"] { border-color: var(--cpu); color: var(--cpu); }
+.pd-cat.on[data-c="ai"]  { border-color: var(--ai);  color: var(--ai);  }
+.pd-cat.on[data-c="dev"] { border-color: var(--dev); color: var(--dev); }
+.pd-cat.on[data-c="watch"] { border-color: var(--watch); color: var(--watch); }
+.pd-table { width: 100%; border-collapse: collapse; }
+.pd-table th { padding: 5px 8px; text-align: right; font-size: 8px; font-weight: 500; letter-spacing: .08em; color: var(--muted); border-bottom: 1px solid var(--bdr); }
+.pd-table th:first-child { text-align: left; padding-left: 10px; }
+.pd-table td { padding: 5px 8px; text-align: right; border-bottom: 1px solid rgba(24,32,53,.7); font-size: 10px; font-variant-numeric: tabular-nums; }
+.pd-table td:first-child { text-align: left; padding-left: 0; }
+.pd-row.cat-ai   { border-left: 2px solid rgba(192,132,252,.6); background: rgba(192,132,252,.03); }
+.pd-row.cat-dev  { border-left: 2px solid rgba(96,165,250,.5);  background: rgba(96,165,250,.025); }
+.pd-row.cat-wat  { border-left: 2px solid rgba(251,191,36,.5);  background: rgba(251,191,36,.025); }
+.pd-row.cat-def  { border-left: 2px solid transparent; }
+.pd-cat-dot { display: inline-block; width: 12px; font-size: 9px; }
+.pd-cat-dot.ai { color: var(--ai); } .pd-cat-dot.dev { color: var(--dev); } .pd-cat-dot.wat { color: var(--watch); } .pd-cat-dot.def { color: var(--muted); }
+.pd-name { font-weight: 500; color: var(--text); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+.pd-cpu-v { color: var(--dim); } .pd-cpu-v.hot { color: var(--warn); }
+.pd-mem-v { color: var(--mem); }
+.pd-vram-v { color: var(--gpu); } .pd-vram-v.none { color: var(--muted); }
+.pd-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 8px; padding: 1px 5px; border-radius: 2px; white-space: nowrap; font-weight: 500; }
+.pd-badge.inf { color: var(--ai); background: rgba(192,132,252,.13); border: 1px solid rgba(192,132,252,.28); }
+.pd-badge.inf .bd { animation: blink 1.6s ease-in-out infinite; }
+.pd-badge.ild { color: var(--muted); background: rgba(255,255,255,.04); border: 1px solid var(--bdr); }
+
+/* plugin dock */
+.plugin-demo {
+  background: rgba(0,0,0,.2); border-top: 1px solid var(--bdr);
+  padding: 8px 12px;
+}
+.plugin-demo-head { font-size: 8px; font-weight: 700; letter-spacing: .12em; color: var(--muted); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.plugin-demo-head .pc { color: var(--muted); font-weight: 400; }
+.plugin-empty-state { font-size: 10px; color: var(--muted); line-height: 1.6; }
+.plugin-empty-state .link { color: rgba(56,189,248,.55); }
+
+/* ── GPU FEATURE ──────────────────────────── */
+.gpu-demo {
+  background: var(--surf); border: 1px solid var(--bdr2); border-radius: 4px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(167,139,250,.05), 0 24px 48px rgba(0,0,0,.5);
+}
+.gpu-demo-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--bdr); }
+.gpu-demo-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--gpu); }
+.gpu-tabs-row { display: flex; gap: 3px; }
+.g-tab { padding: 2px 8px; border: 1px solid var(--bdr); background: transparent; font-family: var(--font); font-size: 9px; color: var(--muted); border-radius: 2px; cursor: pointer; }
+.g-tab.on { color: var(--gpu); border-color: rgba(167,139,250,.35); background: rgba(167,139,250,.07); }
+.gpu-demo-stats { padding: 10px 12px; }
+.gd-srow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.gd-key { width: 36px; font-size: 9px; color: var(--muted); }
+.gd-track { flex: 1; height: 6px; background: rgba(255,255,255,.05); border-radius: 1px; overflow: hidden; }
+.gd-fill { height: 100%; border-radius: 1px; transition: width .5s ease; }
+.gd-fill.u  { background: var(--gpu); }
+.gd-fill.v  { background: linear-gradient(90deg, var(--gpu), #db2777); }
+.gd-fill.v0 { background: var(--gpu); display: inline-block; }
+.gd-fill.v1 { background: #db2777; opacity: .75; display: inline-block; }
+.gd-fill.t  { background: var(--warn); }
+.gd-fill.p  { background: var(--net-up); }
+.gd-val { width: 72px; text-align: right; font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.vram-dual-bar { display: flex; height: 6px; border-radius: 1px; overflow: hidden; flex: 1; }
+#gpuSparkLine { width: 100%; height: 40px; display: block; }
+
+/* ── PLUGINS FEATURE ──────────────────────── */
+.plugins-section { background: var(--surf); border-top: 1px solid var(--bdr); border-bottom: 1px solid var(--bdr); }
+.code-block {
+  background: var(--bg); border: 1px solid var(--bdr2);
+  border-radius: 4px; padding: 20px 24px;
+  font-size: 12px; line-height: 1.8; overflow-x: auto;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.02);
+}
+.code-block .cm  { color: var(--muted); }
+.code-block .ck  { color: var(--cpu); }
+.code-block .cv  { color: var(--mem); }
+.code-block .cs  { color: var(--gpu); }
+.code-block .cn  { color: var(--net-up); }
+.code-block .cc  { color: var(--ai); }
+.plugin-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; margin-top: 24px; }
+.plugin-card {
+  padding: 18px 20px; border: 1px solid var(--bdr);
+  background: rgba(255,255,255,.02); border-radius: 2px;
+}
+.plugin-card-name { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.plugin-card-name .tag { font-weight: 300; color: var(--muted); margin-left: 8px; font-size: 10px; }
+.plugin-card p { font-size: 11px; color: var(--dim); line-height: 1.6; font-weight: 300; }
+
+/* ── INSTALL ──────────────────────────────── */
+.install-section { text-align: center; }
+.install-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 48px 0; text-align: left; }
+.install-step { padding: 24px; border: 1px solid var(--bdr); background: rgba(255,255,255,.02); }
+.step-num { font-size: 11px; color: var(--muted); letter-spacing: .1em; margin-bottom: 12px; }
+.step-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+.step-body { font-size: 12px; color: var(--dim); line-height: 1.7; font-weight: 300; }
+.step-code { margin-top: 10px; background: var(--bg); border: 1px solid var(--bdr); padding: 8px 12px; border-radius: 2px; font-size: 11px; color: var(--cpu); }
+
+/* ── ABOUT ────────────────────────────────── */
+.about-section { border-top: 1px solid var(--bdr); }
+.about-card {
+  display: flex; align-items: flex-start; gap: 40px;
+  max-width: 680px; margin: 0 auto;
+  padding: 40px; border: 1px solid var(--bdr2);
+  background: var(--surf); border-radius: 4px;
+}
+.about-avatar {
+  width: 72px; height: 72px; border-radius: 2px;
+  background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: var(--cpu); flex-shrink: 0;
+  letter-spacing: .04em;
+}
+.about-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.about-title { font-size: 11px; color: var(--muted); letter-spacing: .08em; margin-bottom: 14px; }
+.about-bio { font-size: 13px; color: var(--dim); line-height: 1.8; font-weight: 300; margin-bottom: 20px; }
+.about-links { display: flex; gap: 12px; }
+.about-link {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 14px; border: 1px solid var(--bdr2);
+  border-radius: 2px; font-size: 11px; color: var(--dim);
+  text-decoration: none; font-weight: 500; transition: all .15s; letter-spacing: .06em;
+}
+.about-link:hover { border-color: var(--cpu); color: var(--cpu); }
+.about-link svg { width: 14px; height: 14px; fill: currentColor; }
+
+/* ── FOOTER ───────────────────────────────── */
+footer {
+  padding: 40px 48px;
+  border-top: 1px solid var(--bdr);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+}
+.footer-logo { font-size: 14px; font-weight: 700; color: var(--cpu); letter-spacing: .06em; }
+.footer-logo em { font-style: normal; color: var(--muted); font-weight: 300; font-size: 11px; }
+.footer-meta { font-size: 11px; color: var(--muted); line-height: 1.8; text-align: center; }
+.footer-links { display: flex; gap: 20px; }
+.footer-links a { font-size: 11px; color: var(--muted); text-decoration: none; letter-spacing: .06em; transition: color .15s; }
+.footer-links a:hover { color: var(--dim); }
+
+/* ── RESPONSIVE ───────────────────────────── */
+@media (max-width: 900px) {
+  .hero { flex-direction: column; padding: 80px 24px 60px; }
+  .hero-terminal { width: 100%; }
+  .feature-split, .feature-split.rev { flex-direction: column; gap: 40px; }
+  .feature-text { flex: none; }
+  .insight-cards, .install-steps { grid-template-columns: 1fr; }
+  .plugin-cards { grid-template-columns: 1fr; }
+  nav { padding: 0 24px; }
+  nav .nav-links { gap: 16px; }
+  section { padding: 72px 24px; }
+  .about-card { flex-direction: column; padding: 28px; }
+  footer { padding: 32px 24px; flex-direction: column; text-align: center; }
+  .footer-meta { order: 3; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ──────────────────────────────────────── -->
+<nav>
+  <a href="#" class="nav-logo">dofek <em>v0.2</em></a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#gui">Desktop</a>
+    <a href="#plugins">Plugins</a>
+    <a href="#install">Install</a>
+    <a href="#about">About</a>
+    <a href="https://github.com/AsafSaar/dofek" target="_blank" rel="noopener" class="nav-cta">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-text reveal">
+    <div class="hero-badge">
+      <span class="dot">●</span>
+      v0.2 — Windows 10 / 11 · MIT License
+    </div>
+    <h1>Your workstation deserves better than <span class="accent-cpu">Task Manager</span>.</h1>
+    <p class="hero-sub">
+      dofek is a terminal-native system monitor built for developers running AI workloads.
+      VRAM per process. Inference detection. Candlestick CPU charts.
+      All in a single binary.
+    </p>
+    <div class="hero-ctas">
+      <a href="https://github.com/AsafSaar/dofek/releases" target="_blank" class="btn-primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Download for Windows
+      </a>
+      <a href="https://github.com/AsafSaar/dofek" target="_blank" class="btn-secondary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+    <div class="hero-meta">single binary<span>·</span>no runtime dependencies<span>·</span>built with Rust + Ratatui</div>
+  </div>
+
+  <!-- LIVE MINI TERMINAL -->
+  <div class="hero-terminal reveal reveal-d2">
+    <div class="term-titlebar">
+      <div class="term-dots"><span class="td1"></span><span class="td2"></span><span class="td3"></span></div>
+      <div class="term-path">D:\Development\dofek\target\release\dofek.exe</div>
+    </div>
+    <div class="term-body">
+      <div class="mini-ticker">
+        <div class="mini-pill"><span class="ml">CPU</span><span class="mv" id="mt-cpu" style="color:var(--cpu)">10.2%</span></div>
+        <div class="mini-pill"><span class="ml">GPU</span><span class="mv" id="mt-gpu" style="color:var(--gpu)">22.6%</span></div>
+        <div class="mini-pill"><span class="ml">VRAM</span><span class="mv" id="mt-vram" style="color:var(--gpu)">7056MB</span></div>
+        <div class="mini-pill"><span class="ml">MEM</span><span class="mv" id="mt-mem" style="color:var(--mem)">22.5%</span></div>
+        <div class="mini-pill ai-p"><span class="dot">●</span><span id="mt-ai">ollama — inferring</span></div>
+      </div>
+      <div class="mini-main">
+        <div class="mini-chart-area">
+          <div class="mini-chart-head">
+            <span class="mb">CANDLE</span>
+            <span style="color:var(--muted);font-size:9px">CPU</span>
+            <span class="mv" id="mt-cval">10.2%</span>
+            <span style="color:var(--muted);font-size:8px;margin-left:auto">60s</span>
+          </div>
+          <canvas id="miniCanvas"></canvas>
+        </div>
+        <div class="mini-wl">
+          <div class="mini-wl-head">PROCESSES — sort: MEM</div>
+          <div id="mini-procs"></div>
+        </div>
+      </div>
+      <div class="mini-bottom">
+        <div class="mini-bpanel">
+          <div class="mini-bpanel-label cpu">CPU</div>
+          <div id="mini-cores"></div>
+        </div>
+        <div class="mini-bpanel">
+          <div class="mini-bpanel-label gpu">GPU</div>
+          <div class="mini-srow"><span class="mini-skey">Util</span><div class="mini-strack"><div class="mini-sfill util" id="mg-util" style="width:0%"></div></div><span class="mini-sval" id="mg-util-v">0%</span></div>
+          <div class="mini-srow"><span class="mini-skey">VRAM</span><div class="mini-strack"><div class="mini-sfill vr" id="mg-vram" style="width:8%"></div></div><span class="mini-sval" id="mg-vram-v">7GB</span></div>
+          <canvas class="mini-spark" id="ms-gpu"></canvas>
+        </div>
+        <div class="mini-bpanel">
+          <div class="mini-bpanel-label mem">MEM</div>
+          <div class="mini-srow"><span class="mini-skey">Used</span><div class="mini-strack"><div class="mini-sfill mu" id="mm-used" style="width:22%"></div></div><span class="mini-sval" id="mm-used-v">22%</span></div>
+          <canvas class="mini-spark" id="ms-mem"></canvas>
+        </div>
+        <div class="mini-bpanel">
+          <div class="mini-bpanel-label net">NET</div>
+          <div style="font-size:9px;color:var(--net-dn,#38bdf8)">↓ <span id="mn-dn">0 B/s</span></div>
+          <div style="font-size:9px;color:var(--net-up)">↑ <span id="mn-up">0 B/s</span></div>
+          <canvas class="mini-spark" id="ms-net"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── REAL SCREENSHOT ─────────────────────────── -->
+<!-- TODO: Replace with actual TUI screenshot/GIF. Drop the image at website/tui-screenshot.png -->
+<div class="reveal" style="padding:0 48px 60px;text-align:center">
+  <img src="tui-screenshot.png" alt="dofek TUI in action" style="max-width:960px;width:100%;border:1px solid var(--bdr2);border-radius:4px;box-shadow:0 40px 80px rgba(0,0,0,.6);display:none" onload="this.style.display='inline-block'">
+</div>
+
+<!-- ── INSIGHT ─────────────────────────────────── -->
+<div class="insight">
+  <p class="insight-quote reveal">
+    Most system monitors were designed <strong>before LLMs ran locally.</strong>
+    They treat GPU as an afterthought and VRAM as a footnote.
+    dofek is built for what your workstation actually does today.
+  </p>
+  <div class="insight-cards">
+    <div class="insight-card ic-cpu reveal">
+      <div class="insight-card-icon" style="color:var(--cpu)">▓</div>
+      <h3>Variance, not just averages</h3>
+      <p>Candlestick charts show CPU min/max/mean per time slot. Bursty spikes are visible. Steady load looks different from jittery load. No other monitor shows you this.</p>
+    </div>
+    <div class="insight-card ic-gpu reveal reveal-d1">
+      <div class="insight-card-icon" style="color:var(--gpu)">▓</div>
+      <h3>VRAM per process</h3>
+      <p>The column Windows Task Manager doesn't have. See exactly which process is consuming your GPU memory — ollama, python, your game, your renderer — at a glance.</p>
+    </div>
+    <div class="insight-card ic-ai reveal reveal-d2">
+      <div class="insight-card-icon" style="color:var(--ai)">▓</div>
+      <h3>AI workload detection</h3>
+      <p>Automatic inference/loading/idle classification for AI processes. Know whether ollama is actively generating, loading a model, or sitting idle — without checking logs.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── FEATURES ────────────────────────────────── -->
+<section id="features">
+
+  <!-- CANDLE FEATURE -->
+  <div class="feature-split" style="margin-bottom:100px">
+    <div class="feature-text reveal">
+      <div class="section-tag">CPU MONITORING</div>
+      <h2>See <span class="hl-cpu">variance</span>,<br>not just averages.</h2>
+      <p class="section-sub">Every other monitor draws a smooth line and calls it a CPU chart. dofek draws candlesticks — the same visual language traders use to read market volatility. Each bar shows the full min/max range and interquartile spread for that time window.</p>
+      <ul class="feature-bullets">
+        <li>Wick spans the full min/max range per 500ms slot</li>
+        <li>Body shows the P25–P75 interquartile spread</li>
+        <li>Thick tick marks the mean value</li>
+        <li>Threshold lines at 80% (warn) and 90% (critical)</li>
+        <li>Switchable to area chart for GPU, MEM, and NET</li>
+      </ul>
+    </div>
+    <div class="feature-visual reveal reveal-d1">
+      <div class="feature-candle-wrap">
+        <div class="feat-chart-head">
+          <div style="display:flex;gap:2px">
+            <button class="feat-tab on">CPU</button>
+            <button class="feat-tab">GPU</button>
+            <button class="feat-tab">MEM</button>
+            <button class="feat-tab">NET</button>
+          </div>
+          <span class="feat-badge">CANDLE</span>
+          <span class="feat-val" id="feat-cval">10.2%</span>
+          <span style="font-size:9px;color:var(--muted);margin-left:auto">AMD Ryzen 7 7800X3D</span>
+        </div>
+        <canvas id="candleChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI + CATEGORIES FEATURE -->
+  <div class="feature-split rev" id="ai-features">
+    <div class="feature-text reveal">
+      <div class="section-tag">PROCESS INTELLIGENCE</div>
+      <h2>Your processes,<br><span class="hl-ai">categorized</span>.</h2>
+      <p class="section-sub">Tag processes as AI, DEV, or WATCH. Filter the table to just the ones you care about. dofek auto-detects known AI runtimes and dev tools — and lets you extend the list in your config.</p>
+      <ul class="feature-bullets">
+        <li><span style="color:var(--ai)">● AI</span> — ollama, python, LM Studio, any VRAM consumer</li>
+        <li><span style="color:var(--dev)">■ DEV</span> — VS Code, browsers, terminals, build tools</li>
+        <li><span style="color:var(--watch)">★ WATCH</span> — your own pipeline processes, user-defined</li>
+        <li>Extend categories via <code style="color:var(--cpu);font-size:12px">dofek.toml</code> config</li>
+        <li>Filter tabs narrow the table without losing sort order</li>
+      </ul>
+    </div>
+    <div class="feature-visual reveal reveal-d1">
+      <div class="proc-demo">
+        <div class="proc-demo-head">
+          PROCESSES
+          <div class="proc-demo-sort">
+            <button class="pd-sort">CPU</button>
+            <button class="pd-sort on">MEM</button>
+            <button class="pd-sort">VRAM</button>
+          </div>
+        </div>
+        <div class="pd-cat-tabs">
+          <button class="pd-cat on" data-c="all">ALL</button>
+          <button class="pd-cat" data-c="ai">● AI</button>
+          <button class="pd-cat" data-c="dev">■ DEV</button>
+          <button class="pd-cat" data-c="watch">★ WATCH</button>
+        </div>
+        <table class="pd-table">
+          <thead><tr><th>NAME</th><th>CPU%</th><th>MEM</th><th>VRAM</th><th>STATUS</th></tr></thead>
+          <tbody id="pd-tbody"></tbody>
+        </table>
+        <div class="plugin-demo">
+          <div class="plugin-demo-head">PLUGINS <span class="pc">coming soon</span></div>
+          <div class="plugin-empty-state">Plugin dock — planned feature.<br><span class="link">→ Extend dofek via stdout JSON protocol</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ── GPU FEATURE ─────────────────────────────── -->
+<section style="background:var(--surf);border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);padding:100px 48px">
+  <div class="feature-split">
+    <div class="feature-text reveal">
+      <div class="section-tag">GPU MONITORING</div>
+      <h2>Multi-GPU,<br><span class="hl-gpu">fully resolved</span>.</h2>
+      <p class="section-sub">Aggregate stats across all your GPUs in the ALL view, then drill into any individual card. The combined VRAM bar shows each device's share side-by-side. The main chart overlays both GPU utilization curves simultaneously.</p>
+      <ul class="feature-bullets">
+        <li>Aggregated Util / VRAM / Temp / Power across all GPUs</li>
+        <li>Per-GPU tabs for individual device breakdown</li>
+        <li>Dual-color VRAM bar shows per-GPU contribution</li>
+        <li>Max temperature and summed power across all devices</li>
+        <li>GPU overlay on the main chart shows both curves</li>
+      </ul>
+    </div>
+    <div class="feature-visual reveal reveal-d1">
+      <div class="gpu-demo">
+        <div class="gpu-demo-head">
+          <div class="gpu-demo-label">GPU</div>
+          <div class="gpu-tabs-row">
+            <button class="g-tab on" onclick="setGDTab('all',this)">ALL</button>
+            <button class="g-tab" onclick="setGDTab('0',this)">RTX 5080</button>
+            <button class="g-tab" onclick="setGDTab('1',this)">RTX 3060</button>
+          </div>
+        </div>
+        <div class="gpu-demo-stats" id="gpu-demo-stats"></div>
+        <canvas id="gpuSparkLine" height="40"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── DESKTOP GUI ─────────────────────────────── -->
+<section id="gui" style="padding:100px 48px">
+  <div class="feature-split">
+    <div class="feature-text reveal">
+      <div class="section-tag">DESKTOP APP</div>
+      <h2>Same engine,<br><span class="hl-cpu">native window</span>.</h2>
+      <p class="section-sub">dofek also ships as a Tauri-powered desktop app. Same real-time data engine, same trading-terminal aesthetic — but with mouse interaction, resizable panes, and a windowed layout that sits alongside your other tools.</p>
+      <ul class="feature-bullets">
+        <li>Resizable chart and watchlist panes via drag handle</li>
+        <li>Candlestick and horizon chart modes with tab switching</li>
+        <li>Clickable column sorting in the process table</li>
+        <li>Full keyboard shortcut support (same bindings as TUI)</li>
+        <li>Lightweight — Tauri, not Electron. Small binary, low overhead</li>
+      </ul>
+    </div>
+    <div class="feature-visual reveal reveal-d1">
+      <!-- TODO: Replace with actual GUI screenshot. Drop the image at website/gui-screenshot.png -->
+      <div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:4px;overflow:hidden;box-shadow:0 0 0 1px rgba(56,189,248,.06),0 40px 80px rgba(0,0,0,.6);">
+        <div style="display:flex;align-items:center;padding:0 14px;height:32px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--bdr);gap:8px;">
+          <div style="display:flex;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#f87171;display:inline-block"></span><span style="width:10px;height:10px;border-radius:50%;background:#fbbf24;display:inline-block"></span><span style="width:10px;height:10px;border-radius:50%;background:#34d399;display:inline-block"></span></div>
+          <span style="font-size:10px;color:var(--muted);letter-spacing:.04em;flex:1;text-align:center">dofek — system monitor</span>
+        </div>
+        <div style="padding:0;">
+          <img src="gui-screenshot.png" alt="dofek desktop GUI" style="max-width:100%;height:auto;display:block">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── PLUGINS ─────────────────────────────────── -->
+<section id="plugins" class="plugins-section">
+  <div style="max-width:860px;margin:0 auto">
+    <div class="section-tag reveal">PLUGIN ECOSYSTEM <span style="color:var(--warn);border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.07);padding:1px 8px;border-radius:2px;font-size:9px;letter-spacing:.1em;margin-left:8px">COMING SOON</span></div>
+    <h2 class="reveal">The <span class="hl-ai">viral engine</span>.<br>Build what dofek doesn't ship.</h2>
+    <p class="section-sub reveal" style="margin-bottom:40px">
+      The planned plugin system will let any process that writes JSON to stdout become a dofek plugin. One config line, and your plugin gets a live widget in the dock. The protocol is intentionally minimal — here's what it will look like.
+    </p>
+    <div class="code-block reveal">
+<span class="cm">// dofek-ollama — example plugin output (stdout, 500ms interval)</span>
+{
+  <span class="ck">"plugin"</span>: <span class="cv">"dofek-ollama"</span>,
+  <span class="ck">"version"</span>: <span class="cv">"0.1.0"</span>,
+  <span class="ck">"label"</span>: <span class="cv">"llama3.1:8b"</span>,
+  <span class="ck">"status"</span>: <span class="cs">"inferring"</span>,
+  <span class="ck">"metrics"</span>: {
+    <span class="ck">"tokens_per_sec"</span>: <span class="cn">3.2</span>,
+    <span class="ck">"context_used_pct"</span>: <span class="cn">82</span>,
+    <span class="ck">"queue_depth"</span>: <span class="cn">1</span>
+  }
+}
+    </div>
+    <div class="plugin-cards reveal reveal-d1">
+      <div class="plugin-card">
+        <div class="plugin-card-name">dofek-ollama <span class="tag">official · v0.1</span></div>
+        <p>Token/s, context usage, active model, queue depth. Live inference metrics directly in the dock.</p>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-card-name">dofek-docker <span class="tag">official · coming</span></div>
+        <p>Container CPU/MEM per service, health status, restart count. Your compose stack at a glance.</p>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-card-name">dofek-lmstudio <span class="tag">community</span></div>
+        <p>LM Studio model status, GPU layer count, generation speed. For the GUI-local-AI crowd.</p>
+      </div>
+      <div class="plugin-card">
+        <div class="plugin-card-name">build your own <span class="tag">any language</span></div>
+        <p>Rust, Python, Node, Go — any process that can write JSON to stdout can be a plugin. See the protocol docs on GitHub.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── INSTALL ─────────────────────────────────── -->
+<section id="install" class="install-section">
+  <div class="section-tag reveal" style="justify-content:center;margin-bottom:12px">QUICK START</div>
+  <h2 class="reveal">Up in <span class="hl-cpu">three steps</span>.</h2>
+  <div class="install-steps">
+    <div class="install-step reveal">
+      <div class="step-num">01 — DOWNLOAD OR BUILD</div>
+      <div class="step-title">Get the binary</div>
+      <div class="step-body">Grab the latest release from GitHub, or build from source with the Rust stable toolchain and VS Build Tools (C++ workload).</div>
+      <div class="step-code">git clone github.com/AsafSaar/dofek<br>cd dofek<br>cargo build --release</div>
+    </div>
+    <div class="install-step reveal reveal-d1">
+      <div class="step-num">02 — RUN</div>
+      <div class="step-title">Launch dofek</div>
+      <div class="step-body">Run the binary from any terminal. NVIDIA GPU metrics work automatically via NVML — no extra setup needed. Optionally point it at a config file.</div>
+      <div class="step-code">dofek<br><span style="color:var(--muted)"># or with config:</span><br>dofek --config dofek.toml</div>
+    </div>
+    <div class="install-step reveal reveal-d2">
+      <div class="step-num">03 — OPTIONAL</div>
+      <div class="step-title">LibreHardwareMonitor</div>
+      <div class="step-body">For non-NVIDIA GPUs or extra CPU temperature/power sensors, run LHM as admin with the web server on port 8085. dofek will auto-detect it as a fallback.</div>
+    </div>
+  </div>
+  <a href="https://github.com/AsafSaar/dofek" target="_blank" rel="noopener" class="btn-primary" style="display:inline-flex;margin:0 auto">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+    View on GitHub →
+  </a>
+</section>
+
+<!-- ── ABOUT ────────────────────────────────────── -->
+<section id="about" class="about-section" style="padding:100px 48px;text-align:center">
+  <div class="section-tag reveal" style="justify-content:center;margin-bottom:12px">THE DEVELOPER</div>
+  <div class="about-card reveal" style="margin-top:40px">
+    <div class="about-avatar">AS</div>
+    <div>
+      <div class="about-name">Asaf Saar</div>
+      <div class="about-title">DEVELOPER · PRODUCT BUILDER · AI TOOLING</div>
+      <p class="about-bio">
+        Asaf spends most of his time at the intersection of systems, AI tooling, and developer experience. When local LLMs became serious — models loading into VRAM, inference running in the background, GPU memory becoming a first-class concern — he found himself staring at Task Manager and coming up empty. The tool for this moment simply didn't exist.
+      </p>
+      <p class="about-bio">
+        dofek is the result. Built in Rust because performance isn't optional for a monitor, designed around trading terminal principles because developers making real-time decisions deserve the same visual language as traders making real-time ones. Asaf believes the best developer tools are opinionated, visually sharp, and built by people who were frustrated enough to stop waiting for someone else to do it.
+      </p>
+      <div class="about-links">
+        <a href="https://www.linkedin.com/in/asafsaar" target="_blank" rel="noopener" class="about-link">
+          <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          LinkedIn
+        </a>
+        <a href="https://github.com/AsafSaar" target="_blank" rel="noopener" class="about-link">
+          <svg viewBox="0 0 24 24"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">dofek <em>v0.2</em></div>
+  <div class="footer-meta">
+    Built with Rust + Ratatui · MIT License<br>
+    © 2025–2026 Asaf Saar
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/AsafSaar/dofek" target="_blank">GitHub</a>
+    <a href="https://github.com/AsafSaar/dofek/releases" target="_blank">Releases</a>
+    <a href="https://github.com/AsafSaar/dofek/blob/main/README.md" target="_blank">Docs</a>
+    <a href="https://github.com/AsafSaar/dofek/blob/main/LICENSE" target="_blank">License</a>
+  </div>
+</footer>
+
+<script>
+/* ═══ SHARED UTILS ════════════════════════════════════════ */
+const LEN = 60;
+function drift(v,lo,hi,s=0.12){return Math.max(lo,Math.min(hi,v+(Math.random()-.5)*s*(hi-lo)));}
+function push(a,v){a.push(v);if(a.length>LEN)a.shift();}
+function fmtB(b){if(b<1e3)return b.toFixed(0)+' B/s';if(b<1e6)return (b/1e3).toFixed(1)+' KB/s';return (b/1e6).toFixed(1)+' MB/s';}
+function fmtMB(m){return m>=1024?(m/1024).toFixed(1)+' GB':m.toFixed(0)+' MB';}
+
+function prep(c){
+  const dpr=devicePixelRatio||1,r=c.getBoundingClientRect();
+  if(r.width<1||r.height<1)return null;
+  c.width=r.width*dpr;c.height=r.height*dpr;
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+  return{ctx,W:r.width,H:r.height};
+}
+function bz(ctx,pts,t=0.27){
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+    ctx.bezierCurveTo(p1.x+(p2.x-p0.x)*t,p1.y+(p2.y-p0.y)*t,p2.x-(p3.x-p1.x)*t,p2.y-(p3.y-p1.y)*t,p2.x,p2.y);
+  }
+}
+
+function makeCandle(mean,v){
+  const min=Math.max(0,mean-Math.random()*v*.9);
+  const max=Math.min(100,mean+Math.random()*v*.8);
+  return{mean,min,max,p25:min+(mean-min)*0.4+Math.random()*(mean-min)*0.2,p75:mean+(max-mean)*0.4+Math.random()*(max-mean)*0.2};
+}
+
+function drawCandle(c,data,color,lo=0,hi=100,warn=80,crit=90){
+  const s=prep(c);if(!s||data.length<2)return;
+  const{ctx,W,H}=s,pl=4,pr=8,pt=12,pb=6;
+  const dW=W-pl-pr,dH=H-pt-pb;
+  ctx.clearRect(0,0,W,H);
+  const toY=v=>pt+dH*(1-Math.max(0,Math.min(1,(v-lo)/(hi-lo))));
+  ctx.strokeStyle='rgba(255,255,255,.03)';ctx.lineWidth=1;
+  for(let i=1;i<=3;i++){const y=pt+dH/4*i;ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();}
+  [[warn,'rgba(251,191,36,.35)',[5,4]],[crit,'rgba(248,113,113,.35)',[3,3]]].forEach(([val,col,dash])=>{
+    if(!val)return;const y=toY(val);
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash(dash);
+    ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();ctx.setLineDash([]);
+  });
+  const gap=dW/LEN,bw=Math.max(2,gap*.55);
+  data.forEach((d,i)=>{
+    const x=pl+i*gap+gap/2,isLast=i===data.length-1;
+    const yMn=toY(d.mean),yMi=toY(d.min),yMx=toY(d.max),yP2=toY(d.p25),yP7=toY(d.p75);
+    ctx.strokeStyle=color+'40';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,yMx);ctx.lineTo(x,yMi);ctx.stroke();
+    ctx.fillStyle=isLast?color+'cc':color+'55';
+    ctx.fillRect(x-bw/2,Math.min(yP2,yP7),bw,Math.max(2,Math.abs(yP2-yP7)));
+    ctx.strokeStyle=isLast?color:color+'90';ctx.lineWidth=isLast?2:1.5;
+    ctx.beginPath();ctx.moveTo(x-bw/2,yMn);ctx.lineTo(x+bw/2,yMn);ctx.stroke();
+  });
+  const last=data[data.length-1],yL=toY(last.mean);
+  ctx.strokeStyle=color+'45';ctx.lineWidth=1;ctx.setLineDash([4,5]);
+  ctx.beginPath();ctx.moveTo(pl,yL);ctx.lineTo(W-pr,yL);ctx.stroke();ctx.setLineDash([]);
+  ctx.beginPath();ctx.arc(pl+dW,yL,3,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+  ctx.beginPath();ctx.arc(pl+dW,yL,5.5,0,Math.PI*2);ctx.strokeStyle=color+'50';ctx.lineWidth=1.5;ctx.stroke();
+}
+
+function drawArea(c,hist,color,lo=0,hi=100){
+  const s=prep(c);if(!s||hist.length<2)return;
+  const{ctx,W,H}=s,pl=2,pr=2,pt=4,pb=4;
+  const dW=W-pl-pr,dH=H-pt-pb;
+  ctx.clearRect(0,0,W,H);
+  const pts=hist.map((v,i)=>({x:pl+(i/(LEN-1))*dW,y:pt+dH*(1-Math.max(0,Math.min(1,(v-lo)/(hi-lo))))}));
+  const g=ctx.createLinearGradient(0,pt,0,H);
+  g.addColorStop(0,color+'35');g.addColorStop(1,color+'00');
+  ctx.beginPath();ctx.moveTo(pts[0].x,H-pb);ctx.lineTo(pts[0].x,pts[0].y);bz(ctx,pts);
+  ctx.lineTo(pts[pts.length-1].x,H-pb);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);bz(ctx,pts);
+  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
+}
+
+/* ═══ MINI TERMINAL DATA ══════════════════════════════════ */
+const M={
+  cpu:{hist:[],cores:[5.9,7.7,14.4,12.5,4.9,6.1,8.1,3.2]},
+  gpu:{hist:[],util:0.5,vram:1424,vramMax:16303,temp:56,power:59},
+  gpu2:{hist:[],util:45,vram:5632,vramMax:12288,temp:71,power:95},
+  mem:{hist:[],usedGB:14.2,totalGB:63.2},
+  net:{dh:[],uh:[],down:0,up:0},
+};
+for(let i=0;i<LEN;i++){
+  M.cpu.hist.push(makeCandle(7+Math.random()*7,3));
+  M.gpu.hist.push(0.3+Math.random()*1.2);
+  M.gpu2.hist.push(40+Math.random()*12);
+  M.mem.hist.push(22+Math.random()*1);
+  M.net.dh.push(0);M.net.uh.push(0);
+}
+
+const MINI_PROCS=[
+  {name:'ollama_llama',cpu:12.3,mem:2100,vram:8192,ai:'inf',cat:'ai'},
+  {name:'vmmem',       cpu:0.0, mem:1350,vram:null,ai:null, cat:'watch'},
+  {name:'claude.exe',  cpu:2.9, mem:656, vram:null,ai:null, cat:'ai'},
+  {name:'Code.exe',    cpu:2.9, mem:394, vram:null,ai:null, cat:'dev'},
+  {name:'python.exe',  cpu:4.2, mem:380, vram:512, ai:'ild',cat:'ai'},
+  {name:'chrome.exe',  cpu:0.0, mem:372, vram:null,ai:null, cat:'dev'},
+  {name:'Code.exe',    cpu:8.8, mem:342, vram:null,ai:null, cat:'dev'},
+];
+
+function tickMini(){
+  M.cpu.cores=M.cpu.cores.map(c=>drift(c,2,40,.13));
+  const avg=M.cpu.cores.reduce((a,b)=>a+b,0)/M.cpu.cores.length;
+  push(M.cpu.hist,makeCandle(avg,avg*.32));
+  M.gpu.util=drift(M.gpu.util,0,6,.07);M.gpu.temp=drift(M.gpu.temp,54,58,.015);M.gpu.power=drift(M.gpu.power,55,65,.015);
+  push(M.gpu.hist,M.gpu.util);
+  M.gpu2.util=drift(M.gpu2.util,35,65,.08);push(M.gpu2.hist,M.gpu2.util);
+  M.mem.usedGB=drift(M.mem.usedGB,14,14.8,.008);push(M.mem.hist,(M.mem.usedGB/M.mem.totalGB)*100);
+  M.net.down=Math.random()<.08?Math.random()*4e6:drift(M.net.down,0,8e4,.06);
+  M.net.up=Math.random()<.04?Math.random()*8e5:drift(M.net.up,0,3e4,.04);
+  push(M.net.dh,M.net.down);push(M.net.uh,M.net.up);
+  MINI_PROCS.forEach(p=>{if(p.cpu>0)p.cpu=drift(p.cpu,0,p.cpu*2.5,.13);});
+}
+
+function renderMini(){
+  const avg=M.cpu.hist[M.cpu.hist.length-1]?.mean||10;
+  const setText=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  setText('mt-cpu',avg.toFixed(1)+'%');
+  setText('mt-gpu',((M.gpu.util+M.gpu2.util)/2).toFixed(1)+'%');
+  setText('mt-vram',(M.gpu.vram+M.gpu2.vram)+'MB');
+  setText('mt-mem',((M.mem.usedGB/M.mem.totalGB)*100).toFixed(1)+'%');
+  setText('mt-cval',avg.toFixed(1)+'%');
+  setText('mn-dn',fmtB(M.net.down));
+  setText('mn-up',fmtB(M.net.up));
+
+  /* mini candle chart */
+  const mc=document.getElementById('miniCanvas');
+  if(mc)drawCandle(mc,M.cpu.hist,'#38bdf8');
+
+  /* mini cores */
+  const cd=document.getElementById('mini-cores');
+  if(cd){
+    cd.innerHTML='';
+    M.cpu.cores.slice(0,4).forEach((v,i)=>{
+      const col=v>75?'var(--warn)':'var(--cpu)';
+      cd.innerHTML+=`<div class="mini-srow"><span class="mini-skey">C${i}</span><div class="mini-strack"><div class="mini-sfill cu" style="width:${Math.min(v,100)}%;background:${col}"></div></div><span class="mini-sval">${v.toFixed(0)}%</span></div>`;
+    });
+  }
+
+  /* mini gpu */
+  const vp=((M.gpu.vram+M.gpu2.vram)/(M.gpu.vramMax+M.gpu2.vramMax))*100;
+  const gu=document.getElementById('mg-util');if(gu)gu.style.width=M.gpu.util+'%';
+  const guv=document.getElementById('mg-util-v');if(guv)guv.textContent=M.gpu.util.toFixed(1)+'%';
+  const gv=document.getElementById('mg-vram');if(gv)gv.style.width=vp+'%';
+  const gvv=document.getElementById('mg-vram-v');if(gvv)gvv.textContent=fmtMB(M.gpu.vram+M.gpu2.vram);
+  const gpuSp=document.getElementById('ms-gpu');
+  if(gpuSp)drawArea(gpuSp,M.gpu.hist.map((v,i)=>(v+M.gpu2.hist[i])/2),'#a78bfa',0,100);
+
+  /* mini mem */
+  const mp=(M.mem.usedGB/M.mem.totalGB)*100;
+  const mu=document.getElementById('mm-used');if(mu)mu.style.width=mp+'%';
+  const muv=document.getElementById('mm-used-v');if(muv)muv.textContent=mp.toFixed(1)+'%';
+  const memSp=document.getElementById('ms-mem');
+  if(memSp)drawArea(memSp,M.mem.hist,'#34d399',0,100);
+
+  /* mini net */
+  const netSp=document.getElementById('ms-net');
+  if(netSp){
+    const s=prep(netSp);if(s){
+      const{ctx,W,H}=s,mx=Math.max(1e4,...M.net.dh,...M.net.uh);
+      ctx.clearRect(0,0,W,H);
+      [[M.net.dh,'#38bdf8'],[M.net.uh,'#fb923c']].forEach(([h,col])=>{
+        if(h.length<2)return;
+        const pts=h.map((v,i)=>({x:(i/(LEN-1))*W,y:H-1-(Math.max(0,Math.min(1,v/mx))*(H-2))}));
+        ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);bz(ctx,pts);
+        ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.stroke();
+      });
+    }
+  }
+
+  /* mini procs */
+  const pd=document.getElementById('mini-procs');
+  if(pd){
+    pd.innerHTML='';
+    const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
+    [...MINI_PROCS].sort((a,b)=>b.mem-a.mem).slice(0,6).forEach(p=>{
+      const cat=p.cat||'null';
+      const cls=p.cat?'mini-proc-row '+p.cat+'-r':'mini-proc-row';
+      const aiH=p.ai==='inf'?'<span class="ai-inf">● infer</span>':p.cat==='dev'?'<span class="ai-dev">■ dev</span>':'';
+      pd.innerHTML+=`<div class="${cls}"><span class="mp-name">${p.name}</span><span class="mp-cpu">${p.cpu.toFixed(1)}</span><span class="mp-mem">${fmtMB(p.mem)}</span><span class="mp-ai">${aiH}</span></div>`;
+    });
+  }
+}
+
+/* ═══ FEATURE CANDLE CHART ════════════════════════════════ */
+const FC={hist:[]};
+for(let i=0;i<LEN;i++)FC.hist.push(makeCandle(7+Math.random()*8,3));
+
+function renderFeatureCandle(){
+  const cc=document.getElementById('candleChart');
+  if(!cc)return;
+  const last=FC.hist[FC.hist.length-1]?.mean||10;
+  const el=document.getElementById('feat-cval');if(el)el.textContent=last.toFixed(1)+'%';
+  drawCandle(cc,FC.hist,'#38bdf8');
+  FC.hist.push(makeCandle(drift(last,2,40,.13),drift(last,2,40,.13)*.32));
+  if(FC.hist.length>LEN)FC.hist.shift();
+}
+
+/* ═══ PROCESS DEMO TABLE ══════════════════════════════════ */
+const PD_PROCS=[
+  {name:'ollama_llama',cpu:12.3,mem:2100,vram:8192,ai:'inf',cat:'ai'},
+  {name:'vmmem',       cpu:0.0, mem:1350,vram:null,ai:null, cat:'watch'},
+  {name:'claude.exe',  cpu:2.9, mem:656, vram:null,ai:null, cat:'ai'},
+  {name:'Code.exe',    cpu:2.9, mem:394, vram:null,ai:null, cat:'dev'},
+  {name:'explorer.exe',cpu:11.4,mem:389, vram:null,ai:null, cat:null},
+  {name:'python.exe',  cpu:4.2, mem:380, vram:512, ai:'ild',cat:'ai'},
+  {name:'chrome.exe',  cpu:0.0, mem:372, vram:null,ai:null, cat:'dev'},
+];
+let pdCat='all';
+function renderPDTable(){
+  const tb=document.getElementById('pd-tbody');if(!tb)return;
+  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
+  const DCLS={ai:'ai',dev:'dev',watch:'wat',null:'def'};
+  const RCAT={ai:'cat-ai',dev:'cat-dev',watch:'cat-wat',null:'cat-def'};
+  const rows=[...PD_PROCS].filter(p=>pdCat==='all'||p.cat===pdCat).sort((a,b)=>b.mem-a.mem);
+  tb.innerHTML='';
+  rows.forEach(p=>{
+    const cat=p.cat||'null';
+    const aiH=p.ai==='inf'?'<span class="pd-badge inf"><span class="bd">●</span> infer</span>':p.ai==='ild'?'<span class="pd-badge ild">○ idle</span>':'<span style="color:var(--muted)">—</span>';
+    const vH=p.vram?`<span class="pd-vram-v">${fmtMB(p.vram)}</span>`:'<span class="pd-vram-v none">—</span>';
+    const cpuCls=p.cpu>10?'hot':'';
+    const tr=document.createElement('tr');
+    tr.className='pd-row '+RCAT[cat];
+    tr.innerHTML=`<td><span class="pd-cat-dot ${DCLS[cat]}">${DOT[cat]}</span><span class="pd-name">${p.name}</span></td><td class="pd-cpu-v ${cpuCls}">${p.cpu.toFixed(1)}</td><td class="pd-mem-v">${fmtMB(p.mem)}</td><td>${vH}</td><td>${aiH}</td>`;
+    tb.appendChild(tr);
+  });
+}
+document.querySelectorAll('.pd-cat').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.pd-cat').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');pdCat=btn.dataset.c;renderPDTable();
+  });
+});
+
+/* ═══ GPU DEMO ════════════════════════════════════════════ */
+const GD={
+  gpus:[
+    {name:'RTX 5080',util:0.5,vram:1424,vramMax:16303,temp:56,power:59,powerMax:407,hist:[]},
+    {name:'RTX 3060',util:45, vram:5632,vramMax:12288,temp:71,power:95, powerMax:170,hist:[]},
+  ],
+  active:'all'
+};
+for(let i=0;i<LEN;i++){GD.gpus[0].hist.push(0.3+Math.random()*1.2);GD.gpus[1].hist.push(40+Math.random()*12);}
+function tickGD(){
+  GD.gpus[0].util=drift(GD.gpus[0].util,0,6,.07);GD.gpus[0].temp=drift(GD.gpus[0].temp,54,58,.015);GD.gpus[0].power=drift(GD.gpus[0].power,55,65,.015);push(GD.gpus[0].hist,GD.gpus[0].util);
+  GD.gpus[1].util=drift(GD.gpus[1].util,35,65,.08);GD.gpus[1].temp=drift(GD.gpus[1].temp,68,76,.02);GD.gpus[1].power=drift(GD.gpus[1].power,85,110,.02);push(GD.gpus[1].hist,GD.gpus[1].util);
+}
+function renderGD(){
+  const div=document.getElementById('gpu-demo-stats');if(!div)return;
+  const g=GD.active;
+  if(g==='all'){
+    const g0=GD.gpus[0],g1=GD.gpus[1];
+    const au=((g0.util+g1.util)/2),tv=g0.vramMax+g1.vramMax,uv=g0.vram+g1.vram;
+    const mt=Math.max(g0.temp,g1.temp),tp=g0.power+g1.power;
+    const v0p=(g0.vram/tv)*100,v1p=(g1.vram/tv)*100;
+    div.innerHTML=`
+      <div class="gd-srow"><span class="gd-key">Util</span><div class="gd-track"><div class="gd-fill u" style="width:${au}%"></div></div><span class="gd-val">${au.toFixed(1)}%</span></div>
+      <div class="gd-srow"><span class="gd-key">VRAM</span><div class="vram-dual-bar"><div class="gd-fill v0" style="width:${v0p}%"></div><div class="gd-fill v1" style="width:${v1p}%"></div></div><span class="gd-val">${fmtMB(uv)}</span></div>
+      <div class="gd-srow"><span class="gd-key">Temp</span><div class="gd-track"><div class="gd-fill t" style="width:${mt}%"></div></div><span class="gd-val">${mt.toFixed(1)}°C</span></div>
+      <div class="gd-srow"><span class="gd-key">Powr</span><div class="gd-track"><div class="gd-fill p" style="width:${(tp/577)*100}%"></div></div><span class="gd-val">${tp.toFixed(0)}W</span></div>`;
+    const sp=document.getElementById('gpuSparkLine');
+    if(sp)drawArea(sp,GD.gpus[0].hist.map((v,i)=>(v+GD.gpus[1].hist[i])/2),'#a78bfa',0,100);
+  } else {
+    const gi=parseInt(g),gd=GD.gpus[gi];
+    div.innerHTML=`
+      <div class="gd-srow"><span class="gd-key">Util</span><div class="gd-track"><div class="gd-fill u" style="width:${gd.util}%"></div></div><span class="gd-val">${gd.util.toFixed(1)}%</span></div>
+      <div class="gd-srow"><span class="gd-key">VRAM</span><div class="gd-track"><div class="gd-fill v" style="width:${(gd.vram/gd.vramMax)*100}%"></div></div><span class="gd-val">${fmtMB(gd.vram)}</span></div>
+      <div class="gd-srow"><span class="gd-key">Temp</span><div class="gd-track"><div class="gd-fill t" style="width:${gd.temp}%"></div></div><span class="gd-val">${gd.temp.toFixed(1)}°C</span></div>
+      <div class="gd-srow"><span class="gd-key">Powr</span><div class="gd-track"><div class="gd-fill p" style="width:${(gd.power/gd.powerMax)*100}%"></div></div><span class="gd-val">${gd.power.toFixed(1)}W</span></div>`;
+    const sp=document.getElementById('gpuSparkLine');
+    if(sp)drawArea(sp,GD.gpus[gi].hist,'#a78bfa',0,100);
+  }
+}
+function setGDTab(g,btn){
+  GD.active=g;
+  document.querySelectorAll('.g-tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');renderGD();
+}
+
+/* ═══ SCROLL REVEAL ══════════════════════════════════════ */
+const io=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ═══ MAIN LOOP ══════════════════════════════════════════ */
+function frame(){
+  tickMini();tickGD();
+  renderMini();renderFeatureCandle();renderGD();renderPDTable();
+}
+renderPDTable();
+frame();
+setInterval(frame,500);
+</script>
+</body>
+</html>

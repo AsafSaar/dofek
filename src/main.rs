@@ -43,6 +43,10 @@ fn main() -> Result<()> {
 
     let mut app = App::new(config);
 
+    // Restore saved user settings
+    let settings = dofek::settings::UserSettings::load();
+    app.apply_settings(&settings);
+
     // Main loop
     loop {
         // Receive data snapshots (non-blocking)
@@ -71,6 +75,11 @@ fn main() -> Result<()> {
         if app.should_quit {
             break;
         }
+    }
+
+    // Save user settings before exit
+    if let Err(e) = app.to_settings().save() {
+        log::warn!("Failed to save settings: {e}");
     }
 
     // Cleanup terminal

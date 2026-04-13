@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "dofek",
+  "version": "0.2.0",
+  "identifier": "com.dofek.app",
+  "build": {
+    "frontendDist": "frontend"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "dofek — system monitor",
+        "width": 1400,
+        "height": 850,
+        "minWidth": 900,
+        "minHeight": 600,
+        "decorations": true,
+        "resizable": true,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com"
+    }
+  }
+}

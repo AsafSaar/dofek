@@ -43,6 +43,7 @@ dofek v0.2  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDE
 - **Resizable panes** — `[`/`]` in TUI, drag handle in GUI to adjust chart vs. process split
 - **Candlestick CPU chart** — min/max wicks, IQR bodies, mean ticks. Shows CPU variance at a glance
 - **Area charts** — smooth filled charts for GPU, memory, and network with threshold lines at 80%/90%
+- **Horizon chart mode** — press `h` to toggle layered color-band charts across all metrics
 - **AI workload detection** — VRAM per-process, inference/loading/idle badges, auto-classification
 - **Process watchlist with categories** — AI (●), DEV (■), WATCH (★) with color-coded rows and filter tabs
 - **Multi-GPU support** — per-device metrics, overlaid chart lines, aggregate views
@@ -66,20 +67,27 @@ dofek v0.2  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDE
 ```bash
 git clone https://github.com/AsafSaar/dofek.git
 cd dofek
+```
 
-# TUI (terminal)
-cargo build --release
-# Binary at target/release/dofek-tui.exe
+**Debug builds** (fast compile, unoptimized):
 
-# GUI (Tauri desktop app)
-cargo tauri build
+```bash
+cargo build                        # TUI debug
+cargo tauri dev                    # GUI debug (launches with hot-reload)
+```
+
+**Release builds** (optimized, LTO + strip):
+
+```bash
+cargo build --release              # TUI release → target/release/dofek-tui.exe
+cargo tauri build                  # GUI release → produces installer/MSI
 ```
 
 ### Prerequisites
 
 - [Rust toolchain](https://rustup.rs/) (stable, edition 2024)
 - [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with C++ workload
-- For GUI: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
+- For GUI: [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`)
 
 ## Usage
 
@@ -101,6 +109,7 @@ For best visual results, set your terminal font size to **9-10pt** (e.g., in Win
 | `g` | Switch main chart to GPU (area chart) |
 | `m` | Switch main chart to Memory (area chart) |
 | `n` | Switch main chart to Network (area chart) |
+| `h` | Toggle horizon chart mode |
 | `p` | Full-screen process view |
 | `tab` | Cycle sort column (Name / PID / CPU% / MEM / VRAM) |
 | `1` | Process filter: ALL |
@@ -217,6 +226,7 @@ src/
     chart.rs           Main chart panel: tab switching, meta line, threshold legend
     candlestick.rs     Custom candlestick chart widget (Buffer manipulation, half-blocks)
     area_chart.rs      Custom area chart widget (filled area, multi-series, thresholds)
+    horizon_chart.rs   Custom horizon chart widget (3-band color-intensity layering)
     watchlist.rs       Process watchlist: category tabs, sort buttons, plugin dock
     bottom_strip.rs    Compact 4-panel row: CPU grid, GPU stats, MEM, NET
     status.rs          Bottom status bar with keybindings
@@ -254,6 +264,7 @@ LHM fallback ──> GPU sensors (if NVML unavailable) ────────�
 
 - **Candlestick**: wick lines (`│`), IQR bodies (`█▄▀`), mean ticks (`─`), live dot (`●`)
 - **Area chart**: filled gradient area, line overlay, multi-series support
+- **Horizon chart**: 3-band color-intensity layering, fills to true y-axis position
 - **Threshold lines**: dashed `╌` at configurable warn/crit levels
 
 **GUI**: Canvas-based rendering with Bezier-smoothed area charts, CSS progress bars, and dynamic auto-scaling for sparklines.

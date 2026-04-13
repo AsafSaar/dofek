@@ -4,6 +4,8 @@ use crate::config::Config;
 use crate::data::DataSnapshot;
 use crate::ui::sparkline_buf::{CandleBuf, SparklineBuf};
 
+use dofek::settings::UserSettings;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PanelFocus {
     Dashboard,
@@ -260,12 +262,72 @@ impl App {
             }
             // Resize chart/watchlist split
             KeyCode::Char('[') => {
-                self.split_pct = self.split_pct.saturating_sub(5).max(25);
+                self.split_pct = self.split_pct.saturating_sub(5).max(30);
             }
             KeyCode::Char(']') => {
-                self.split_pct = (self.split_pct + 5).min(85);
+                self.split_pct = (self.split_pct + 5).min(70);
             }
             _ => {}
+        }
+    }
+
+    pub fn apply_settings(&mut self, s: &UserSettings) {
+        self.chart_tab = match s.chart_tab.as_str() {
+            "gpu" => ChartTab::Gpu,
+            "mem" => ChartTab::Mem,
+            "net" => ChartTab::Net,
+            _ => ChartTab::Cpu,
+        };
+        self.chart_mode = match s.chart_mode.as_str() {
+            "horizon" => ChartMode::Horizon,
+            _ => ChartMode::Default,
+        };
+        self.sort_column = match s.sort_column.as_str() {
+            "name" => SortColumn::Name,
+            "pid" => SortColumn::Pid,
+            "cpu" => SortColumn::Cpu,
+            "vram" => SortColumn::Vram,
+            _ => SortColumn::Memory,
+        };
+        self.sort_ascending = s.sort_ascending;
+        self.category_filter = match s.category_filter.as_str() {
+            "ai" => CategoryFilter::Ai,
+            "dev" => CategoryFilter::Dev,
+            "watch" => CategoryFilter::Watch,
+            _ => CategoryFilter::All,
+        };
+        self.split_pct = s.split_pct.clamp(30, 70);
+        self.refresh_ms = s.refresh_ms.clamp(100, 5000);
+    }
+
+    pub fn to_settings(&self) -> UserSettings {
+        UserSettings {
+            chart_tab: match self.chart_tab {
+                ChartTab::Cpu => "cpu",
+                ChartTab::Gpu => "gpu",
+                ChartTab::Mem => "mem",
+                ChartTab::Net => "net",
+            }.to_string(),
+            chart_mode: match self.chart_mode {
+                ChartMode::Default => "default",
+                ChartMode::Horizon => "horizon",
+            }.to_string(),
+            sort_column: match self.sort_column {
+                SortColumn::Name => "name",
+                SortColumn::Pid => "pid",
+                SortColumn::Cpu => "cpu",
+                SortColumn::Memory => "memory",
+                SortColumn::Vram => "vram",
+            }.to_string(),
+            sort_ascending: self.sort_ascending,
+            category_filter: match self.category_filter {
+                CategoryFilter::All => "all",
+                CategoryFilter::Ai => "ai",
+                CategoryFilter::Dev => "dev",
+                CategoryFilter::Watch => "watch",
+            }.to_string(),
+            split_pct: self.split_pct,
+            refresh_ms: self.refresh_ms,
         }
     }
 

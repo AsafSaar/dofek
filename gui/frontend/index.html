@@ -1029,7 +1029,7 @@ function upProcs(){
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
-    btn.classList.add('on'); S.metric=btn.dataset.m; upMainChart();
+    btn.classList.add('on'); S.metric=btn.dataset.m; upMainChart(); saveSettings();
   });
 });
 
@@ -1045,6 +1045,7 @@ function setSort(col){
       : ({name:'NAME',pid:'PID',cpu:'CPU%',mem:'MEM',vram:'VRAM'}[th.dataset.sort]);
   });
   upProcs();
+  saveSettings();
 }
 
 /* Sort buttons */
@@ -1062,7 +1063,7 @@ document.querySelectorAll('.cat-tab').forEach(btn=>{
   btn.addEventListener('click',()=>{
     activeCat=btn.dataset.cat;
     document.querySelectorAll('.cat-tab').forEach(b=>b.classList.remove('on'));
-    btn.classList.add('on'); upProcs();
+    btn.classList.add('on'); upProcs(); saveSettings();
   });
 });
 
@@ -1096,7 +1097,7 @@ document.addEventListener('keydown', e => {
   // Toggle horizon chart mode: h
   if (k === 'h') {
     S.chartMode = S.chartMode === 'default' ? 'horizon' : 'default';
-    upMainChart();
+    upMainChart(); saveSettings();
     return;
   }
 
@@ -1107,7 +1108,7 @@ document.addEventListener('keydown', e => {
     document.querySelectorAll('.tab').forEach(b => {
       b.classList.toggle('on', b.dataset.m === chartKeys[k]);
     });
-    upMainChart();
+    upMainChart(); saveSettings();
     return;
   }
 
@@ -1118,7 +1119,7 @@ document.addEventListener('keydown', e => {
     document.querySelectorAll('.cat-tab').forEach(b => {
       b.classList.toggle('on', b.dataset.cat === catKeys[k]);
     });
-    upProcs();
+    upProcs(); saveSettings();
     return;
   }
 
@@ -1138,6 +1139,7 @@ document.addEventListener('keydown', e => {
     const mainW = document.querySelector('.main').offsetWidth;
     const delta = k === ']' ? -30 : 30;
     wl.style.width = Math.max(200, Math.min(mainW - 200, cur + delta)) + 'px';
+    saveSettings();
     return;
   }
 
@@ -1205,7 +1207,62 @@ const ro=new ResizeObserver(()=>{upMainChart();upCores();upGPU();upMEM();upNET()
     handle.classList.remove('active');
     document.body.style.cursor='';
     document.body.style.userSelect='';
+    saveSettings();
   });
+}
+
+/* ═══ SETTINGS PERSISTENCE ═══════════════════════════════ */
+let saveTimer = null;
+function saveSettings() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    if (!invoke) return;
+    try {
+      const wl = document.getElementById('watchlist-panel');
+      const main = document.querySelector('.main');
+      const splitPct = (main && wl) ? Math.round((1 - wl.offsetWidth / main.offsetWidth) * 100) : 58;
+      await invoke('save_settings', { settings: {
+        chart_tab: S.metric,
+        chart_mode: S.chartMode,
+        sort_column: S.sortBy,
+        sort_ascending: S.sortAsc,
+        category_filter: activeCat,
+        split_pct: splitPct,
+        refresh_ms: 500,
+      }});
+    } catch(e) { console.warn('Settings save failed:', e); }
+  }, 2000);
+}
+
+async function loadSettings() {
+  if (!invoke) return;
+  try {
+    const s = await invoke('get_settings');
+    if (s.chart_tab) S.metric = s.chart_tab;
+    if (s.chart_mode) S.chartMode = s.chart_mode;
+    if (s.sort_column) S.sortBy = s.sort_column;
+    if (typeof s.sort_ascending === 'boolean') S.sortAsc = s.sort_ascending;
+    if (s.category_filter) { S.cat = s.category_filter; activeCat = s.category_filter; }
+
+    // Update tab buttons
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.m === S.metric));
+    document.querySelectorAll('.cat-tab').forEach(b => b.classList.toggle('on', b.dataset.cat === S.cat));
+
+    // Update sort header highlights
+    document.querySelectorAll('.sh').forEach(b => {
+      b.classList.toggle('active', b.dataset.s === S.sortBy);
+    });
+
+    // Apply split_pct to watchlist panel width
+    if (s.split_pct && s.split_pct >= 25 && s.split_pct <= 85) {
+      const wl = document.getElementById('watchlist-panel');
+      const main = document.querySelector('.main');
+      if (wl && main) {
+        const mainW = main.offsetWidth;
+        wl.style.width = Math.round(mainW * (1 - s.split_pct / 100)) + 'px';
+      }
+    }
+  } catch(e) { console.warn('Settings load failed, using defaults:', e); }
 }
 
 /* ═══ MAIN LOOP ══════════════════════════════════════════ */
@@ -1215,8 +1272,7 @@ async function frame(){
   const fns=[upTopBar, upMainChart, upCores, upGPU, upMEM, upNET, upProcs];
   for(const fn of fns){ try{ fn(); }catch(e){ console.error(fn.name+':',e); } }
 }
-frame();
-setInterval(frame,500);
+loadSettings().then(() => { frame(); setInterval(frame, 500); });
 /* ═══ TOAST ══════════════════════════════════════════════ */
 function showToast(msg){
   const t=document.getElementById('toast');
@@ -1255,18 +1311,18 @@ document.querySelector('.logo').addEventListener('click',()=>{
 
 <!-- About overlay -->
 <div class="help-overlay" id="about-overlay">
-  <div class="help-box" style="text-align:center;min-width:340px;">
-    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v0.2</span></div>
-    <div style="font-size:14px;color:var(--dim);margin-bottom:20px;">Terminal / GUI, AI-aware system monitor</div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
-      <a href="https://github.com/AsafSaar/dofek" target="_blank" class="about-link">github.com/AsafSaar/dofek</a>
-      <a href="https://linkedin.com/in/asafsaar" target="_blank" class="about-link">linkedin.com/in/asafsaar</a>
+  <div class="help-box" style="text-align:center;min-width:440px;">
+    <div style="font-size:48px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:10px;">dofek <span style="font-size:28px;color:var(--text);font-weight:600;">v0.2</span></div>
+    <div style="font-size:28px;color:var(--dim);margin-bottom:28px;">Terminal / GUI, AI-aware system monitor</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+      <a href="https://github.com/AsafSaar/dofek" target="_blank" class="about-link" style="font-size:22px;">github.com/AsafSaar/dofek</a>
+      <a href="https://linkedin.com/in/asafsaar" target="_blank" class="about-link" style="font-size:22px;">linkedin.com/in/asafsaar</a>
     </div>
-    <div style="font-size:10px;color:var(--muted);border-top:1px solid var(--bdr);padding-top:10px;">
+    <div style="font-size:20px;color:var(--muted);border-top:1px solid var(--bdr);padding-top:14px;">
       Built by <span style="color:var(--dim);font-weight:500;">Asaf Saar</span><br>
       &copy; 2026 — MIT License
     </div>
-    <div class="help-footer">press any key to close</div>
+    <div class="help-footer" style="font-size:18px;">press any key to close</div>
   </div>
 </div>
 
