@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://dofek.dev/sitemap.xml
