@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="dofek — terminal-native, AI-aware system monitor for Windows. VRAM per process, candlestick CPU charts, AI workload detection.">
+<meta name="description" content="dofek — AI-aware system monitor for Windows. TUI and desktop app. VRAM per process, candlestick CPU charts, AI workload detection.">
 <meta property="og:title" content="dofek — system monitor for the AI era">
-<meta property="og:description" content="Terminal-native, AI-aware system monitor for Windows. VRAM per process, candlestick CPU charts, AI workload detection.">
+<meta property="og:description" content="AI-aware system monitor for Windows — TUI and desktop app. VRAM per process, candlestick CPU charts, AI workload detection.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="tui-screenshot.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="dofek — system monitor for the AI era">
-<meta name="twitter:description" content="Terminal-native, AI-aware system monitor for Windows. VRAM per process, candlestick CPU charts, AI workload detection.">
+<meta name="twitter:description" content="AI-aware system monitor for Windows — TUI and desktop app. VRAM per process, candlestick CPU charts, AI workload detection.">
 <meta name="twitter:image" content="tui-screenshot.png">
 <title>dofek — system monitor for the AI era</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -532,9 +532,9 @@ footer {
     </div>
     <h1>Your workstation deserves better than <span class="accent-cpu">Task Manager</span>.</h1>
     <p class="hero-sub">
-      dofek is a terminal-native system monitor built for developers running AI workloads.
+      dofek is a system monitor built for developers running AI workloads —
+      available as a TUI and a native desktop app.
       VRAM per process. Inference detection. Candlestick CPU charts.
-      All in a single binary.
     </p>
     <div class="hero-ctas">
       <a href="https://github.com/AsafSaar/dofek/releases" target="_blank" class="btn-primary">
@@ -546,7 +546,7 @@ footer {
         View on GitHub
       </a>
     </div>
-    <div class="hero-meta">single binary<span>·</span>no runtime dependencies<span>·</span>built with Rust + Ratatui</div>
+    <div class="hero-meta">TUI + Desktop<span>·</span>no runtime dependencies<span>·</span>built with Rust</div>
   </div>
 
   <!-- LIVE MINI TERMINAL -->
@@ -753,8 +753,8 @@ footer {
   <div class="feature-split">
     <div class="feature-text reveal">
       <div class="section-tag">DESKTOP APP</div>
-      <h2>Same engine,<br><span class="hl-cpu">native window</span>.</h2>
-      <p class="section-sub">dofek also ships as a Tauri-powered desktop app. Same real-time data engine, same trading-terminal aesthetic — but with mouse interaction, resizable panes, and a windowed layout that sits alongside your other tools.</p>
+      <h2>Prefer a <span class="hl-cpu">window</span>?<br>We built that too.</h2>
+      <p class="section-sub">The desktop edition is a Tauri-powered native app with the same real-time data engine and trading-terminal aesthetic. Mouse interaction, resizable panes, and a windowed layout that sits alongside your other tools.</p>
       <ul class="feature-bullets">
         <li>Resizable chart and watchlist panes via drag handle</li>
         <li>Candlestick and horizon chart modes with tab switching</li>
@@ -831,14 +831,14 @@ footer {
     <div class="install-step reveal">
       <div class="step-num">01 — DOWNLOAD OR BUILD</div>
       <div class="step-title">Get the binary</div>
-      <div class="step-body">Grab the latest release from GitHub, or build from source with the Rust stable toolchain and VS Build Tools (C++ workload).</div>
-      <div class="step-code">git clone github.com/AsafSaar/dofek<br>cd dofek<br>cargo build --release</div>
+      <div class="step-body">Grab the TUI or desktop app from GitHub Releases, or build either from source with the Rust stable toolchain and VS Build Tools (C++ workload).</div>
+      <div class="step-code">git clone github.com/AsafSaar/dofek<br>cd dofek<br>cargo build --release <span style="color:var(--muted)"># TUI</span><br>cd gui &amp;&amp; cargo tauri build <span style="color:var(--muted)"># Desktop</span></div>
     </div>
     <div class="install-step reveal reveal-d1">
       <div class="step-num">02 — RUN</div>
       <div class="step-title">Launch dofek</div>
-      <div class="step-body">Run the binary from any terminal. NVIDIA GPU metrics work automatically via NVML — no extra setup needed. Optionally point it at a config file.</div>
-      <div class="step-code">dofek<br><span style="color:var(--muted)"># or with config:</span><br>dofek --config dofek.toml</div>
+      <div class="step-body">Run the TUI from any terminal, or launch the desktop app. NVIDIA GPU metrics work automatically via NVML — no extra setup needed.</div>
+      <div class="step-code"><span style="color:var(--muted)"># TUI</span><br>dofek<br><span style="color:var(--muted)"># Desktop app</span><br>dofek-gui</div>
     </div>
     <div class="install-step reveal reveal-d2">
       <div class="step-num">03 — OPTIONAL</div>
@@ -888,7 +888,7 @@ footer {
 <footer>
   <div class="footer-logo">dofek <em>v0.2</em></div>
   <div class="footer-meta">
-    Built with Rust + Ratatui · MIT License<br>
+    Built with Rust · Ratatui + Tauri · MIT License<br>
     © 2025–2026 Asaf Saar
   </div>
   <div class="footer-links">
