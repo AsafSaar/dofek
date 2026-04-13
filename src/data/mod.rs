@@ -17,15 +17,16 @@ use std::time::{Duration, Instant};
 use sysinfo::System;
 
 /// Complete snapshot of all system data at a point in time.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct DataSnapshot {
     pub cpu: CpuSensors,
     pub memory: MemorySensors,
-    pub gpu: Option<GpuSensors>,
+    pub gpus: Vec<GpuSensors>,
     pub network: NetworkStats,
     pub processes: Vec<ProcessInfo>,
     pub nvml_available: bool,
     pub lhm_connected: bool,
+    #[serde(skip)]
     pub timestamp: Instant,
 }
 
@@ -34,7 +35,7 @@ impl Default for DataSnapshot {
         Self {
             cpu: CpuSensors::default(),
             memory: MemorySensors::default(),
-            gpu: None,
+            gpus: Vec::new(),
             network: NetworkStats::default(),
             processes: Vec::new(),
             nvml_available: false,
@@ -69,27 +70,27 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
 
             // GPU: try NVML first, fall back to LHM (only if NVML unavailable)
             let nvml_snap = nvml.query();
-            let gpu_sensors = if let Some(ref dev) = nvml_snap.device {
-                Some(GpuSensors {
+            let gpu_sensors: Vec<GpuSensors> = if !nvml_snap.devices.is_empty() {
+                nvml_snap.devices.iter().map(|dev| GpuSensors {
                     name: dev.name.clone(),
                     utilization: dev.utilization,
                     vram_used_mb: dev.vram_used_mb,
                     vram_total_mb: dev.vram_total_mb,
                     temperature: dev.temperature,
                     power_watts: dev.power_watts,
-                })
+                }).collect()
             } else if !lhm_failed {
                 // Fallback: try LHM for GPU data (e.g. AMD GPUs)
                 match lhm::fetch_lhm_data(&config.lhm.url) {
-                    Ok(root) => lhm::extract_gpu(&root),
+                    Ok(root) => lhm::extract_gpus(&root),
                     Err(_) => {
                         lhm_failed = true;
                         log::info!("LHM not available, GPU panel disabled");
-                        None
+                        Vec::new()
                     }
                 }
             } else {
-                None
+                Vec::new()
             };
 
             let network = network::query_network_stats(&mut net_tracker);
@@ -100,11 +101,11 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 &nvml_snap.per_process_vram,
             );
 
-            // Classify AI workloads
-            let gpu_util = gpu_sensors.as_ref().map(|g| g.utilization).unwrap_or(0.0);
+            // Classify AI workloads and process categories
+            let gpu_util = gpu_sensors.iter().map(|g| g.utilization).fold(0.0f32, f32::max);
             for proc in &mut processes {
                 let prev = prev_vram.get(&proc.pid).copied();
-                ai_detect::classify_ai_workload(proc, &config.ai, gpu_util, prev);
+                ai_detect::classify_process(proc, &config.ai, &config.categories, gpu_util, prev);
             }
 
             // Track VRAM for delta detection
@@ -118,7 +119,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
             let snapshot = DataSnapshot {
                 cpu,
                 memory,
-                gpu: gpu_sensors,
+                gpus: gpu_sensors,
                 network,
                 processes,
                 nvml_available: nvml.is_available(),

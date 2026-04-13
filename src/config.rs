@@ -21,6 +21,8 @@ pub struct Config {
     pub ai: AiConfig,
     #[serde(default)]
     pub lhm: LhmConfig,
+    #[serde(default)]
+    pub categories: CategoriesConfig,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -61,6 +63,36 @@ fn default_true() -> bool { true }
 fn default_process_count() -> usize { 10 }
 fn default_vram_threshold() -> f64 { 1.0 }
 fn default_lhm_url() -> String { "http://localhost:8085".to_string() }
+#[derive(Deserialize, Debug, Clone)]
+pub struct CategoriesConfig {
+    #[serde(default = "default_dev_processes")]
+    pub dev_processes: Vec<String>,
+    #[serde(default)]
+    pub watch_pids: Vec<u32>,
+}
+
+impl Default for CategoriesConfig {
+    fn default() -> Self {
+        Self {
+            dev_processes: default_dev_processes(),
+            watch_pids: Vec::new(),
+        }
+    }
+}
+
+fn default_dev_processes() -> Vec<String> {
+    vec![
+        "code".to_string(),
+        "cargo".to_string(),
+        "rustc".to_string(),
+        "node".to_string(),
+        "npm".to_string(),
+        "git".to_string(),
+        "docker".to_string(),
+        "go".to_string(),
+    ]
+}
+
 fn default_ai_processes() -> Vec<String> {
     vec![
         "ollama".to_string(),
@@ -101,6 +133,7 @@ impl Default for Config {
             display: DisplayConfig::default(),
             ai: AiConfig::default(),
             lhm: LhmConfig::default(),
+            categories: CategoriesConfig::default(),
         }
     }
 }

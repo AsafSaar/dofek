@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyEvent};
+use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -16,7 +16,7 @@ pub fn spawn_event_reader(tick_rate: Duration) -> mpsc::Receiver<AppEvent> {
     thread::spawn(move || loop {
         if event::poll(tick_rate).unwrap_or(false) {
             match event::read() {
-                Ok(Event::Key(key)) => {
+                Ok(Event::Key(key)) if key.kind == KeyEventKind::Press => {
                     if tx.send(AppEvent::Key(key)).is_err() {
                         return;
                     }

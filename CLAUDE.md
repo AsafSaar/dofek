@@ -43,22 +43,31 @@ cargo run                # Run (works out of the box — no external dependencie
 ### Module Structure
 
 - `src/main.rs` — Entry point: terminal init, thread spawning, main event/render loop
-- `src/app.rs` — App state model: holds `DataSnapshot`, `HistoryBuffers`, focus/sort state
-- `src/config.rs` — CLI (clap) + TOML config loading. Lookup order: `--config` flag → `./dofek.toml` → `%APPDATA%/dofek/dofek.toml`
+- `src/app.rs` — App state: `DataSnapshot`, `HistoryBuffers`, `ChartTab`, `CategoryFilter`, `GpuTab`
+- `src/config.rs` — CLI (clap) + TOML config loading with `[categories]` section
 - `src/event.rs` — Crossterm event reader thread, `AppEvent` enum
 - `src/data/` — Data collection layer:
-  - `mod.rs` — `DataSnapshot` struct, collector thread orchestration
+  - `mod.rs` — `DataSnapshot` struct (with `gpus: Vec<GpuSensors>`), collector thread
   - `sysinfo_source.rs` — sysinfo-backed CPU, memory, and process extraction
-  - `lhm.rs` — LHM HTTP client (optional GPU fallback for non-NVIDIA systems)
-  - `process.rs` — `ProcessInfo` and `AiState` type definitions
-  - `gpu.rs` — NVML wrapper: device-level GPU metrics + per-process VRAM
+  - `gpu.rs` — NVML wrapper: multi-GPU device metrics + per-process VRAM
+  - `lhm.rs` — LHM HTTP client (optional GPU fallback, multi-GPU aware)
+  - `process.rs` — `ProcessInfo`, `AiState`, `ProcessCategory` definitions
   - `network.rs` — `GetIfTable2` for per-interface rx/tx bytes, delta computation
-  - `ai_detect.rs` — AI workload classification (name match + VRAM threshold + GPU util)
-- `src/ui/` — Rendering layer (all render functions take `&App` and write to `Frame`):
-  - `mod.rs` — Master layout, dashboard view splits, panel dispatch by focus state
-  - `theme.rs` — Color palette constants (hex values from spec)
-  - `header.rs`, `footer.rs`, `cpu.rs`, `memory.rs`, `gpu.rs`, `network_disk.rs`, `process_table.rs`, `help.rs`
-  - `sparkline_buf.rs` — Ring buffer (`VecDeque<u64>`) for sparkline history
+  - `ai_detect.rs` — AI workload + category classification (AI/DEV/WATCH)
+- `src/ui/` — Rendering layer (trading-terminal layout):
+  - `mod.rs` — Master layout: ticker + chart/watchlist split + bottom strip + status bar
+  - `theme.rs` — Trading-terminal color palette (sky blue CPU, violet GPU, emerald MEM, etc.)
+  - `ticker.rs` — Top ticker bar with metric pills, AI badge, hostname, clock
+  - `chart.rs` — Main chart panel with tab switching (CPU/GPU/MEM/NET)
+  - `candlestick.rs` — Custom candlestick widget (Buffer manipulation, half-blocks)
+  - `area_chart.rs` — Custom area chart widget (filled, multi-series, thresholds)
+  - `watchlist.rs` — Process watchlist with category tabs, sort buttons, plugin dock
+  - `bottom_strip.rs` — Compact 4-panel row: CPU core grid, GPU stats, MEM bars, NET rates
+  - `status.rs` — Bottom status bar with keybindings
+  - `sparkline_buf.rs` — Ring buffers: `SparklineBuf` (u64) + `CandleBuf` (OHLC-style candles)
+  - `cpu.rs`, `gpu.rs`, `memory.rs`, `network_disk.rs` — Panel renderers (full-screen mode)
+  - `process_table.rs` — Full-screen process table (via `p` key)
+  - `help.rs` — Help overlay popup
 
 ### Key Data Flow
 `sysinfo refresh → extract_cpu/extract_memory/enumerate_processes → DataSnapshot → App.update_data() → HistoryBuffers → ui::render()`
@@ -76,12 +85,15 @@ See `dofek.toml.example` for all options. Key settings:
 - `ai.vram_threshold_gb` (default 1.0) — VRAM usage above this flags a process as AI
 - `lhm.url` (default `http://localhost:8085`) — LHM web server address (only used as GPU fallback)
 
-## Current Status (v0.1 POC)
+## Current Status (v0.2)
 
-All panels implemented: CPU, Memory, GPU, Network+Disk, Process Table with VRAM column and AI badges. Per-process CPU% is fully functional via sysinfo. Keybindings: q/tab/p/g/c/m/esc/?/+/-/s.
+Trading-terminal redesign complete: two-zone layout (main chart + watchlist), candlestick CPU chart, area charts for GPU/MEM/NET, multi-GPU support, process categories (AI/DEV/WATCH), top ticker bar, compact bottom strip. Custom chart widgets use Buffer manipulation with half-block characters for 2x vertical resolution.
+
+Keybindings: q/tab/p/c/g/m/n/1-4/esc/?/+/-/s.
 
 ### Known Limitations
 - AMD GPU VRAM not supported (NVML is NVIDIA-only; LHM fallback provides basic GPU data)
-- No disk I/O stats yet in the network_disk panel
+- No disk I/O stats yet
 - CPU temperature/power not available without LHM (sysinfo doesn't provide these on Windows without elevation)
-- Windows-only (intentional for v0.1)
+- Windows-only (intentional)
+- Plugin dock is UI placeholder only (no plugin system yet)

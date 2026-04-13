@@ -160,14 +160,22 @@ pub fn extract_memory(root: &LhmNode) -> Option<MemorySensors> {
     })
 }
 
-/// Extract GPU data from an LHM tree.
-pub fn extract_gpu(root: &LhmNode) -> Option<GpuSensors> {
-    let computer = root.children.first()?;
-    let gpu_node = computer.children.iter().find(|n| {
-        let t = n.text.to_lowercase();
-        t.contains("nvidia") || t.contains("radeon") || t.contains("geforce") || t.contains("gpu")
-    })?;
+/// Extract GPU data from an LHM tree (all GPU devices found).
+pub fn extract_gpus(root: &LhmNode) -> Vec<GpuSensors> {
+    let Some(computer) = root.children.first() else {
+        return Vec::new();
+    };
 
+    computer.children.iter()
+        .filter(|n| {
+            let t = n.text.to_lowercase();
+            t.contains("nvidia") || t.contains("radeon") || t.contains("geforce") || t.contains("gpu")
+        })
+        .filter_map(|gpu_node| extract_single_gpu(gpu_node))
+        .collect()
+}
+
+fn extract_single_gpu(gpu_node: &LhmNode) -> Option<GpuSensors> {
     let name = gpu_node.text.clone();
 
     let load_section = gpu_node.find_child("load");
@@ -213,7 +221,7 @@ pub fn extract_gpu(root: &LhmNode) -> Option<GpuSensors> {
     })
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct CpuSensors {
     pub name: String,
     pub total_load: f32,
@@ -222,7 +230,7 @@ pub struct CpuSensors {
     pub power: Option<f32>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct MemorySensors {
     pub used_percent: f32,
     pub used_gb: f32,
@@ -230,7 +238,7 @@ pub struct MemorySensors {
     pub swap_used_percent: f32,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct GpuSensors {
     pub name: String,
     pub utilization: f32,

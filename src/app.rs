@@ -27,6 +27,12 @@ pub enum CategoryFilter {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ChartMode {
+    Default,  // Candle for CPU, Area for GPU/MEM/NET
+    Horizon,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GpuTab {
     All,
     Device(usize),
@@ -77,8 +83,8 @@ pub struct HistoryBuffers {
 
 impl HistoryBuffers {
     pub fn new(capacity: usize) -> Self {
-        // 10 samples per candle: at 500ms refresh = 5s per candle
-        let samples_per_candle = 10;
+        // 1 sample per candle with synthetic spread (matches GUI behavior)
+        let samples_per_candle = 1;
         Self {
             cpu_total: SparklineBuf::new(capacity),
             cpu_candle: CandleBuf::new(capacity, samples_per_candle),
@@ -102,6 +108,7 @@ pub struct App {
     pub gpu_tab: GpuTab,
     pub sort_column: SortColumn,
     pub sort_ascending: bool,
+    pub chart_mode: ChartMode,
     pub show_help: bool,
     pub show_about: bool,
     pub should_quit: bool,
@@ -123,6 +130,7 @@ impl App {
             chart_tab: ChartTab::Cpu,
             category_filter: CategoryFilter::All,
             gpu_tab: GpuTab::All,
+            chart_mode: ChartMode::Default,
             sort_column: SortColumn::Memory,
             sort_ascending: false,
             show_help: false,
@@ -143,8 +151,12 @@ impl App {
         let history_len = self.config.general.history_len;
 
         // Update sparkline history
-        self.history.cpu_total.push_percent(snapshot.cpu.total_load);
-        self.history.cpu_candle.push(snapshot.cpu.total_load);
+        // Skip first bogus sysinfo sample (always reports ~100% before a delta is computed)
+        let skip_first_cpu = self.history.cpu_total.len() == 0 && snapshot.cpu.total_load >= 99.0;
+        if !skip_first_cpu {
+            self.history.cpu_total.push_percent(snapshot.cpu.total_load);
+            self.history.cpu_candle.push(snapshot.cpu.total_load);
+        }
         self.history.memory_used.push_percent(snapshot.memory.used_percent);
 
         // Aggregate GPU history (first GPU for backward compat)
@@ -238,6 +250,13 @@ impl App {
             }
             KeyCode::Char('s') => {
                 self.save_snapshot();
+            }
+            // Toggle horizon chart mode
+            KeyCode::Char('h') => {
+                self.chart_mode = match self.chart_mode {
+                    ChartMode::Default => ChartMode::Horizon,
+                    ChartMode::Horizon => ChartMode::Default,
+                };
             }
             // Resize chart/watchlist split
             KeyCode::Char('[') => {

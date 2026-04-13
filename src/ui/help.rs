@@ -10,7 +10,7 @@ pub fn render(f: &mut Frame) {
     let area = f.area();
 
     let width = 44.min(area.width.saturating_sub(4));
-    let height = 19.min(area.height.saturating_sub(4));
+    let height = 20.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(width)) / 2;
     let y = (area.height.saturating_sub(height)) / 2;
     let popup = Rect::new(x, y, width, height);
@@ -34,6 +34,7 @@ pub fn render(f: &mut Frame) {
         help_line("esc", "Return to dashboard"),
         help_line("+/-", "Adjust refresh rate"),
         help_line("[ ]", "Resize chart/watchlist"),
+        help_line("h", "Toggle horizon chart"),
         help_line("s", "Save snapshot"),
         help_line("a", "About dofek"),
         help_line("?", "Toggle this help"),

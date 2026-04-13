@@ -1,6 +1,6 @@
 # dofek
 
-**Terminal-native, AI-aware system monitor for Windows — with a Tauri GUI companion.**
+**GUI and Terminal-native, AI-aware system monitor for Windows.**
 
 > *dofek* (Hebrew: דּוֹפֶק) means "pulse" or "heartbeat"
 

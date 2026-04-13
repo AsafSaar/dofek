@@ -1,8 +1,35 @@
-use crate::config::AiConfig;
-use crate::data::process::{AiState, ProcessInfo};
+use crate::config::{AiConfig, CategoriesConfig};
+use crate::data::process::{AiState, ProcessCategory, ProcessInfo};
 
-/// Classify a process as an AI workload and determine its state.
-pub fn classify_ai_workload(
+/// Classify a process as an AI workload, determine its state, and assign a category.
+pub fn classify_process(
+    proc: &mut ProcessInfo,
+    ai_config: &AiConfig,
+    categories_config: &CategoriesConfig,
+    gpu_utilization: f32,
+    prev_vram: Option<u64>,
+) {
+    classify_ai_workload(proc, ai_config, gpu_utilization, prev_vram);
+
+    // Assign category. Priority: Watch > Ai > Dev > None
+    if categories_config.watch_pids.contains(&proc.pid) {
+        proc.category = ProcessCategory::Watch;
+    } else if proc.is_ai_workload {
+        proc.category = ProcessCategory::Ai;
+    } else {
+        let name_lower = proc.name.to_lowercase();
+        let is_dev = categories_config.dev_processes.iter().any(|dev| {
+            name_lower.contains(&dev.to_lowercase())
+        });
+        if is_dev {
+            proc.category = ProcessCategory::Dev;
+        } else {
+            proc.category = ProcessCategory::None;
+        }
+    }
+}
+
+fn classify_ai_workload(
     proc: &mut ProcessInfo,
     config: &AiConfig,
     gpu_utilization: f32,

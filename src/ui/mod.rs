@@ -2,6 +2,7 @@ pub mod area_chart;
 pub mod bottom_strip;
 pub mod candlestick;
 pub mod chart;
+pub mod horizon_chart;
 pub mod cpu;
 pub mod footer;
 pub mod gpu;

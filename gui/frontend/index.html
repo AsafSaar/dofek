@@ -72,6 +72,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 .tab.on[data-m="net"]{color:var(--net-up);border-color:rgba(251,146,60,.3);background:rgba(251,146,60,.07);}
 .chart-mode-badge{font-size:9px;color:var(--muted);border:1px solid var(--bdr2);padding:1px 6px;border-radius:2px;letter-spacing:.08em;}
 .chart-mode-badge.candle{color:var(--cpu);border-color:rgba(56,189,248,.25);background:rgba(56,189,248,.05);}
+.chart-mode-badge.horizon{color:var(--warn);border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.05);}
 .chart-meta{display:flex;align-items:baseline;gap:10px;flex:1;padding-left:10px;}
 .c-val{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;transition:color .3s;line-height:1;}
 .c-val.cpu{color:var(--cpu)} .c-val.gpu{color:var(--gpu)} .c-val.mem{color:var(--mem)} .c-val.net{color:var(--net-up)}
@@ -407,10 +408,11 @@ let GPUS = [];
 /* ═══ STATE ══════════════════════════════════════════════ */
 const S = {
   metric: 'cpu',
+  chartMode: 'default', // 'default' or 'horizon'
   gpu: 'all',
   cat: 'all',
   sortBy: 'cpu', sortAsc: false,
-  cpu: { hist:[], cores:[] },
+  cpu: { hist:[], raw:[], cores:[] },
   gpus: [],
   mem: { hist:[], usedGB:0, totalGB:1, swapPct:0 },
   net: { dh:[], uh:[], down:0, up:0 },
@@ -469,6 +471,7 @@ async function tick() {
   S.cpu.cores = snap.cpu.per_core_load || [];
   S.cpu.name = snap.cpu.name || 'CPU';
   push(S.cpu.hist, makeCandle(avg, avg*0.3 + 2));
+  push(S.cpu.raw, avg);
 
   /* GPUs */
   while (S.gpus.length < snap.gpus.length) {
@@ -682,6 +685,84 @@ function drawDual(c,h1,h2,c1,c2) {
   });
 }
 
+/* HORIZON chart — folds y-axis into layered color bands */
+function drawHorizon(c, hist, color, lo=0, hi=100, warn=null, crit=null, numBands=3) {
+  const s=prep(c); if(!s||hist.length<2) return;
+  const {ctx,W,H}=s;
+  const pl=6,pr=10,pt=14,pb=6;
+  const dW=W-pl-pr, dH=H-pt-pb;
+  ctx.clearRect(0,0,W,H);
+
+  /* grid */
+  ctx.strokeStyle='rgba(255,255,255,.03)'; ctx.lineWidth=1;
+  for(let i=1;i<=3;i++){
+    const y=pt+dH/4*i;
+    ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(W-pr,y); ctx.stroke();
+  }
+
+  /* thresholds */
+  const thresh=(val,col,dash)=>{
+    if(val===null) return;
+    const frac=(val-lo)/(hi-lo);
+    const y=pt+dH*(1-frac);
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash(dash);
+    ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();ctx.setLineDash([]);
+  };
+  thresh(warn,'rgba(251,191,36,.4)',[5,4]);
+  thresh(crit,'rgba(248,113,113,.4)',[3,3]);
+
+  /* parse base color into RGB */
+  const parseHex=c=>{const m=c.match(/^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[56,189,248];};
+  const [br,bg,bb]=parseHex(color);
+  const bandColor=(band)=>{
+    const factors=[0.25,0.55,1.0];
+    const f=factors[Math.min(band,factors.length-1)];
+    return `rgb(${Math.round(br*f)},${Math.round(bg*f)},${Math.round(bb*f)})`;
+  };
+  const bandAlpha=(band)=>[0.5,0.7,1.0][Math.min(band,2)];
+
+  const range=hi-lo;
+  const bandRange=range/numBands;
+  const gap=dW/LEN;
+  const barW=Math.max(1,gap-1);
+
+  /* draw each column as stacked horizon bands */
+  hist.forEach((rawVal,i)=>{
+    const v=Math.max(lo,Math.min(hi,rawVal))-lo; // value relative to lo
+    const x=pl+i*gap;
+    const bandIdx=Math.min(Math.floor(v/bandRange),numBands-1);
+
+    for(let b=0;b<=bandIdx;b++){
+      const fillFrac=b<bandIdx?1.0:((v-b*bandRange)/bandRange);
+      const fillH=fillFrac*dH;
+      const yTop=pt+dH-fillH;
+
+      ctx.globalAlpha=bandAlpha(b);
+      ctx.fillStyle=bandColor(b);
+      ctx.fillRect(x,yTop,barW,fillH);
+    }
+  });
+  ctx.globalAlpha=1;
+
+  /* bright edge line on top of highest band */
+  ctx.beginPath();
+  const pts=hist.map((rawVal,i)=>{
+    const v=Math.max(lo,Math.min(hi,rawVal));
+    const frac=(v-lo)/range;
+    return {x:pl+i*gap+barW/2, y:pt+dH*(1-frac)};
+  });
+  ctx.moveTo(pts[0].x,pts[0].y);
+  bezier(ctx,pts);
+  ctx.strokeStyle=color;
+  ctx.lineWidth=1.5;
+  ctx.stroke();
+
+  /* live dot */
+  const lp=pts[pts.length-1];
+  ctx.beginPath();ctx.arc(lp.x,lp.y,3,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+  ctx.beginPath();ctx.arc(lp.x,lp.y,5.5,0,Math.PI*2);ctx.strokeStyle=color+'55';ctx.lineWidth=1.5;ctx.stroke();
+}
+
 /* ═══ FORMATTERS ══════════════════════════════════════════ */
 function fmtB(b){if(b<1e3)return b.toFixed(0)+' B/s';if(b<1e6)return (b/1e3).toFixed(1)+' KB/s';return (b/1e6).toFixed(1)+' MB/s';}
 function fmtMB(m){return m>=1024?(m/1024).toFixed(1)+' GB':m.toFixed(0)+' MB';}
@@ -722,6 +803,8 @@ function upMainChart() {
   const badge=document.getElementById('chart-mode');
   const legend=document.getElementById('thresh-legend');
 
+  const horizon = S.chartMode === 'horizon';
+
   if(m==='cpu'){
     const cd=S.cpu.hist;
     if(!cd.length){ valStr='—'; hw='Waiting...'; }
@@ -731,9 +814,14 @@ function upMainChart() {
       upDelta(last.mean,prev?.mean||last.mean,'%');
       hw=S.cpu.name||'CPU';
     }
-    badge.textContent='CANDLE'; badge.className='chart-mode-badge candle';
+    if(horizon){
+      badge.textContent='HORIZON'; badge.className='chart-mode-badge horizon';
+      if(S.cpu.raw.length>=2) drawHorizon(mc, S.cpu.raw, '#38bdf8', 0, 100, 80, 90);
+    } else {
+      badge.textContent='CANDLE'; badge.className='chart-mode-badge candle';
+      if(cd.length>=2) drawCandle(mc, cd, '#38bdf8', 0, 100, 80, 90);
+    }
     legend.style.display='flex';
-    if(cd.length>=2) drawCandle(mc, cd, '#38bdf8', 0, 100, 80, 90);
   } else if(m==='gpu'){
     const n=S.gpus.length;
     if(!n){ valStr='N/A'; hw='No GPU'; }
@@ -744,9 +832,16 @@ function upMainChart() {
       valStr=cv.toFixed(1)+'%';
       upDelta(cv,combined[combined.length-2]||cv,'%');
       hw=GPUS.map(g=>g.name).join(' + ')+' (avg util)';
-      const sec=h1.slice(); sec.col='#db2777';
-      const gpuHi=Math.max(10,...h0,...h1);
-      drawArea(mc,h0,'#a78bfa',0,gpuHi,gpuHi*0.85,gpuHi*0.95,sec);
+      if(horizon){
+        badge.textContent='HORIZON'; badge.className='chart-mode-badge horizon';
+        const gpuHi=Math.max(10,...h0,...h1);
+        drawHorizon(mc,h0,'#a78bfa',0,gpuHi,gpuHi*0.85,gpuHi*0.95);
+      } else {
+        badge.textContent='AREA'; badge.className='chart-mode-badge';
+        const sec=h1.slice(); sec.col='#db2777';
+        const gpuHi=Math.max(10,...h0,...h1);
+        drawArea(mc,h0,'#a78bfa',0,gpuHi,gpuHi*0.85,gpuHi*0.95,sec);
+      }
     } else {
       const g0=S.gpus[0];
       valStr=g0.util.toFixed(1)+'%';
@@ -754,9 +849,14 @@ function upMainChart() {
       upDelta(g0.util,prev,'%');
       hw=GPUS[0]?.name||'GPU';
       const gpuHi=Math.max(10,...g0.hist);
-      drawArea(mc,g0.hist,'#a78bfa',0,gpuHi,gpuHi*0.85,gpuHi*0.95);
+      if(horizon){
+        badge.textContent='HORIZON'; badge.className='chart-mode-badge horizon';
+        drawHorizon(mc,g0.hist,'#a78bfa',0,gpuHi,gpuHi*0.85,gpuHi*0.95);
+      } else {
+        badge.textContent='AREA'; badge.className='chart-mode-badge';
+        drawArea(mc,g0.hist,'#a78bfa',0,gpuHi,gpuHi*0.85,gpuHi*0.95);
+      }
     }
-    badge.textContent='AREA'; badge.className='chart-mode-badge';
     legend.style.display='flex';
   } else if(m==='mem'){
     const v=(S.mem.usedGB/(S.mem.totalGB||1))*100;
@@ -764,19 +864,29 @@ function upMainChart() {
     valStr=v.toFixed(1)+'%';
     upDelta(v,prev,'%');
     hw=S.mem.usedGB.toFixed(1)+' / '+S.mem.totalGB+' GB';
-    badge.textContent='AREA'; badge.className='chart-mode-badge';
+    if(horizon){
+      badge.textContent='HORIZON'; badge.className='chart-mode-badge horizon';
+      drawHorizon(mc,S.mem.hist,'#34d399',0,100,80,90);
+    } else {
+      badge.textContent='AREA'; badge.className='chart-mode-badge';
+      drawArea(mc,S.mem.hist,'#34d399',0,100,80,90);
+    }
     legend.style.display='flex';
-    drawArea(mc,S.mem.hist,'#34d399',0,100,80,90);
   } else {
     const maxN=Math.max(1e4,...S.net.dh,...S.net.uh)*1.1;
     valStr=fmtB(S.net.down);
     document.getElementById('c-delta').textContent='↑ '+fmtB(S.net.up);
     document.getElementById('c-delta').className='c-delta flat';
     hw=S.net.ifName||'Network';
-    badge.textContent='AREA'; badge.className='chart-mode-badge';
+    if(horizon){
+      badge.textContent='HORIZON'; badge.className='chart-mode-badge horizon';
+      drawHorizon(mc,S.net.dh,'#38bdf8',0,maxN,null,null);
+    } else {
+      badge.textContent='AREA'; badge.className='chart-mode-badge';
+      const sec=S.net.uh.slice(); sec.col='#fb923c';
+      drawArea(mc,S.net.dh,'#38bdf8',0,maxN,null,null,sec);
+    }
     legend.style.display='none';
-    const sec=S.net.uh.slice(); sec.col='#fb923c';
-    drawArea(mc,S.net.dh,'#38bdf8',0,maxN,null,null,sec);
   }
   document.getElementById('c-val').textContent=valStr||'—';
   document.getElementById('c-val').className='c-val '+m;
@@ -983,6 +1093,13 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  // Toggle horizon chart mode: h
+  if (k === 'h') {
+    S.chartMode = S.chartMode === 'default' ? 'horizon' : 'default';
+    upMainChart();
+    return;
+  }
+
   // Chart tab switching: c/g/m/n
   const chartKeys = {c:'cpu', g:'gpu', m:'mem', n:'net'};
   if (chartKeys[k]) {
@@ -1125,6 +1242,7 @@ document.querySelector('.logo').addEventListener('click',()=>{
     <table class="help-table">
       <tr><td class="hk">tab</td><td class="hd">Cycle sort column</td></tr>
       <tr><td class="hk">c / g / m / n</td><td class="hd">CPU / GPU / MEM / NET chart</td></tr>
+      <tr><td class="hk">h</td><td class="hd">Toggle horizon chart</td></tr>
       <tr><td class="hk">1-4</td><td class="hd">Filter ALL / AI / DEV / WATCH</td></tr>
       <tr><td class="hk">[ ]</td><td class="hd">Resize chart / watchlist</td></tr>
       <tr><td class="hk">s</td><td class="hd">Save snapshot</td></tr>

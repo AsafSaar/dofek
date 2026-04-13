@@ -1,4 +1,12 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub enum ProcessCategory {
+    None,
+    Ai,
+    Dev,
+    Watch,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ProcessInfo {
     pub pid: u32,
     pub name: String,
@@ -7,9 +15,10 @@ pub struct ProcessInfo {
     pub vram_bytes: Option<u64>,
     pub is_ai_workload: bool,
     pub ai_state: AiState,
+    pub category: ProcessCategory,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub enum AiState {
     None,
     Idle,
