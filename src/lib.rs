@@ -9,25 +9,26 @@ pub mod plugin;
 pub mod settings;
 pub mod telemetry;
 
-/// Returns a human-readable Windows version string, e.g. "Windows 11 (26200)".
-/// Falls back to the `OS` env var if the API call fails.
+/// Returns a human-readable Windows version string, e.g. "Windows 11".
+/// Uses RtlGetVersion (ntdll) which bypasses compatibility shims and
+/// always returns the real OS version, unlike GetVersionExW.
 #[cfg(windows)]
 pub fn windows_version_string() -> String {
-    use windows::Win32::System::SystemInformation::{GetVersionExW, OSVERSIONINFOW};
+    use windows::Wdk::System::SystemServices::RtlGetVersion;
+    use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
 
     let mut info = OSVERSIONINFOW {
         dwOSVersionInfoSize: std::mem::size_of::<OSVERSIONINFOW>() as u32,
         ..Default::default()
     };
 
-    let ok = unsafe { GetVersionExW(&mut info).is_ok() };
-    if !ok {
-        return std::env::var("OS").unwrap_or_else(|_| "Windows".into());
+    let status = unsafe { RtlGetVersion(&mut info) };
+    if status.is_err() {
+        return "Windows".into();
     }
 
     let build = info.dwBuildNumber;
-    let name = if build >= 22000 { "Windows 11" } else { "Windows 10" };
-    format!("{name} ({build})")
+    if build >= 22000 { "Windows 11".into() } else { "Windows 10".into() }
 }
 
 #[cfg(not(windows))]
