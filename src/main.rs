@@ -91,10 +91,81 @@ fn main() -> Result<()> {
         }
     }
 
-    // Load settings and spawn telemetry
-    let settings = dofek::settings::UserSettings::load();
+    // Load settings and prompt for telemetry on first run
+    let mut settings = dofek::settings::UserSettings::load();
+    if !settings.telemetry_prompted {
+        use ratatui::style::{Color, Style};
+        use ratatui::text::{Line, Span};
+        use ratatui::widgets::Paragraph;
+        use ratatui::layout::Alignment;
+        use crossterm::event::{poll, read, Event, KeyCode as EK};
+
+        let mut answered = false;
+        while !answered {
+            terminal.draw(|f| {
+                let area = f.area();
+                let msg = Paragraph::new(vec![
+                    Line::from(""),
+                    Line::from(Span::styled(
+                        "dofek",
+                        Style::default().fg(Color::Rgb(56, 189, 248)).add_modifier(ratatui::style::Modifier::BOLD),
+                    )),
+                    Line::from(""),
+                    Line::from(Span::styled(
+                        "Help improve dofek by sharing anonymous usage data?",
+                        Style::default().fg(Color::White),
+                    )),
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::styled("What's collected: ", Style::default().fg(Color::Rgb(148, 163, 184))),
+                        Span::styled("session duration, feature usage, GPU detection path", Style::default().fg(Color::Rgb(100, 116, 139))),
+                    ]),
+                    Line::from(vec![
+                        Span::styled("Never collected: ", Style::default().fg(Color::Rgb(148, 163, 184))),
+                        Span::styled("process names, hostnames, IPs, or system metrics", Style::default().fg(Color::Rgb(100, 116, 139))),
+                    ]),
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::styled("  y ", Style::default().fg(Color::Rgb(52, 211, 153)).add_modifier(ratatui::style::Modifier::BOLD)),
+                        Span::styled("yes, share anonymous data    ", Style::default().fg(Color::Rgb(148, 163, 184))),
+                        Span::styled("  n ", Style::default().fg(Color::Rgb(248, 113, 113)).add_modifier(ratatui::style::Modifier::BOLD)),
+                        Span::styled("no thanks", Style::default().fg(Color::Rgb(148, 163, 184))),
+                    ]),
+                    Line::from(""),
+                    Line::from(Span::styled(
+                        "You can change this later in dofek.toml → [telemetry]",
+                        Style::default().fg(Color::Rgb(61, 80, 112)),
+                    )),
+                ])
+                .alignment(Alignment::Center);
+                f.render_widget(msg, area);
+            })?;
+
+            if poll(Duration::from_millis(100))? {
+                if let Event::Key(key) = read()? {
+                    match key.code {
+                        EK::Char('y') | EK::Char('Y') => {
+                            settings.telemetry_enabled = true;
+                            answered = true;
+                        }
+                        EK::Char('n') | EK::Char('N') | EK::Esc => {
+                            settings.telemetry_enabled = false;
+                            answered = true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        settings.telemetry_prompted = true;
+        let _ = settings.save();
+        terminal.clear()?;
+    }
+
+    // Telemetry is enabled if the user opted in OR if the config explicitly enables it
+    let telemetry_enabled = settings.telemetry_enabled || config.telemetry.enabled;
     let telemetry = telemetry::spawn_telemetry(
-        config.telemetry.enabled,
+        telemetry_enabled,
         &config.telemetry.endpoint,
         config.telemetry.flush_interval_secs,
         settings.anonymous_id.clone(),

@@ -56,6 +56,21 @@ fn track_event(state: tauri::State<'_, AppState>, event: TelemetryEvent) {
     state.telemetry.track(event);
 }
 
+/// Tauri command: check if the telemetry prompt has been shown.
+#[tauri::command]
+fn get_telemetry_prompted(state: tauri::State<'_, AppState>) -> bool {
+    state.settings.lock().unwrap().telemetry_prompted
+}
+
+/// Tauri command: save the user's telemetry choice from the frontend prompt.
+#[tauri::command]
+fn set_telemetry_choice(state: tauri::State<'_, AppState>, enabled: bool) -> Result<(), String> {
+    let mut s = state.settings.lock().unwrap();
+    s.telemetry_prompted = true;
+    s.telemetry_enabled = enabled;
+    s.save().map_err(|e| e.to_string())
+}
+
 pub fn run() {
     env_logger::init();
 
@@ -63,10 +78,11 @@ pub fn run() {
     let cli = dofek::config::Cli { config: None };
     let config = Config::load(&cli).unwrap_or_default();
 
-    // Load settings and spawn telemetry
+    // Load settings — telemetry respects first-run choice or config override
     let settings = UserSettings::load();
+    let telemetry_enabled = settings.telemetry_enabled || config.telemetry.enabled;
     let telemetry = telemetry::spawn_telemetry(
-        config.telemetry.enabled,
+        telemetry_enabled,
         &config.telemetry.endpoint,
         config.telemetry.flush_interval_secs,
         settings.anonymous_id.clone(),
@@ -107,7 +123,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_settings, save_settings, track_event])
+        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_settings, save_settings, track_event, get_telemetry_prompted, set_telemetry_choice])
         .build(tauri::generate_context!())
         .expect("error building dofek GUI")
         .run(move |_app, event| {

@@ -120,6 +120,7 @@ pub struct App {
     /// Chart/watchlist horizontal split percentage (chart gets this %, watchlist gets the rest).
     pub split_pct: u16,
     pub telemetry: TelemetryHandle,
+    pub telemetry_enabled: bool,
 }
 
 impl App {
@@ -143,6 +144,7 @@ impl App {
             refresh_ms,
             selected_process: None,
             split_pct: 58,
+            telemetry_enabled: false,
             telemetry,
         }
     }
@@ -217,6 +219,10 @@ impl App {
 
     pub fn handle_key(&mut self, key: KeyEvent) {
         if self.show_help {
+            if key.code == KeyCode::Char('t') {
+                self.telemetry_enabled = !self.telemetry_enabled;
+                return;
+            }
             self.show_help = false;
             return;
         }
@@ -338,6 +344,7 @@ impl App {
         };
         self.split_pct = s.split_pct.clamp(30, 70);
         self.refresh_ms = s.refresh_ms.clamp(100, 5000);
+        self.telemetry_enabled = s.telemetry_enabled;
     }
 
     pub fn to_settings(&self, prev: &UserSettings) -> UserSettings {
@@ -369,6 +376,8 @@ impl App {
             split_pct: self.split_pct,
             refresh_ms: self.refresh_ms,
             anonymous_id: prev.anonymous_id.clone(),
+            telemetry_prompted: prev.telemetry_prompted,
+            telemetry_enabled: self.telemetry_enabled,
         }
     }
 

@@ -17,6 +17,12 @@ pub struct UserSettings {
     pub refresh_ms: u64,
     #[serde(default = "generate_anonymous_id")]
     pub anonymous_id: String,
+    /// Whether the user has been asked about telemetry (first-run prompt).
+    #[serde(default)]
+    pub telemetry_prompted: bool,
+    /// User's telemetry choice (overrides config file when `telemetry_prompted` is true).
+    #[serde(default)]
+    pub telemetry_enabled: bool,
 }
 
 fn generate_anonymous_id() -> String {
@@ -34,6 +40,8 @@ impl Default for UserSettings {
             split_pct: 58,
             refresh_ms: 500,
             anonymous_id: generate_anonymous_id(),
+            telemetry_prompted: false,
+            telemetry_enabled: false,
         }
     }
 }

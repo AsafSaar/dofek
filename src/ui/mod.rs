@@ -46,7 +46,7 @@ pub fn render(f: &mut Frame, app: &App) {
     }
 
     if app.show_help {
-        help::render(f);
+        help::render(f, app.telemetry_enabled);
     }
     if app.show_about {
         about::render(f);

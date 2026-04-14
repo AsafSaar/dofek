@@ -6,11 +6,11 @@ use ratatui::Frame;
 
 use crate::ui::theme;
 
-pub fn render(f: &mut Frame) {
+pub fn render(f: &mut Frame, telemetry_enabled: bool) {
     let area = f.area();
 
     let width = 44.min(area.width.saturating_sub(4));
-    let height = 20.min(area.height.saturating_sub(4));
+    let height = 22.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(width)) / 2;
     let y = (area.height.saturating_sub(height)) / 2;
     let popup = Rect::new(x, y, width, height);
@@ -23,6 +23,9 @@ pub fn render(f: &mut Frame) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::ACCENT_INDIGO))
         .style(Style::default().bg(theme::BG_PANEL));
+
+    let telem_status = if telemetry_enabled { "ON" } else { "OFF" };
+    let telem_color = if telemetry_enabled { theme::MEM_COLOR } else { theme::TEXT_DIM };
 
     let lines = vec![
         Line::from(""),
@@ -38,6 +41,12 @@ pub fn render(f: &mut Frame) {
         help_line("s", "Save snapshot"),
         help_line("a", "About dofek"),
         help_line("?", "Toggle this help"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("        t  ", Style::default().fg(theme::ACCENT_INDIGO).add_modifier(Modifier::BOLD)),
+            Span::styled("Telemetry: ", Style::default().fg(theme::TEXT_PRIMARY)),
+            Span::styled(telem_status, Style::default().fg(telem_color).add_modifier(Modifier::BOLD)),
+        ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("      press any key to close", Style::default().fg(theme::TEXT_DIM)),
