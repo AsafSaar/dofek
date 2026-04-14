@@ -173,7 +173,7 @@ fn main() -> Result<()> {
     telemetry.track(TelemetryEvent::SessionStart {
         interface: "tui".into(),
         app_version: env!("CARGO_PKG_VERSION").into(),
-        os_version: std::env::var("OS").unwrap_or_default(),
+        os_version: dofek::windows_version_string(),
     });
     let session_start = Instant::now();
 

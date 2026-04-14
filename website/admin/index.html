@@ -348,6 +348,18 @@ async function loadTrends() {
 }
 
 /* ═══ CANVAS CHARTS ════════════════════════════════════ */
+function drawGrid(ctx, pad, cw, ch, max) {
+  const ticks = max <= 4 ? max : 4;
+  ctx.strokeStyle = '#182035'; ctx.lineWidth = 1;
+  for (let i = 0; i <= ticks; i++) {
+    const val = max <= 4 ? i : Math.round(max * i / ticks);
+    const y = pad.t + ch - (val / max) * ch;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    ctx.fillStyle = '#3d5070'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(val, pad.l - 4, y + 3);
+  }
+}
+
 function drawLineChart(canvasId, data, color) {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas.getContext('2d');
@@ -366,14 +378,7 @@ function drawLineChart(canvasId, data, color) {
   const vals = data.map(d => d.value);
   const max = Math.max(...vals, 1);
 
-  // Grid
-  ctx.strokeStyle = '#182035'; ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = pad.t + ch - (ch * i / 4);
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
-    ctx.fillStyle = '#3d5070'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
-    ctx.fillText(Math.round(max * i / 4), pad.l - 4, y + 3);
-  }
+  drawGrid(ctx, pad, cw, ch, max);
 
   // X labels
   ctx.fillStyle = '#3d5070'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'center';
@@ -430,14 +435,7 @@ function drawBarChart(canvasId, data, color) {
   const vals = data.map(d => d.value);
   const max = Math.max(...vals, 1);
 
-  // Grid
-  ctx.strokeStyle = '#182035'; ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = pad.t + ch - (ch * i / 4);
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
-    ctx.fillStyle = '#3d5070'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
-    ctx.fillText(Math.round(max * i / 4), pad.l - 4, y + 3);
-  }
+  drawGrid(ctx, pad, cw, ch, max);
 
   // Bars
   const barW = Math.max(2, (cw / data.length) * 0.7);
