@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dofek — admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #060810;
+  --surf:  #0b1120;
+  --surf2: #0f1929;
+  --bdr:   #182035;
+  --bdr2:  #1f2d48;
+  --cpu:   #38bdf8;
+  --gpu:   #a78bfa;
+  --mem:   #34d399;
+  --net:   #fb923c;
+  --ai:    #c084fc;
+  --dev:   #60a5fa;
+  --watch: #fbbf24;
+  --warn:  #fbbf24;
+  --crit:  #f87171;
+  --text:  #e2e8f0;
+  --dim:   #94a3b8;
+  --muted: #3d5070;
+  --font:  'JetBrains Mono','Cascadia Code','Fira Code','Consolas',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:12px;min-height:100vh;}
+
+/* NAV */
+.nav{display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:48px;border-bottom:1px solid var(--bdr);background:var(--surf);position:sticky;top:0;z-index:50;}
+.nav-logo{font-size:14px;font-weight:700;color:var(--cpu);letter-spacing:.1em;}
+.nav-logo span{color:var(--dim);font-weight:400;font-size:11px;margin-left:8px;}
+.nav-actions{display:flex;gap:10px;align-items:center;}
+.btn{padding:5px 14px;border:1px solid var(--bdr2);border-radius:3px;background:transparent;color:var(--dim);font-family:var(--font);font-size:10px;cursor:pointer;transition:all .15s;letter-spacing:.05em;}
+.btn:hover{border-color:var(--dim);color:var(--text);}
+.btn-accent{border-color:rgba(56,189,248,.3);color:var(--cpu);}
+.btn-accent:hover{background:rgba(56,189,248,.08);border-color:var(--cpu);}
+
+/* LOGIN */
+.login-wrap{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100;}
+.login-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:6px;padding:32px 40px;width:340px;text-align:center;}
+.login-box .title{font-size:15px;font-weight:700;color:var(--cpu);letter-spacing:.1em;margin-bottom:6px;}
+.login-box .subtitle{font-size:10px;color:var(--muted);margin-bottom:24px;letter-spacing:.08em;}
+.login-box input{width:100%;padding:9px 14px;background:var(--bg);border:1px solid var(--bdr2);border-radius:3px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;margin-bottom:14px;transition:border-color .15s;}
+.login-box input:focus{border-color:var(--cpu);}
+.login-box .login-btn{width:100%;padding:9px;border:1px solid rgba(56,189,248,.35);border-radius:3px;background:rgba(56,189,248,.08);color:var(--cpu);font-family:var(--font);font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.1em;transition:all .15s;}
+.login-box .login-btn:hover{background:rgba(56,189,248,.15);border-color:var(--cpu);}
+.login-box .error{color:var(--crit);font-size:10px;margin-top:10px;min-height:14px;}
+
+/* DASHBOARD */
+.dashboard{display:none;padding:24px 28px;max-width:1280px;margin:0 auto;}
+.dashboard.visible{display:block;}
+
+/* SECTION */
+.section{margin-bottom:28px;}
+.section-tag{font-size:9px;font-weight:600;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+
+/* KPI STRIP */
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;}
+.kpi-card{background:var(--surf);border:1px solid var(--bdr);border-radius:4px;padding:14px 16px;}
+.kpi-card .kpi-val{font-size:22px;font-weight:700;margin-bottom:2px;}
+.kpi-card .kpi-label{font-size:9px;color:var(--dim);letter-spacing:.08em;}
+.kpi-card .kpi-sub{font-size:9px;color:var(--muted);margin-top:4px;}
+.kpi-card.cyan .kpi-val{color:var(--cpu);}
+.kpi-card.purple .kpi-val{color:var(--gpu);}
+.kpi-card.green .kpi-val{color:var(--mem);}
+
+/* RATIO BAR */
+.ratio-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:8px;background:var(--bdr);}
+.ratio-bar .seg{height:100%;transition:width .3s;}
+
+/* CHART SECTION */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.chart-card{background:var(--surf);border:1px solid var(--bdr);border-radius:4px;padding:16px;}
+.chart-card .chart-title{font-size:10px;color:var(--dim);letter-spacing:.06em;margin-bottom:10px;}
+.chart-card canvas{width:100%;height:180px;}
+
+/* TIME RANGE */
+.time-range{display:flex;gap:6px;margin-bottom:12px;}
+.time-range .btn.active{border-color:var(--cpu);color:var(--cpu);background:rgba(56,189,248,.06);}
+
+/* FEATURE BARS */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.feat-card{background:var(--surf);border:1px solid var(--bdr);border-radius:4px;padding:16px;}
+.feat-card .feat-title{font-size:10px;color:var(--dim);letter-spacing:.06em;margin-bottom:12px;}
+.feat-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.feat-row .feat-label{width:60px;font-size:10px;color:var(--dim);text-align:right;flex-shrink:0;}
+.feat-row .feat-bar-bg{flex:1;height:8px;background:var(--bdr);border-radius:4px;overflow:hidden;}
+.feat-row .feat-bar{height:100%;border-radius:4px;transition:width .4s;}
+.feat-row .feat-count{width:36px;font-size:10px;color:var(--muted);text-align:right;flex-shrink:0;}
+
+/* ENV TABLES */
+.env-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.env-card{background:var(--surf);border:1px solid var(--bdr);border-radius:4px;padding:16px;}
+.env-card .env-title{font-size:10px;color:var(--dim);letter-spacing:.06em;margin-bottom:12px;}
+.env-table{width:100%;border-collapse:collapse;}
+.env-table td{padding:4px 0;font-size:11px;border-bottom:1px solid var(--bdr);}
+.env-table td:first-child{color:var(--text);}
+.env-table td:last-child{color:var(--dim);text-align:right;}
+.env-table tr:last-child td{border-bottom:none;}
+.env-table .highlight td:first-child{color:var(--mem);}
+
+/* EXTRAS ROW */
+.extras-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+
+/* SKELETON */
+.skel{background:linear-gradient(90deg,var(--bdr) 25%,var(--bdr2) 50%,var(--bdr) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:3px;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel-lg{height:28px;width:80px;margin-bottom:4px;}
+.skel-sm{height:10px;width:50px;}
+.skel-bar{height:8px;width:100%;margin-bottom:6px;}
+.skel-chart{height:180px;width:100%;}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(3,1fr);}
+  .chart-row,.env-grid{grid-template-columns:1fr;}
+  .feat-grid{grid-template-columns:1fr;}
+  .extras-grid{grid-template-columns:1fr;}
+}
+@media(max-width:600px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .dashboard{padding:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="title">dofek</div>
+    <div class="subtitle">ADMIN DASHBOARD</div>
+    <input type="password" id="login-pw" placeholder="password" autocomplete="off" autofocus>
+    <button class="login-btn" id="login-btn">ACCESS</button>
+    <div class="error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">dofek <span>admin</span></div>
+  <div class="nav-actions">
+    <button class="btn btn-accent" id="refresh-btn">REFRESH</button>
+    <button class="btn" id="logout-btn">LOGOUT</button>
+  </div>
+</nav>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard">
+
+  <!-- KPI STRIP -->
+  <div class="section">
+    <div class="section-tag">Overview</div>
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card cyan"><div class="kpi-val skel skel-lg" id="kpi-users"></div><div class="kpi-label">Total Users</div></div>
+      <div class="kpi-card cyan"><div class="kpi-val skel skel-lg" id="kpi-active7d"></div><div class="kpi-label">Active 7d</div></div>
+      <div class="kpi-card cyan"><div class="kpi-val skel skel-lg" id="kpi-active24h"></div><div class="kpi-label">Active 24h</div></div>
+      <div class="kpi-card purple"><div class="kpi-val skel skel-lg" id="kpi-sessions"></div><div class="kpi-label">Total Sessions</div></div>
+      <div class="kpi-card green"><div class="kpi-val skel skel-lg" id="kpi-avg-dur"></div><div class="kpi-label">Avg Session</div><div class="kpi-sub" id="kpi-avg-dur-sub"></div></div>
+      <div class="kpi-card">
+        <div class="kpi-label" style="margin-bottom:8px;">TUI / GUI</div>
+        <div id="kpi-iface-text" style="font-size:11px;color:var(--dim);margin-bottom:6px;"></div>
+        <div class="ratio-bar"><div class="seg" id="kpi-tui-bar" style="background:var(--cpu);"></div><div class="seg" id="kpi-gui-bar" style="background:var(--gpu);"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:9px;color:var(--cpu);">TUI</span>
+          <span style="font-size:9px;color:var(--gpu);">GUI</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRENDS -->
+  <div class="section">
+    <div class="section-tag">Trends</div>
+    <div class="time-range" id="time-range">
+      <button class="btn" data-days="7">7d</button>
+      <button class="btn active" data-days="30">30d</button>
+      <button class="btn" data-days="90">90d</button>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-title">Daily Active Users</div>
+        <canvas id="chart-dau" height="180"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Sessions / Day</div>
+        <canvas id="chart-sessions" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURE USAGE -->
+  <div class="section">
+    <div class="section-tag">Feature Usage</div>
+    <div class="feat-grid" id="feat-grid">
+      <div class="feat-card"><div class="feat-title">Tab Popularity</div><div id="feat-tabs"></div></div>
+      <div class="feat-card"><div class="feat-title">GPU Detection Path</div><div id="feat-gpu"></div></div>
+      <div class="feat-card"><div class="feat-title">Filter Usage</div><div id="feat-filters"></div></div>
+    </div>
+  </div>
+
+  <!-- ENVIRONMENT -->
+  <div class="section">
+    <div class="section-tag">Environment</div>
+    <div class="env-grid">
+      <div class="env-card"><div class="env-title">App Versions</div><table class="env-table" id="env-versions"></table></div>
+      <div class="env-card"><div class="env-title">OS Distribution</div><table class="env-table" id="env-os"></table></div>
+    </div>
+  </div>
+
+  <!-- EXTRAS -->
+  <div class="section">
+    <div class="section-tag">Details</div>
+    <div class="extras-grid">
+      <div class="feat-card"><div class="feat-title">Panel Usage</div><div id="feat-panels"></div></div>
+      <div class="feat-card"><div class="feat-title">Chart Mode</div><div id="feat-modes"></div></div>
+      <div class="feat-card"><div class="feat-title">Plugin Adoption</div><div id="feat-plugins"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ═══ CONFIG ════════════════════════════════════════════ */
+const API = '/api/v1/admin';
+let TOKEN = localStorage.getItem('dofek_admin_token');
+let trendDays = 30;
+
+/* ═══ AUTH ══════════════════════════════════════════════ */
+function isTokenValid() {
+  if (!TOKEN) return false;
+  try {
+    const [b64] = TOKEN.split('.');
+    const { exp } = JSON.parse(atob(b64));
+    return exp && Date.now() < exp;
+  } catch { return false; }
+}
+
+function showLogin() {
+  document.getElementById('login-wrap').style.display = 'flex';
+  document.getElementById('dashboard').classList.remove('visible');
+}
+
+function showDashboard() {
+  document.getElementById('login-wrap').style.display = 'none';
+  document.getElementById('dashboard').classList.add('visible');
+}
+
+document.getElementById('login-btn').addEventListener('click', doLogin);
+document.getElementById('login-pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const pw = document.getElementById('login-pw').value;
+  const err = document.getElementById('login-error');
+  err.textContent = '';
+  try {
+    const res = await fetch(`${API}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error || 'Login failed'; return; }
+    TOKEN = data.token;
+    localStorage.setItem('dofek_admin_token', TOKEN);
+    showDashboard();
+    loadAll();
+  } catch (e) { err.textContent = 'Connection error'; }
+}
+
+document.getElementById('logout-btn').addEventListener('click', () => {
+  TOKEN = null;
+  localStorage.removeItem('dofek_admin_token');
+  showLogin();
+});
+
+/* ═══ FETCH HELPER ═════════════════════════════════════ */
+async function apiFetch(path) {
+  const res = await fetch(`${API}/${path}`, {
+    headers: { Authorization: `Bearer ${TOKEN}` },
+  });
+  if (res.status === 401) { showLogin(); throw new Error('Unauthorized'); }
+  return res.json();
+}
+
+/* ═══ LOAD ALL ═════════════════════════════════════════ */
+async function loadAll() {
+  loadOverview();
+  loadTrends();
+  loadFeatures();
+  loadVersions();
+}
+
+document.getElementById('refresh-btn').addEventListener('click', loadAll);
+
+/* ═══ KPI OVERVIEW ═════════════════════════════════════ */
+async function loadOverview() {
+  try {
+    const d = await apiFetch('overview');
+    setKpi('kpi-users', d.total_users);
+    setKpi('kpi-active7d', d.active_7d);
+    setKpi('kpi-active24h', d.active_24h);
+    setKpi('kpi-sessions', d.total_sessions);
+    const mins = d.avg_duration_secs ? Math.round(d.avg_duration_secs / 60) : 0;
+    setKpi('kpi-avg-dur', mins ? `${mins}m` : '--');
+    document.getElementById('kpi-avg-dur-sub').textContent = d.avg_duration_secs ? `${Math.round(d.avg_duration_secs)}s avg` : '';
+
+    // TUI/GUI ratio
+    const tui = d.tui_count || 0;
+    const gui = d.gui_count || 0;
+    const total = tui + gui || 1;
+    const tuiPct = Math.round(tui / total * 100);
+    const guiPct = 100 - tuiPct;
+    document.getElementById('kpi-iface-text').textContent = `${tuiPct}% / ${guiPct}%`;
+    document.getElementById('kpi-tui-bar').style.width = `${tuiPct}%`;
+    document.getElementById('kpi-gui-bar').style.width = `${guiPct}%`;
+  } catch (e) { console.error('overview:', e); }
+}
+
+function setKpi(id, val) {
+  const el = document.getElementById(id);
+  el.textContent = val ?? '--';
+  el.classList.remove('skel', 'skel-lg');
+}
+
+/* ═══ TRENDS ═══════════════════════════════════════════ */
+document.getElementById('time-range').addEventListener('click', e => {
+  const btn = e.target.closest('[data-days]');
+  if (!btn) return;
+  trendDays = parseInt(btn.dataset.days);
+  document.querySelectorAll('#time-range .btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadTrends();
+});
+
+async function loadTrends() {
+  try {
+    const d = await apiFetch(`trends?days=${trendDays}`);
+    drawLineChart('chart-dau', d.dau || [], 'rgb(56,189,248)');
+    drawBarChart('chart-sessions', d.sessions || [], 'rgb(167,139,250)');
+  } catch (e) { console.error('trends:', e); }
+}
+
+/* ═══ CANVAS CHARTS ════════════════════════════════════ */
+function drawLineChart(canvasId, data, color) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { t: 10, r: 10, b: 28, l: 36 };
+  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+
+  ctx.clearRect(0, 0, W, H);
+  if (!data.length) { ctx.fillStyle = '#3d5070'; ctx.font = '10px JetBrains Mono'; ctx.fillText('No data', W/2-20, H/2); return; }
+
+  const vals = data.map(d => d.value);
+  const max = Math.max(...vals, 1);
+
+  // Grid
+  ctx.strokeStyle = '#182035'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch - (ch * i / 4);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    ctx.fillStyle = '#3d5070'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(max * i / 4), pad.l - 4, y + 3);
+  }
+
+  // X labels
+  ctx.fillStyle = '#3d5070'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(data.length / 6));
+  data.forEach((d, i) => {
+    if (i % step === 0 || i === data.length - 1) {
+      const x = pad.l + (i / (data.length - 1 || 1)) * cw;
+      ctx.fillText(d.label, x, H - 6);
+    }
+  });
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  data.forEach((d, i) => {
+    const x = pad.l + (i / (data.length - 1 || 1)) * cw;
+    const y = pad.t + ch - (d.value / max) * ch;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill
+  const lastX = pad.l + cw;
+  ctx.lineTo(lastX, pad.t + ch);
+  ctx.lineTo(pad.l, pad.t + ch);
+  ctx.closePath();
+  ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ',.06)');
+  ctx.fill();
+
+  // Dots
+  ctx.fillStyle = color;
+  data.forEach((d, i) => {
+    const x = pad.l + (i / (data.length - 1 || 1)) * cw;
+    const y = pad.t + ch - (d.value / max) * ch;
+    ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+function drawBarChart(canvasId, data, color) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { t: 10, r: 10, b: 28, l: 36 };
+  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+
+  ctx.clearRect(0, 0, W, H);
+  if (!data.length) { ctx.fillStyle = '#3d5070'; ctx.font = '10px JetBrains Mono'; ctx.fillText('No data', W/2-20, H/2); return; }
+
+  const vals = data.map(d => d.value);
+  const max = Math.max(...vals, 1);
+
+  // Grid
+  ctx.strokeStyle = '#182035'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch - (ch * i / 4);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    ctx.fillStyle = '#3d5070'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(max * i / 4), pad.l - 4, y + 3);
+  }
+
+  // Bars
+  const barW = Math.max(2, (cw / data.length) * 0.7);
+  const gap = cw / data.length;
+  data.forEach((d, i) => {
+    const x = pad.l + i * gap + (gap - barW) / 2;
+    const h = (d.value / max) * ch;
+    const y = pad.t + ch - h;
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, barW, h);
+  });
+
+  // X labels
+  ctx.fillStyle = '#3d5070'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(data.length / 6));
+  data.forEach((d, i) => {
+    if (i % step === 0 || i === data.length - 1) {
+      ctx.fillText(d.label, pad.l + i * gap + gap / 2, H - 6);
+    }
+  });
+}
+
+/* ═══ FEATURE BARS ════════════════════════════════════= */
+const FEAT_COLORS = {
+  cpu: 'var(--cpu)', gpu: 'var(--gpu)', mem: 'var(--mem)', net: 'var(--net)',
+  nvml: 'var(--mem)', lhm: 'var(--watch)', none: 'var(--crit)',
+  all: 'var(--text)', ai: 'var(--ai)', dev: 'var(--dev)', watch: 'var(--watch)',
+  processes: 'var(--cpu)', dashboard: 'var(--dim)',
+  default: 'var(--text)', horizon: 'var(--gpu)',
+};
+
+function renderBars(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!items || !items.length) { el.innerHTML = '<span style="color:var(--muted);font-size:10px;">No data</span>'; return; }
+  const max = Math.max(...items.map(i => i.count), 1);
+  el.innerHTML = items.map(i => {
+    const pct = Math.round(i.count / max * 100);
+    const color = FEAT_COLORS[i.name] || 'var(--dim)';
+    return `<div class="feat-row">
+      <div class="feat-label">${i.name}</div>
+      <div class="feat-bar-bg"><div class="feat-bar" style="width:${pct}%;background:${color};"></div></div>
+      <div class="feat-count">${i.count}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadFeatures() {
+  try {
+    const d = await apiFetch('features');
+    renderBars('feat-tabs', d.tabs);
+    renderBars('feat-gpu', d.gpu_paths);
+    renderBars('feat-filters', d.filters);
+    renderBars('feat-panels', d.panels);
+    renderBars('feat-modes', d.chart_modes);
+    renderBars('feat-plugins', d.plugins);
+  } catch (e) { console.error('features:', e); }
+}
+
+/* ═══ VERSIONS ════════════════════════════════════════= */
+function renderTable(tableId, rows, highlightFirst) {
+  const el = document.getElementById(tableId);
+  if (!rows || !rows.length) { el.innerHTML = '<tr><td colspan="2" style="color:var(--muted);">No data</td></tr>'; return; }
+  el.innerHTML = rows.map((r, i) =>
+    `<tr${i === 0 && highlightFirst ? ' class="highlight"' : ''}><td>${r.name}</td><td>${r.count}</td></tr>`
+  ).join('');
+}
+
+async function loadVersions() {
+  try {
+    const d = await apiFetch('versions');
+    renderTable('env-versions', d.app_versions, true);
+    renderTable('env-os', d.os_versions, false);
+  } catch (e) { console.error('versions:', e); }
+}
+
+/* ═══ INIT ════════════════════════════════════════════= */
+if (isTokenValid()) {
+  showDashboard();
+  loadAll();
+} else {
+  showLogin();
+}
+</script>
+</body>
+</html>
