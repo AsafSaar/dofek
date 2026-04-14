@@ -11,27 +11,27 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 ```
 dofek v0.4  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
- [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES     CPU [MEM] VRAM
- 9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%     ALL  AI  DEV  WATCH    sort:MEM
+ [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
+ 9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
                                                 -- crit 90%    NAME       PID  CPU%  MEM  VRAM
-           ___   _                                             node.exe  35488  0.0 2.3G   --
-    ___ __|   |_| |  _     _                                   vmmem    17252  0.0 1.8G   --
-   |   |  |   | | |_| |___| |__                                claude.. 13596  2.8 1.1G   --
-                                                                chrome.. 29328  0.5 689M   --
-   Candlestick chart area (CPU)                                 claude.. 25180  0.0 668M   --
-   with threshold lines at 80/90%                               chrome.. 25252  1.6 441M   --
-                                                                MsMpEng  5168   0.0 433M   --
-                                                               Code.exe 21356  0.4 425M   --
-                                                                explor.. 12412  6.1 415M   --
-                                                               Code.exe 20380  0.0 402M   --
-                                                                ...more processes...
+           ___   _                                             node.exe  35488  0.0 2.3G    --
+    ___ __|   |_| |  _     _                                   vmmem     17252  0.0 1.8G    --
+   |   |  |   | | |_| |___| |__                                claude..  13596  2.8 1.1G    --
+                                                               chrome..  29328  0.5 689M    --
+   Candlestick chart area (CPU)                                claude..  25180  0.0 668M    --
+   with threshold lines at 80/90%                              chrome..  25252  1.6 441M    --
+                                                               MsMpEng   5168   0.0 433M    --
+                                                               Code.exe  21356  0.4 425M    --
+                                                               explor..  12412  6.1 415M    --
+                                                               Code.exe  20380  0.0 402M    --
+                                                               ...more processes...
                                                                PLUGINS ---
                                                                No plugins connected
 -----------------------------------------------------------------------------------------------
- CPU AMD Ryzen 7 7800X  | GPU NVIDIA RTX 5080  | MEM 21.5/63.2 GB  | NET Hyper-V Virtual
- C0 15% C1 13% C2 19%  | Util     1.0%        | Used [###..] 34.0% | down 0 B/s
- C3  9% C4 10% C5 12%  | VRAM     1.7 GB      | Swap [.....] 0.0%  | up   0 B/s
- C6 15% C7 12% C8  5%  | Temp    36.0 C       |                    |
+ CPU AMD Ryzen 7 7800X    | GPU NVIDIA RTX 5080   | MEM 21.5/63.2 GB     | NET Hyper-V Virtual
+ C0 15% C1 13% C2 19%     | Util     1.0%         | Used [###..] 34.0%   | down 0 B/s
+ C3  9% C4 10% C5 12%     | VRAM     1.7 GB       | Swap [.....] 0.0%    | up   0 B/s
+ C6 15% C7 12% C8  5%     | Temp    36.0 C        |                      |
 -----------------------------------------------------------------------------------------------
  q quit  tab sort  p proc  c cpu  g gpu  m mem  n net  [] resize  1-4 filter  ? help      500ms
 ```
@@ -180,6 +180,11 @@ watch_pids = []                       # Specific PIDs to pin as WATCH
 [lhm]
 url = "http://localhost:8085"  # LibreHardwareMonitor web server (optional fallback)
 
+[telemetry]
+enabled = true                        # Opt-in anonymous usage telemetry (default: false)
+# endpoint = "https://dofek.dev/api/v1/events"   # Where to send data
+# flush_interval_secs = 60            # Batch flush interval (default: 60)
+
 # Plugins (optional — each entry spawns a child process)
 [[plugins]]
 name = "ollama"
@@ -190,6 +195,30 @@ timeout_ms = 2000                     # per-poll timeout in ms (default: 2000)
 ```
 
 All sections are optional — missing sections use sensible defaults. You only need to include settings you want to override.
+
+## Telemetry
+
+dofek includes opt-in anonymous telemetry to help improve the app during beta. **Disabled by default** — no data is collected unless you explicitly enable it.
+
+### What's collected
+
+- Session duration and interface used (TUI vs GUI)
+- Feature usage: which chart tabs, filters, and modes you use
+- GPU detection path (NVML / LHM / none) and device count
+- Periodic heartbeats (process count, active tab)
+
+### What's NOT collected
+
+- Process names, hostnames, IP addresses, or any identifying information
+- System metrics values (CPU %, memory usage, etc.)
+- Config file contents or custom process lists
+
+### How it works
+
+- A random anonymous UUID is generated on first run and stored in `%APPDATA%\dofek\settings.toml`
+- Events are batched in memory and flushed via HTTPS every 60 seconds
+- If the endpoint is unreachable, batches are silently dropped (no disk queue, no retries)
+- To disable: remove or set `enabled = false` in the `[telemetry]` section of `dofek.toml`
 
 ## Plugins
 
@@ -280,6 +309,7 @@ A process is classified as an AI workload if:
 | Main | Render loop + event handling via `mpsc::channel` | ~60fps (16ms) |
 | Data collector | Refreshes sysinfo, queries NVML/LHM, polls plugins, classifies AI workloads | Configurable (default 500ms) |
 | Event reader | Reads crossterm keyboard/resize events | ~60fps (16ms) |
+| Telemetry flush | Batches and POSTs anonymous usage events (opt-in only) | Every 60s |
 
 ### Module Structure
 
@@ -290,6 +320,8 @@ src/
   app.rs               App state: DataSnapshot, HistoryBuffers, ChartTab, split_pct
   config.rs            CLI (clap) + TOML config loading with categories support
   event.rs             Crossterm event reader thread, AppEvent enum
+
+  telemetry.rs         Opt-in usage telemetry: events, batching, flush thread
 
   data/
     mod.rs             DataSnapshot struct, collector thread orchestration
@@ -374,6 +406,7 @@ LHM fallback ──> GPU sensors (if NVML unavailable) ────────�
 | Error handling | anyhow | 1 |
 | Logging | log + env_logger | 0.4 / 0.11 |
 | Home directory | dirs | 6 |
+| Anonymous ID | uuid | 1 |
 | GUI framework | tauri | 2 |
 
 **Rust edition**: 2024 | **Target**: `x86_64-pc-windows-msvc` (also builds on `aarch64-pc-windows-msvc`)

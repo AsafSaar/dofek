@@ -15,7 +15,9 @@ use crossterm::{
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use dofek::telemetry::{self, TelemetryEvent};
 
 use app::App;
 use config::{Cli, Config};
@@ -89,17 +91,58 @@ fn main() -> Result<()> {
         }
     }
 
-    let mut app = App::new(config);
+    // Load settings and spawn telemetry
+    let settings = dofek::settings::UserSettings::load();
+    let telemetry = telemetry::spawn_telemetry(
+        config.telemetry.enabled,
+        &config.telemetry.endpoint,
+        config.telemetry.flush_interval_secs,
+        settings.anonymous_id.clone(),
+    );
+    telemetry.track(TelemetryEvent::SessionStart {
+        interface: "tui".into(),
+        app_version: env!("CARGO_PKG_VERSION").into(),
+        os_version: std::env::var("OS").unwrap_or_default(),
+    });
+    let session_start = Instant::now();
+
+    let mut app = App::new(config, telemetry.clone());
 
     // Restore saved user settings
-    let settings = dofek::settings::UserSettings::load();
     app.apply_settings(&settings);
+
+    // Telemetry: emit GPU path once, heartbeat periodically
+    let mut gpu_path_emitted = false;
+    let mut snapshot_count: u64 = 0;
 
     // Main loop
     loop {
         // Receive data snapshots (non-blocking)
         while let Ok(snapshot) = data_rx.try_recv() {
             app.update_data(snapshot);
+            snapshot_count += 1;
+
+            // Emit GPU detection path once after first real snapshot
+            if !gpu_path_emitted {
+                let path = if app.data.nvml_available { "nvml" }
+                    else if app.data.lhm_connected { "lhm" }
+                    else { "none" };
+                telemetry.track(TelemetryEvent::GpuPath {
+                    path: path.into(),
+                    device_count: app.data.gpus.len(),
+                    device_names: app.data.gpus.iter().map(|g| g.name.clone()).collect(),
+                });
+                gpu_path_emitted = true;
+            }
+
+            // Heartbeat every ~300 snapshots (~2.5 min at 500ms refresh)
+            if snapshot_count % 300 == 0 {
+                telemetry.track(TelemetryEvent::Heartbeat {
+                    current_tab: format!("{:?}", app.chart_tab).to_lowercase(),
+                    process_count: app.data.processes.len(),
+                    plugin_count: app.data.plugin_statuses.len(),
+                });
+            }
         }
 
         // Render
@@ -125,8 +168,14 @@ fn main() -> Result<()> {
         }
     }
 
+    // Flush telemetry before exit
+    telemetry.track(TelemetryEvent::SessionEnd {
+        duration_secs: session_start.elapsed().as_secs(),
+    });
+    telemetry.shutdown();
+
     // Save user settings before exit
-    if let Err(e) = app.to_settings().save() {
+    if let Err(e) = app.to_settings(&settings).save() {
         log::warn!("Failed to save settings: {e}");
     }
 

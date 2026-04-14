@@ -23,6 +23,8 @@ pub struct Config {
     pub lhm: LhmConfig,
     #[serde(default)]
     pub categories: CategoriesConfig,
+    #[serde(default)]
+    pub telemetry: TelemetryConfig,
     #[serde(default, rename = "plugins")]
     pub plugins: Vec<PluginConfig>,
 }
@@ -82,6 +84,30 @@ fn default_true() -> bool { true }
 fn default_process_count() -> usize { 10 }
 fn default_vram_threshold() -> f64 { 1.0 }
 fn default_lhm_url() -> String { "http://localhost:8085".to_string() }
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct TelemetryConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_telemetry_endpoint")]
+    pub endpoint: String,
+    #[serde(default = "default_flush_interval_secs")]
+    pub flush_interval_secs: u64,
+}
+
+fn default_telemetry_endpoint() -> String { "https://dofek.dev/api/v1/events".to_string() }
+fn default_flush_interval_secs() -> u64 { 60 }
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            endpoint: default_telemetry_endpoint(),
+            flush_interval_secs: default_flush_interval_secs(),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct CategoriesConfig {
     #[serde(default = "default_dev_processes")]
@@ -168,6 +194,7 @@ impl Default for Config {
             ai: AiConfig::default(),
             lhm: LhmConfig::default(),
             categories: CategoriesConfig::default(),
+            telemetry: TelemetryConfig::default(),
             plugins: Vec::new(),
         }
     }

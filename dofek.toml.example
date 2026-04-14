@@ -19,6 +19,13 @@ watch_processes = ["ffmpeg", "obs"]
 [lhm]
 url = "http://localhost:8085"
 
+# Telemetry: opt-in anonymous usage data for beta feedback.
+# Disabled by default. Enable to help improve dofek.
+# [telemetry]
+# enabled = true
+# endpoint = "https://dofek.dev/api/v1/events"
+# flush_interval_secs = 60
+
 # Plugins: external processes that inject data into the dashboard.
 # Each [[plugins]] entry spawns a child process communicating via JSON-over-stdio.
 

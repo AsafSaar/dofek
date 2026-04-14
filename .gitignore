@@ -1,3 +1,5 @@
 /target
 .claude/*
 !.claude/skills/
+dofek.toml
+website/node_modules/

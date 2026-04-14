@@ -5,6 +5,7 @@ use crate::data::DataSnapshot;
 use crate::ui::sparkline_buf::{CandleBuf, SparklineBuf};
 
 use dofek::settings::UserSettings;
+use dofek::telemetry::{TelemetryEvent, TelemetryHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PanelFocus {
@@ -118,10 +119,11 @@ pub struct App {
     pub selected_process: Option<usize>,
     /// Chart/watchlist horizontal split percentage (chart gets this %, watchlist gets the rest).
     pub split_pct: u16,
+    pub telemetry: TelemetryHandle,
 }
 
 impl App {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, telemetry: TelemetryHandle) -> Self {
         let history_len = config.general.history_len;
         let refresh_ms = config.general.refresh_ms;
         Self {
@@ -141,6 +143,7 @@ impl App {
             refresh_ms,
             selected_process: None,
             split_pct: 58,
+            telemetry,
         }
     }
 
@@ -231,18 +234,48 @@ impl App {
                 self.sort_processes();
             }
             // Chart tab switching
-            KeyCode::Char('c') => self.chart_tab = ChartTab::Cpu,
-            KeyCode::Char('g') => self.chart_tab = ChartTab::Gpu,
-            KeyCode::Char('m') => self.chart_tab = ChartTab::Mem,
-            KeyCode::Char('n') => self.chart_tab = ChartTab::Net,
+            KeyCode::Char('c') => {
+                self.chart_tab = ChartTab::Cpu;
+                self.telemetry.track(TelemetryEvent::TabSwitch { tab: "cpu".into() });
+            }
+            KeyCode::Char('g') => {
+                self.chart_tab = ChartTab::Gpu;
+                self.telemetry.track(TelemetryEvent::TabSwitch { tab: "gpu".into() });
+            }
+            KeyCode::Char('m') => {
+                self.chart_tab = ChartTab::Mem;
+                self.telemetry.track(TelemetryEvent::TabSwitch { tab: "mem".into() });
+            }
+            KeyCode::Char('n') => {
+                self.chart_tab = ChartTab::Net;
+                self.telemetry.track(TelemetryEvent::TabSwitch { tab: "net".into() });
+            }
             // Full-screen process view
-            KeyCode::Char('p') => self.focus = PanelFocus::Processes,
-            KeyCode::Esc => self.focus = PanelFocus::Dashboard,
+            KeyCode::Char('p') => {
+                self.focus = PanelFocus::Processes;
+                self.telemetry.track(TelemetryEvent::PanelSwitch { panel: "processes".into() });
+            }
+            KeyCode::Esc => {
+                self.focus = PanelFocus::Dashboard;
+                self.telemetry.track(TelemetryEvent::PanelSwitch { panel: "dashboard".into() });
+            }
             // Category filter
-            KeyCode::Char('1') => self.category_filter = CategoryFilter::All,
-            KeyCode::Char('2') => self.category_filter = CategoryFilter::Ai,
-            KeyCode::Char('3') => self.category_filter = CategoryFilter::Dev,
-            KeyCode::Char('4') => self.category_filter = CategoryFilter::Watch,
+            KeyCode::Char('1') => {
+                self.category_filter = CategoryFilter::All;
+                self.telemetry.track(TelemetryEvent::FilterChange { filter: "all".into() });
+            }
+            KeyCode::Char('2') => {
+                self.category_filter = CategoryFilter::Ai;
+                self.telemetry.track(TelemetryEvent::FilterChange { filter: "ai".into() });
+            }
+            KeyCode::Char('3') => {
+                self.category_filter = CategoryFilter::Dev;
+                self.telemetry.track(TelemetryEvent::FilterChange { filter: "dev".into() });
+            }
+            KeyCode::Char('4') => {
+                self.category_filter = CategoryFilter::Watch;
+                self.telemetry.track(TelemetryEvent::FilterChange { filter: "watch".into() });
+            }
             // Refresh rate
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 if self.refresh_ms > 100 {
@@ -261,6 +294,11 @@ impl App {
                     ChartMode::Default => ChartMode::Horizon,
                     ChartMode::Horizon => ChartMode::Default,
                 };
+                let mode = match self.chart_mode {
+                    ChartMode::Default => "default",
+                    ChartMode::Horizon => "horizon",
+                };
+                self.telemetry.track(TelemetryEvent::ChartModeToggle { mode: mode.into() });
             }
             // Resize chart/watchlist split
             KeyCode::Char('[') => {
@@ -302,7 +340,7 @@ impl App {
         self.refresh_ms = s.refresh_ms.clamp(100, 5000);
     }
 
-    pub fn to_settings(&self) -> UserSettings {
+    pub fn to_settings(&self, prev: &UserSettings) -> UserSettings {
         UserSettings {
             chart_tab: match self.chart_tab {
                 ChartTab::Cpu => "cpu",
@@ -330,6 +368,7 @@ impl App {
             }.to_string(),
             split_pct: self.split_pct,
             refresh_ms: self.refresh_ms,
+            anonymous_id: prev.anonymous_id.clone(),
         }
     }
 
