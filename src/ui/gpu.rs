@@ -95,7 +95,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let spark_data = app.history.gpu_util.as_slice();
     let max_val = spark_data.iter().copied().max().unwrap_or(1).max(1);
     let sparkline = Sparkline::default()
-        .data(&spark_data)
+        .data(spark_data)
         .max(max_val)
         .style(Style::default().fg(theme::GPU_COLOR));
     f.render_widget(sparkline, chunks[1]);

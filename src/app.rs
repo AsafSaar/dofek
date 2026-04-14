@@ -196,7 +196,9 @@ impl App {
         let asc = self.sort_ascending;
         self.data.processes.sort_by(|a, b| {
             let cmp = match self.sort_column {
-                SortColumn::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+                SortColumn::Name => a.name.as_bytes().iter()
+                    .map(|c| c.to_ascii_lowercase())
+                    .cmp(b.name.as_bytes().iter().map(|c| c.to_ascii_lowercase())),
                 SortColumn::Pid => a.pid.cmp(&b.pid),
                 SortColumn::Cpu => a.cpu_percent.partial_cmp(&b.cpu_percent).unwrap_or(std::cmp::Ordering::Equal),
                 SortColumn::Memory => a.memory_bytes.cmp(&b.memory_bytes),

@@ -19,7 +19,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
     // Logo
     spans.push(Span::styled(" dofek", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)));
-    spans.push(Span::styled(" v0.3", Style::default().fg(theme::TEXT_DIM)));
+    spans.push(Span::styled(" v0.4", Style::default().fg(theme::TEXT_DIM)));
     spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
 
     // CPU pill
@@ -138,23 +138,39 @@ fn format_rate(bytes_per_sec: f64) -> String {
     }
 }
 
+/// Cached clock string — only reformats when the second changes.
 fn format_clock() -> String {
-    #[cfg(windows)]
-    {
-        use windows::Win32::System::SystemInformation::GetLocalTime;
-        let t = unsafe { GetLocalTime() };
-        format!("{:02}:{:02}:{:02}", t.wHour, t.wMinute, t.wSecond)
+    use std::cell::RefCell;
+    use std::time::Instant;
+
+    thread_local! {
+        static CACHE: RefCell<(String, Instant)> = RefCell::new((String::new(), Instant::now()));
     }
-    #[cfg(not(windows))]
-    {
-        use std::time::SystemTime;
-        let secs = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let h = (secs % 86400) / 3600;
-        let m = (secs % 3600) / 60;
-        let s = secs % 60;
-        format!("{h:02}:{m:02}:{s:02}")
-    }
+
+    CACHE.with(|c| {
+        let mut cache = c.borrow_mut();
+        let elapsed = cache.1.elapsed();
+        if elapsed.as_millis() >= 900 || cache.0.is_empty() {
+            cache.1 = Instant::now();
+            #[cfg(windows)]
+            {
+                use windows::Win32::System::SystemInformation::GetLocalTime;
+                let t = unsafe { GetLocalTime() };
+                cache.0 = format!("{:02}:{:02}:{:02}", t.wHour, t.wMinute, t.wSecond);
+            }
+            #[cfg(not(windows))]
+            {
+                use std::time::SystemTime;
+                let secs = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                let h = (secs % 86400) / 3600;
+                let m = (secs % 3600) / 60;
+                let s = secs % 60;
+                cache.0 = format!("{h:02}:{m:02}:{s:02}");
+            }
+        }
+        cache.0.clone()
+    })
 }

@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 /// Stores the last `capacity` samples as u64 values (ratatui Sparkline expects &[u64]).
 pub struct SparklineBuf {
     data: VecDeque<u64>,
+    cache: Vec<u64>,
     capacity: usize,
 }
 
@@ -11,6 +12,7 @@ impl SparklineBuf {
     pub fn new(capacity: usize) -> Self {
         Self {
             data: VecDeque::with_capacity(capacity),
+            cache: Vec::with_capacity(capacity),
             capacity,
         }
     }
@@ -27,11 +29,14 @@ impl SparklineBuf {
             self.data.pop_front();
         }
         self.data.push_back(value);
+        // Rebuild contiguous cache
+        self.cache.clear();
+        self.cache.extend(self.data.iter().copied());
     }
 
-    /// Get data as a slice for ratatui Sparkline.
-    pub fn as_slice(&self) -> Vec<u64> {
-        self.data.iter().copied().collect()
+    /// Get data as a contiguous slice for ratatui Sparkline. Zero-allocation.
+    pub fn as_slice(&self) -> &[u64] {
+        &self.cache
     }
 
     #[allow(dead_code)]

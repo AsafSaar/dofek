@@ -9,7 +9,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 ## Screenshot
 
 ```
-dofek v0.3  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+dofek v0.4  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES     CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%     ALL  AI  DEV  WATCH    sort:MEM
@@ -86,7 +86,7 @@ cargo build-gui                    # → target/release/dofek-gui.exe + MSI inst
 **MSI installer** (bundles both TUI and GUI into a single installer):
 
 ```powershell
-.\build-all.ps1                    # → target\release\bundle\msi\dofek_0.3.0_x64_en-US.msi
+.\build-all.ps1                    # → target\release\bundle\msi\dofek_0.4.0_x64_en-US.msi
 ```
 
 These commands are cargo aliases defined in `.cargo/config.toml`. The MSI build script requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
@@ -383,8 +383,9 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 ## Roadmap
 
 - **v0.2** — Trading-terminal layout, candlestick charts, multi-GPU, process categories, Tauri GUI, resizable panes
-- **v0.3** (current) — Plugin system (JSON-over-stdio protocol), `dofek-ollama` and `dofek-docker` plugins
-- **v0.4** — User themes and configurable panel layout
+- **v0.3** — Plugin system (JSON-over-stdio protocol), `dofek-ollama` and `dofek-docker` plugins
+- **v0.4** (current) — Performance optimizations, GUI polish, MSI installer, cargo aliases, SEO
+- **v0.5** — User themes and configurable panel layout
 - **v1.0** — GUI tray companion with live sparkline in taskbar
 
 ## License

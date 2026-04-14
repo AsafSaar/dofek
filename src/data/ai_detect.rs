@@ -14,17 +14,13 @@ pub fn classify_process(
     // Assign category. Priority: Watch > Ai > Dev > None
     let name_lower = proc.name.to_lowercase();
     let is_watch = categories_config.watch_pids.contains(&proc.pid)
-        || categories_config.watch_processes.iter().any(|w| {
-            name_lower.contains(&w.to_lowercase())
-        });
+        || categories_config.watch_lower.iter().any(|w| name_lower.contains(w.as_str()));
     if is_watch {
         proc.category = ProcessCategory::Watch;
     } else if proc.is_ai_workload {
         proc.category = ProcessCategory::Ai;
     } else {
-        let is_dev = categories_config.dev_processes.iter().any(|dev| {
-            name_lower.contains(&dev.to_lowercase())
-        });
+        let is_dev = categories_config.dev_lower.iter().any(|dev| name_lower.contains(dev.as_str()));
         if is_dev {
             proc.category = ProcessCategory::Dev;
         } else {
@@ -40,9 +36,7 @@ fn classify_ai_workload(
     prev_vram: Option<u64>,
 ) {
     let name_lower = proc.name.to_lowercase();
-    let name_matches = config.known_ai_processes.iter().any(|known| {
-        name_lower.contains(&known.to_lowercase())
-    });
+    let name_matches = config.known_ai_lower.iter().any(|known| name_lower.contains(known.as_str()));
 
     let vram_gb = proc.vram_bytes.map(|v| v as f64 / (1024.0 * 1024.0 * 1024.0)).unwrap_or(0.0);
     let over_threshold = vram_gb >= config.vram_threshold_gb;
@@ -71,8 +65,6 @@ fn classify_ai_workload(
 
     if over_threshold && gpu_utilization > 20.0 {
         proc.ai_state = AiState::Inferring;
-    } else if vram_bytes < 500 * 1024 * 1024 {
-        proc.ai_state = AiState::Idle;
     } else {
         proc.ai_state = AiState::Idle;
     }

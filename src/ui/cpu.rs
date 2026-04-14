@@ -45,7 +45,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     // Sparkline
     let spark_data = app.history.cpu_total.as_slice();
     let sparkline = Sparkline::default()
-        .data(&spark_data)
+        .data(spark_data)
         .max(100)
         .style(Style::default().fg(theme::CPU_COLOR));
     f.render_widget(sparkline, chunks[1]);

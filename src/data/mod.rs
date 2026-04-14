@@ -62,6 +62,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
         let mut prev_vram: HashMap<u32, u64> = HashMap::new();
         let mut lhm_failed = false; // stop retrying LHM after first failure
         let mut plugin_manager = PluginManager::new(&config.plugins);
+        let hostname = std::env::var("COMPUTERNAME").unwrap_or_default();
 
         // sysinfo::System persists across polls for CPU% delta computation
         let mut system = System::new();
@@ -172,7 +173,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 processes,
                 nvml_available: nvml.is_available(),
                 lhm_connected: true, // sysinfo always provides data
-                hostname: std::env::var("COMPUTERNAME").unwrap_or_default(),
+                hostname: hostname.clone(),
                 timestamp: Instant::now(),
                 plugin_statuses,
             };

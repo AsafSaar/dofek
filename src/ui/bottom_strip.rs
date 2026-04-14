@@ -121,7 +121,7 @@ fn render_cpu_compact(f: &mut Frame, area: Rect, app: &App) {
     // Sparkline at bottom
     let spark_data = app.history.cpu_total.as_slice();
     f.render_widget(
-        Sparkline::default().data(&spark_data).max(100).style(Style::default().fg(theme::CPU_COLOR)),
+        Sparkline::default().data(spark_data).max(100).style(Style::default().fg(theme::CPU_COLOR)),
         vert[1],
     );
 }
@@ -181,7 +181,7 @@ fn render_gpu_compact(f: &mut Frame, area: Rect, app: &App) {
     let spark_data = app.history.gpu_util.as_slice();
     let max_val = spark_data.iter().copied().max().unwrap_or(1).max(1);
     f.render_widget(
-        Sparkline::default().data(&spark_data).max(max_val).style(Style::default().fg(theme::GPU_COLOR)),
+        Sparkline::default().data(spark_data).max(max_val).style(Style::default().fg(theme::GPU_COLOR)),
         chunks[4],
     );
 }
@@ -225,7 +225,7 @@ fn render_mem_compact(f: &mut Frame, area: Rect, app: &App) {
     let spark_data = app.history.memory_used.as_slice();
     let spark_idx = if show_swap { 2 } else { 1 };
     f.render_widget(
-        Sparkline::default().data(&spark_data).max(100).style(Style::default().fg(theme::MEM_COLOR)),
+        Sparkline::default().data(spark_data).max(100).style(Style::default().fg(theme::MEM_COLOR)),
         chunks[spark_idx],
     );
 }
@@ -284,7 +284,7 @@ fn render_net_compact(f: &mut Frame, area: Rect, app: &App) {
     let spark_data = app.history.net_rx.as_slice();
     let max_val = spark_data.iter().copied().max().unwrap_or(1).max(1);
     f.render_widget(
-        Sparkline::default().data(&spark_data).max(max_val).style(Style::default().fg(theme::NET_RX_COLOR)),
+        Sparkline::default().data(spark_data).max(max_val).style(Style::default().fg(theme::NET_RX_COLOR)),
         chunks[2],
     );
 }

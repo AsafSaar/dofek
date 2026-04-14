@@ -48,7 +48,7 @@ impl Widget for CandlestickChart<'_> {
         let slot_width = candle_width + gap;
         let max_candles = w / slot_width;
         let n = self.data.len().min(max_candles);
-        let candles: Vec<&CandleSample> = self.data.iter().rev().take(n).collect::<Vec<_>>().into_iter().rev().collect();
+        let start_idx = self.data.len().saturating_sub(n);
 
         // Start drawing from right side
         let start_x = w.saturating_sub(n * slot_width);
@@ -91,14 +91,14 @@ impl Widget for CandlestickChart<'_> {
         let body_color = dim(self.color, 0.5);
         let bright_body = dim(self.color, 0.8);
 
-        // Draw each candle
-        for (i, candle) in candles.iter().enumerate() {
+        // Draw each candle (iterate from start_idx, no Vec allocation)
+        for (i, candle) in self.data.iter().skip(start_idx).enumerate() {
             let cx = area.x + (start_x + i * slot_width + candle_width / 2) as u16;
             if cx >= area.x + area.width {
                 break;
             }
 
-            let is_last = i == candles.len() - 1;
+            let is_last = i == n - 1;
             let y_min = map_y(candle.min);
             let y_max = map_y(candle.max);
             let y_p25 = map_y(candle.p25);
@@ -173,13 +173,13 @@ impl Widget for CandlestickChart<'_> {
         }
 
         // Live mean guide: dashed horizontal line at the last candle's mean
-        if let Some(last) = candles.last() {
+        if let Some(last) = self.data.back() {
             let y_sub = map_y(last.mean);
             draw_dashed_line(buf, area, y_sub, dim(self.color, 0.3));
         }
 
         // Live dot on last candle
-        if let Some(last) = candles.last() {
+        if let Some(last) = self.data.back() {
             let y_sub = map_y(last.mean);
             let row = y_sub / 2;
             let cy = area.y + row as u16;

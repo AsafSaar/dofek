@@ -75,7 +75,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     // Sparkline for network rx
     let spark_data = app.history.net_rx.as_slice();
     let sparkline = Sparkline::default()
-        .data(&spark_data)
+        .data(spark_data)
         .style(Style::default().fg(theme::NET_COLOR));
     f.render_widget(sparkline, chunks[1]);
 }

@@ -65,6 +65,9 @@ pub struct AiConfig {
     pub vram_threshold_gb: f64,
     #[serde(default = "default_ai_processes")]
     pub known_ai_processes: Vec<String>,
+    /// Pre-lowercased version of known_ai_processes (computed at load time).
+    #[serde(skip)]
+    pub known_ai_lower: Vec<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -87,14 +90,23 @@ pub struct CategoriesConfig {
     pub watch_processes: Vec<String>,
     #[serde(default)]
     pub watch_pids: Vec<u32>,
+    /// Pre-lowercased versions (computed at load time).
+    #[serde(skip)]
+    pub dev_lower: Vec<String>,
+    #[serde(skip)]
+    pub watch_lower: Vec<String>,
 }
 
 impl Default for CategoriesConfig {
     fn default() -> Self {
+        let dev = default_dev_processes();
+        let dev_lower = dev.iter().map(|s| s.to_lowercase()).collect();
         Self {
-            dev_processes: default_dev_processes(),
+            dev_processes: dev,
             watch_processes: Vec::new(),
             watch_pids: Vec::new(),
+            dev_lower,
+            watch_lower: Vec::new(),
         }
     }
 }
@@ -136,7 +148,9 @@ impl Default for DisplayConfig {
 
 impl Default for AiConfig {
     fn default() -> Self {
-        Self { vram_threshold_gb: default_vram_threshold(), known_ai_processes: default_ai_processes() }
+        let procs = default_ai_processes();
+        let lower = procs.iter().map(|s| s.to_lowercase()).collect();
+        Self { vram_threshold_gb: default_vram_threshold(), known_ai_processes: procs, known_ai_lower: lower }
     }
 }
 
@@ -160,6 +174,13 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Pre-compute lowercased versions of process name lists to avoid per-process allocations.
+    pub fn precompute_lowercase(&mut self) {
+        self.ai.known_ai_lower = self.ai.known_ai_processes.iter().map(|s| s.to_lowercase()).collect();
+        self.categories.dev_lower = self.categories.dev_processes.iter().map(|s| s.to_lowercase()).collect();
+        self.categories.watch_lower = self.categories.watch_processes.iter().map(|s| s.to_lowercase()).collect();
+    }
+
     /// Load config from file lookup order:
     /// 1. --config CLI flag
     /// 2. ./dofek.toml
@@ -179,8 +200,9 @@ impl Config {
             if path.exists() {
                 let content = std::fs::read_to_string(path)
                     .with_context(|| format!("Failed to read config from {}", path.display()))?;
-                let config: Config = toml::from_str(&content)
+                let mut config: Config = toml::from_str(&content)
                     .with_context(|| format!("Failed to parse config from {}", path.display()))?;
+                config.precompute_lowercase();
                 log::info!("Loaded config from {}", path.display());
                 return Ok(config);
             }
