@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <!-- TUI Start Menu shortcut -->
+    <DirectoryRef Id="ProgramMenuDir">
+      <Component Id="TuiShortcut" Guid="a1b2c3d4-e5f6-7890-abcd-ef1234567890">
+        <Shortcut
+          Id="DofekTuiShortcut"
+          Name="dofek TUI"
+          Description="dofek system monitor (terminal)"
+          Target="[INSTALLDIR]dofek-tui.exe"
+          WorkingDirectory="INSTALLDIR"
+          Icon="ProductIcon" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\dofek"
+          Name="TuiShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

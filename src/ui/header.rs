@@ -50,9 +50,9 @@ pub fn render(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     f.render_widget(Paragraph::new(center).alignment(Alignment::Center), chunks[1]);
 
     // Right: hostname + uptime
-    let hostname = std::env::var("COMPUTERNAME").unwrap_or_default();
+    let hostname = app.data.hostname.as_str();
     let right = Line::from(vec![
-        Span::styled(&hostname, Style::default().fg(theme::TEXT_SECONDARY)),
+        Span::styled(hostname, Style::default().fg(theme::TEXT_SECONDARY)),
     ]);
     f.render_widget(Paragraph::new(right).alignment(Alignment::Right), chunks[2]);
 }

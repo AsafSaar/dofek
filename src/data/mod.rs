@@ -28,6 +28,7 @@ pub struct DataSnapshot {
     pub processes: Vec<ProcessInfo>,
     pub nvml_available: bool,
     pub lhm_connected: bool,
+    pub hostname: String,
     #[serde(skip)]
     pub timestamp: Instant,
     #[serde(skip)]
@@ -44,6 +45,7 @@ impl Default for DataSnapshot {
             processes: Vec::new(),
             nvml_available: false,
             lhm_connected: false,
+            hostname: std::env::var("COMPUTERNAME").unwrap_or_default(),
             timestamp: Instant::now(),
             plugin_statuses: Vec::new(),
         }
@@ -170,6 +172,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 processes,
                 nvml_available: nvml.is_available(),
                 lhm_connected: true, // sysinfo always provides data
+                hostname: std::env::var("COMPUTERNAME").unwrap_or_default(),
                 timestamp: Instant::now(),
                 plugin_statuses,
             };

@@ -9,7 +9,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 ## Screenshot
 
 ```
-dofek v0.2  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+dofek v0.3  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES     CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%     ALL  AI  DEV  WATCH    sort:MEM
@@ -69,19 +69,27 @@ git clone https://github.com/AsafSaar/dofek.git
 cd dofek
 ```
 
-**Debug builds** (fast compile, unoptimized):
+**Dev** (debug, fast compile):
 
 ```bash
-cargo build                        # TUI debug
-cargo tauri dev                    # GUI debug (launches with hot-reload)
+cargo tui                          # Run TUI
+cargo gui                          # Run GUI (launches with hot-reload)
 ```
 
-**Release builds** (optimized, LTO + strip):
+**Release** (optimized, LTO + strip):
 
 ```bash
-cargo build --release              # TUI release → target/release/dofek-tui.exe
-cargo tauri build                  # GUI release → produces installer/MSI
+cargo build-tui                    # → target/release/dofek-tui.exe
+cargo build-gui                    # → target/release/dofek-gui.exe + MSI installer
 ```
+
+**MSI installer** (bundles both TUI and GUI into a single installer):
+
+```powershell
+.\build-all.ps1                    # → target\release\bundle\msi\dofek_0.3.0_x64_en-US.msi
+```
+
+These commands are cargo aliases defined in `.cargo/config.toml`. The MSI build script requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
 
 ### Prerequisites
 
@@ -99,7 +107,15 @@ dofek-tui
 dofek-tui --config path/to/dofek.toml
 ```
 
-For best visual results, set your terminal font size to **9-10pt** (e.g., in Windows Terminal: Settings > Profile > Appearance > Font size).
+The TUI is best viewed at font size **9-10pt**. If your terminal is too small, dofek will show a hint on startup.
+
+**Windows Terminal profile** (recommended): Run this once to add a "dofek" entry to your Windows Terminal dropdown with optimal font settings:
+
+```powershell
+.\install-wt-profile.ps1
+```
+
+This creates a profile with JetBrains Mono at 9pt. After running, select "dofek" from the Windows Terminal dropdown to launch with the right settings.
 
 ## Keybindings (TUI)
 
@@ -119,6 +135,7 @@ For best visual results, set your terminal font size to **9-10pt** (e.g., in Win
 | `[` / `]` | Resize chart / watchlist split |
 | `+` / `-` | Increase / decrease refresh rate |
 | `s` | Save snapshot to `~/dofek-snapshots/` |
+| `a` | About dofek |
 | `?` | Toggle help overlay |
 | `esc` | Return to dashboard |
 | `q` | Quit |

@@ -206,23 +206,27 @@ fn render_mem_compact(f: &mut Frame, area: Rect, app: &App) {
         return;
     }
 
-    let sparkline_height = 1u16.min(inner.height.saturating_sub(2));
+    let show_swap = app.data.memory.swap_used_percent > 0.1;
+    let swap_height = if show_swap { 1 } else { 0 };
+    let sparkline_height = 1u16.min(inner.height.saturating_sub(1 + swap_height));
+    let mut constraints = vec![Constraint::Length(1)];
+    if show_swap { constraints.push(Constraint::Length(1)); }
+    constraints.push(Constraint::Min(sparkline_height));
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Min(sparkline_height),
-        ])
+        .constraints(constraints)
         .split(inner);
 
     render_metric_bar(f, chunks[0], "Used", app.data.memory.used_percent, 100.0, "%", theme::MEM_COLOR);
-    render_metric_bar(f, chunks[1], "Swap", app.data.memory.swap_used_percent, 100.0, "%", theme::MEM_COLOR);
+    if show_swap {
+        render_metric_bar(f, chunks[1], "Swap", app.data.memory.swap_used_percent, 100.0, "%", theme::MEM_COLOR);
+    }
 
     let spark_data = app.history.memory_used.as_slice();
+    let spark_idx = if show_swap { 2 } else { 1 };
     f.render_widget(
         Sparkline::default().data(&spark_data).max(100).style(Style::default().fg(theme::MEM_COLOR)),
-        chunks[2],
+        chunks[spark_idx],
     );
 }
 

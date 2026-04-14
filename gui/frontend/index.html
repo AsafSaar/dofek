@@ -31,9 +31,28 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:11px;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
 
+/* Scanline overlay — subtle CRT texture */
+body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);
+  mix-blend-mode:multiply;}
+
+/* Loading state */
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;transition:opacity .4s;pointer-events:none;}
+.loading-overlay.hidden{opacity:0;}
+.loading-text{color:var(--muted);font-size:11px;letter-spacing:.1em;}
+.loading-dot{width:6px;height:6px;background:var(--cpu);border-radius:50%;animation:loadpulse 1.2s ease-in-out infinite;}
+@keyframes loadpulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+
+/* Clock colon blink */
+.clock-sep{animation:colblink 1s step-end infinite;}
+@keyframes colblink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Threshold dash animation */
+@keyframes dashmarch{to{stroke-dashoffset:-18;}}
+
 /* TOP BAR */
 .topbar{display:flex;align-items:center;height:34px;background:var(--surf);border-bottom:1px solid var(--bdr2);padding:0 14px;flex-shrink:0;gap:0;}
-.logo{font-size:13px;font-weight:700;color:var(--cpu);letter-spacing:.06em;padding-right:14px;border-right:1px solid var(--bdr2);margin-right:12px;white-space:nowrap;flex-shrink:0;}
+.logo{font-size:13px;font-weight:800;color:var(--cpu);letter-spacing:.1em;padding-right:14px;border-right:1px solid var(--bdr2);margin-right:12px;white-space:nowrap;flex-shrink:0;text-transform:lowercase;}
 .logo em{color:var(--muted);font-style:normal;font-weight:300;}
 .pills{display:flex;gap:3px;flex:1;overflow:hidden;}
 .pill{display:flex;align-items:center;gap:5px;padding:2px 9px;border:1px solid var(--bdr2);border-radius:2px;background:rgba(255,255,255,.02);white-space:nowrap;flex-shrink:0;}
@@ -60,8 +79,10 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 
 /* CHART PANEL */
 .chart-panel{flex:1;display:flex;flex-direction:column;min-width:200px;min-height:0;}
-.resize-handle{width:5px;cursor:col-resize;background:var(--bdr);flex-shrink:0;transition:background .15s;}
+.resize-handle{width:7px;cursor:col-resize;background:var(--bdr);flex-shrink:0;transition:background .15s;position:relative;display:flex;align-items:center;justify-content:center;}
+.resize-handle::after{content:'·\A·\A·';white-space:pre;font-size:8px;line-height:6px;color:var(--muted);opacity:.5;transition:opacity .15s;}
 .resize-handle:hover,.resize-handle.active{background:var(--cpu);}
+.resize-handle:hover::after,.resize-handle.active::after{opacity:0;}
 .chart-head{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--bdr);background:rgba(255,255,255,.01);flex-shrink:0;}
 .tabs{display:flex;gap:2px;}
 .tab{padding:3px 11px;border:1px solid transparent;background:transparent;color:var(--muted);font-family:var(--font);font-size:10px;font-weight:500;letter-spacing:.08em;cursor:pointer;border-radius:2px;transition:all .15s;}
@@ -74,7 +95,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 .chart-mode-badge.candle{color:var(--cpu);border-color:rgba(56,189,248,.25);background:rgba(56,189,248,.05);}
 .chart-mode-badge.horizon{color:var(--warn);border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.05);}
 .chart-meta{display:flex;align-items:baseline;gap:10px;flex:1;padding-left:10px;}
-.c-val{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;transition:color .3s;line-height:1;}
+.c-val{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .3s;line-height:1;letter-spacing:-.02em;}
 .c-val.cpu{color:var(--cpu)} .c-val.gpu{color:var(--gpu)} .c-val.mem{color:var(--mem)} .c-val.net{color:var(--net-up)}
 .c-hw{color:var(--muted);font-size:10px;}
 .c-delta{font-size:10px;font-weight:500;padding:2px 6px;border-radius:2px;}
@@ -124,15 +145,16 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 .wl-table tbody td{padding:4px 5px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(24,32,53,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .wl-table tbody td:first-child{text-align:left;padding-left:0;}
 
-.proc-row{transition:background .12s;}
+.proc-row{transition:background .12s, border-left-width .1s;}
 .proc-row:hover{background:rgba(255,255,255,.025);}
 .proc-row.cat-ai{border-left:2px solid rgba(192,132,252,.6);background:rgba(192,132,252,.03);}
-.proc-row.cat-ai:hover{background:rgba(192,132,252,.07);}
+.proc-row.cat-ai:hover{background:rgba(192,132,252,.07);border-left-width:3px;}
 .proc-row.cat-dev{border-left:2px solid rgba(96,165,250,.5);background:rgba(96,165,250,.025);}
-.proc-row.cat-dev:hover{background:rgba(96,165,250,.06);}
+.proc-row.cat-dev:hover{background:rgba(96,165,250,.06);border-left-width:3px;}
 .proc-row.cat-watch{border-left:2px solid rgba(251,191,36,.5);background:rgba(251,191,36,.025);}
-.proc-row.cat-watch:hover{background:rgba(251,191,36,.06);}
+.proc-row.cat-watch:hover{background:rgba(251,191,36,.06);border-left-width:3px;}
 .proc-row.default{border-left:2px solid transparent;}
+.proc-row.default:hover{border-left-color:rgba(255,255,255,.08);border-left-width:3px;}
 
 .cat-dot{display:inline-block;width:10px;text-align:center;font-size:9px;margin-right:2px;}
 .cat-dot.ai{color:var(--ai);}
@@ -179,14 +201,16 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 .core{display:flex;flex-direction:column;gap:2px;}
 .core-lbl{font-size:8px;color:var(--muted);}
 .core-track{height:5px;background:rgba(255,255,255,.05);border-radius:1px;overflow:hidden;width:100%;}
-.core-fill{height:100%;border-radius:1px;background:var(--cpu);transition:width .5s ease;}
+.core-fill{height:100%;border-radius:1px;background:var(--cpu);transition:width .5s ease;position:relative;}
+.core-fill::after{content:'';position:absolute;top:-1px;right:0;bottom:-1px;width:4px;border-radius:0 1px 1px 0;filter:blur(2px);background:inherit;opacity:.6;}
 .core-pct{font-size:9px;color:var(--dim);font-variant-numeric:tabular-nums;}
 
 /* stat rows */
 .srow{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
 .skey{width:34px;font-size:9px;color:var(--muted);flex-shrink:0;letter-spacing:.04em;}
 .strack{flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:1px;overflow:hidden;position:relative;}
-.sfill{height:100%;border-radius:1px;transition:width .5s ease;}
+.sfill{height:100%;border-radius:1px;transition:width .5s ease;position:relative;}
+.sfill::after{content:'';position:absolute;top:-1px;right:0;bottom:-1px;width:6px;border-radius:0 1px 1px 0;filter:blur(3px);background:inherit;opacity:.7;}
 .sfill.util{background:var(--gpu);}
 .sfill.vram{background:linear-gradient(90deg,var(--gpu),#db2777);}
 .sfill.temp{background:var(--warn);}
@@ -220,7 +244,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="logo">dofek <em>v0.2</em></div>
+  <div class="logo">dofek <em>v0.3</em></div>
   <div class="pills">
     <div class="pill cpu"><span class="lbl">CPU</span><span class="val" id="t-cpu">—</span></div>
     <div class="pill gpu"><span class="lbl">GPU</span><span class="val" id="t-gpu">—</span></div>
@@ -231,7 +255,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
     <div class="pill ai" id="ai-pill" style="display:none"><span class="dot">●</span><span id="t-ai"></span></div>
   </div>
   <div class="topbar-right">
-    <span class="hostname">BOULDER11</span>
+    <span class="hostname" id="hostname">—</span>
     <span class="clock" id="clock">--:--:--</span>
   </div>
 </div>
@@ -307,11 +331,11 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
     <div class="plugin-dock">
       <div class="plugin-head">
         PLUGINS <span class="plugin-count">0 active</span>
-        <button class="plugin-add">+ connect</button>
+        <a href="https://dofek.dev/plugins/" target="_blank" rel="noopener" class="plugin-add">docs</a>
       </div>
       <div class="plugin-empty">
         No plugins connected.<br>
-        <span>Extend via stdout JSON protocol →  github.com/AsafSaar/dofek/plugins</span>
+        <span>Extend via stdout JSON protocol → <a href="https://dofek.dev/plugins/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">dofek.dev/plugins</a></span>
       </div>
     </div>
   </div>
@@ -354,7 +378,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
     <div class="panel-top"><div class="plabel mem">MEM <sub id="mem-sub">14.2 / 63.2 GB</sub></div></div>
     <div>
       <div class="srow"><span class="skey">Used</span><div class="strack"><div class="sfill memu" id="m-used" style="width:22.5%"></div></div><span class="sval" id="m-used-v">22.5%</span></div>
-      <div class="srow"><span class="skey">Swap</span><div class="strack"><div class="sfill mems" id="m-swap" style="width:0%"></div></div><span class="sval" id="m-swap-v">0.0%</span></div>
+      <div class="srow" id="swap-row"><span class="skey">Swap</span><div class="strack"><div class="sfill mems" id="m-swap" style="width:0%"></div></div><span class="sval" id="m-swap-v">0.0%</span></div>
     </div>
     <canvas class="spark" id="sp-mem"></canvas>
   </div>
@@ -371,17 +395,25 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-si
 
 </div>
 
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-dot"></div>
+  <div class="loading-text">CONNECTING</div>
+</div>
+
 <!-- STATUS BAR -->
 <div class="statusbar">
   <div class="kbs">
-    <div class="kb"><span class="kk">q</span><span>quit</span></div>
-    <div class="kb"><span class="kk">tab</span><span>sort</span></div>
-    <div class="kb"><span class="kk">p</span><span>proc</span></div>
-    <div class="kb"><span class="kk">g</span><span>gpu</span></div>
     <div class="kb"><span class="kk">c</span><span>cpu</span></div>
+    <div class="kb"><span class="kk">g</span><span>gpu</span></div>
     <div class="kb"><span class="kk">m</span><span>mem</span></div>
     <div class="kb"><span class="kk">n</span><span>net</span></div>
+    <div class="kb"><span class="kk">h</span><span>horizon</span></div>
+    <div class="kb"><span class="kk">tab</span><span>sort</span></div>
+    <div class="kb"><span class="kk">1-4</span><span>filter</span></div>
+    <div class="kb"><span class="kk">[ ]</span><span>resize</span></div>
     <div class="kb"><span class="kk">s</span><span>snapshot</span></div>
+    <div class="kb"><span class="kk">a</span><span>about</span></div>
     <div class="kb"><span class="kk">?</span><span>help</span></div>
   </div>
   <span class="rrate">500ms</span>
@@ -401,6 +433,7 @@ try {
   console.error('Tauri IPC init failed:', e);
 }
 const LEN = 60;
+let dashOffset = 0; // animated threshold dash offset
 
 /* GPU definitions — populated from first snapshot */
 let GPUS = [];
@@ -464,6 +497,13 @@ async function tick() {
     console.error('Failed to get snapshot:', e);
     return;
   }
+
+  /* Dismiss loading overlay on first real data */
+  const lo = document.getElementById('loading-overlay');
+  if (lo && !lo.classList.contains('hidden')) lo.classList.add('hidden');
+
+  /* Set hostname from snapshot */
+  if (snap.hostname) document.getElementById('hostname').textContent = snap.hostname;
 
   /* CPU — skip the first sysinfo refresh (always returns 100%) */
   const avg = snap.cpu.total_load || 0;
@@ -571,13 +611,13 @@ function drawCandle(c, candleData, color, lo=0, hi=100, warn=null, crit=null) {
     ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(W-pr,y); ctx.stroke();
   }
 
-  /* thresholds */
+  /* thresholds (animated dash march) */
   const thresh=(val,col,dash)=>{
     if(val===null) return;
     const y=toY(val);
-    ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash(dash);
+    ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash(dash); ctx.lineDashOffset=dashOffset;
     ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(W-pr,y); ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.setLineDash([]); ctx.lineDashOffset=0;
   };
   thresh(warn,'rgba(251,191,36,.4)',[5,4]);
   thresh(crit,'rgba(248,113,113,.4)',[3,3]);
@@ -644,8 +684,8 @@ function drawArea(c, hist, color, lo=0, hi=100, warn=null, crit=null, secondary=
   const thresh=(val,col,dash)=>{
     if(val===null) return;
     const y=toY(val);
-    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash(dash);
-    ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash(dash);ctx.lineDashOffset=dashOffset;
+    ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();ctx.setLineDash([]);ctx.lineDashOffset=0;
   };
   thresh(warn,'rgba(251,191,36,.4)',[5,4]);
   thresh(crit,'rgba(248,113,113,.4)',[3,3]);
@@ -700,13 +740,13 @@ function drawHorizon(c, hist, color, lo=0, hi=100, warn=null, crit=null, numBand
     ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(W-pr,y); ctx.stroke();
   }
 
-  /* thresholds */
+  /* thresholds (animated dash march) */
   const thresh=(val,col,dash)=>{
     if(val===null) return;
     const frac=(val-lo)/(hi-lo);
     const y=pt+dH*(1-frac);
-    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash(dash);
-    ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash(dash);ctx.lineDashOffset=dashOffset;
+    ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();ctx.setLineDash([]);ctx.lineDashOffset=0;
   };
   thresh(warn,'rgba(251,191,36,.4)',[5,4]);
   thresh(crit,'rgba(248,113,113,.4)',[3,3]);
@@ -974,6 +1014,8 @@ function upMEM(){
   document.getElementById('m-used').style.width=pct+'%';
   document.getElementById('m-used-v').textContent=pct.toFixed(1)+'%';
   document.getElementById('mem-sub').textContent=S.mem.usedGB.toFixed(1)+' / '+S.mem.totalGB+' GB';
+  const swapRow=document.getElementById('swap-row');
+  if(swapRow) swapRow.style.display=S.mem.swapPct>0.1?'':'none';
   drawArea(document.getElementById('sp-mem'),S.mem.hist,'#34d399',0,100);
 }
 
@@ -1268,7 +1310,9 @@ async function loadSettings() {
 /* ═══ MAIN LOOP ══════════════════════════════════════════ */
 async function frame(){
   await tick();
-  document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8);
+  dashOffset -= 0.6; // animate threshold dashes
+  const t=new Date().toTimeString().slice(0,8).split(':');
+  document.getElementById('clock').innerHTML=t[0]+'<span class="clock-sep">:</span>'+t[1]+'<span class="clock-sep">:</span>'+t[2];
   const fns=[upTopBar, upMainChart, upCores, upGPU, upMEM, upNET, upProcs];
   for(const fn of fns){ try{ fn(); }catch(e){ console.error(fn.name+':',e); } }
 }
@@ -1311,18 +1355,18 @@ document.querySelector('.logo').addEventListener('click',()=>{
 
 <!-- About overlay -->
 <div class="help-overlay" id="about-overlay">
-  <div class="help-box" style="text-align:center;min-width:440px;">
-    <div style="font-size:48px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:10px;">dofek <span style="font-size:28px;color:var(--text);font-weight:600;">v0.2</span></div>
-    <div style="font-size:28px;color:var(--dim);margin-bottom:28px;">Terminal / GUI, AI-aware system monitor</div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
-      <a href="https://github.com/AsafSaar/dofek" target="_blank" class="about-link" style="font-size:22px;">github.com/AsafSaar/dofek</a>
-      <a href="https://linkedin.com/in/asafsaar" target="_blank" class="about-link" style="font-size:22px;">linkedin.com/in/asafsaar</a>
+  <div class="help-box" style="text-align:center;min-width:280px;">
+    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v0.3</span></div>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:14px;">Terminal / GUI, AI-aware system monitor</div>
+    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
+      <a href="https://dofek.dev" target="_blank" class="about-link" style="font-size:11px;">dofek.dev</a>
+      <a href="https://linkedin.com/in/asafsaar" target="_blank" class="about-link" style="font-size:11px;">linkedin.com/in/asafsaar</a>
     </div>
-    <div style="font-size:20px;color:var(--muted);border-top:1px solid var(--bdr);padding-top:14px;">
+    <div style="font-size:10px;color:var(--muted);border-top:1px solid var(--bdr);padding-top:8px;">
       Built by <span style="color:var(--dim);font-weight:500;">Asaf Saar</span><br>
       &copy; 2026 — MIT License
     </div>
-    <div class="help-footer" style="font-size:18px;">press any key to close</div>
+    <div class="help-footer" style="font-size:9px;">press any key to close</div>
   </div>
 </div>
 

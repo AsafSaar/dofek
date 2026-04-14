@@ -42,6 +42,53 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
+    // Check terminal dimensions and suggest font size if too small
+    {
+        let size = terminal.size()?;
+        if size.width < 120 || size.height < 30 {
+            use ratatui::style::{Color, Style};
+            use ratatui::text::{Line, Span};
+            use ratatui::widgets::Paragraph;
+            use ratatui::layout::Alignment;
+            use crossterm::event::{poll, read};
+
+            for remaining in (1..=5).rev() {
+                terminal.draw(|f| {
+                    let area = f.area();
+                    let msg = Paragraph::new(vec![
+                        Line::from(""),
+                        Line::from(Span::styled(
+                            "dofek",
+                            Style::default().fg(Color::Rgb(56, 189, 248)).add_modifier(ratatui::style::Modifier::BOLD),
+                        )),
+                        Line::from(""),
+                        Line::from(Span::styled(
+                            format!("Terminal size: {}×{}", size.width, size.height),
+                            Style::default().fg(Color::Rgb(148, 163, 184)),
+                        )),
+                        Line::from(Span::styled(
+                            "Best viewed at 160+ columns. Try font size 9-10pt.",
+                            Style::default().fg(Color::Rgb(148, 163, 184)),
+                        )),
+                        Line::from(""),
+                        Line::from(Span::styled(
+                            format!("Starting in {remaining}s — press any key to start now"),
+                            Style::default().fg(Color::Rgb(61, 80, 112)),
+                        )),
+                    ])
+                    .alignment(Alignment::Center);
+                    f.render_widget(msg, area);
+                })?;
+
+                // Wait 1 second, but break immediately on any keypress
+                if poll(Duration::from_secs(1))? {
+                    let _ = read()?; // consume the event
+                    break;
+                }
+            }
+        }
+    }
+
     let mut app = App::new(config);
 
     // Restore saved user settings

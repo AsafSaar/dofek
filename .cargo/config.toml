@@ -1,0 +1,8 @@
+[alias]
+# Dev (debug, fast compile)
+tui       = "run -p dofek --bin dofek-tui --"
+gui       = ["tauri", "dev", "--config", "gui/tauri.conf.json"]
+
+# Release builds
+build-tui = "build --release -p dofek --bin dofek-tui"
+build-gui = ["tauri", "build", "--config", "gui/tauri.conf.json"]

@@ -28,7 +28,7 @@ pub fn render(f: &mut Frame) {
         Line::from(""),
         Line::from(vec![
             Span::styled("dofek ", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)),
-            Span::styled("v0.2", Style::default().fg(theme::TEXT_PRIMARY).add_modifier(Modifier::BOLD)),
+            Span::styled("v0.3", Style::default().fg(theme::TEXT_PRIMARY).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(Span::styled(
@@ -37,7 +37,7 @@ pub fn render(f: &mut Frame) {
         )),
         Line::from(""),
         Line::from(Span::styled(
-            "github.com/AsafSaar/dofek",
+            "dofek.dev",
             Style::default().fg(theme::CPU_COLOR),
         )),
         Line::from(Span::styled(

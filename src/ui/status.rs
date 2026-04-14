@@ -25,8 +25,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         ("g", "gpu"),
         ("m", "mem"),
         ("n", "net"),
+        ("h", "horizon"),
         ("1-4", "filter"),
         ("[]", "resize"),
+        ("s", "snapshot"),
+        ("a", "about"),
         ("?", "help"),
     ];
 

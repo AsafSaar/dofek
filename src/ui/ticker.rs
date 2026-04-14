@@ -19,7 +19,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
     // Logo
     spans.push(Span::styled(" dofek", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)));
-    spans.push(Span::styled(" v0.2", Style::default().fg(theme::TEXT_DIM)));
+    spans.push(Span::styled(" v0.3", Style::default().fg(theme::TEXT_DIM)));
     spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
 
     // CPU pill
@@ -93,14 +93,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, Rect::new(area.x, area.y, area.width, 1));
 
     // Right-aligned hostname + clock (overlay on same line)
-    let hostname = std::env::var("COMPUTERNAME").unwrap_or_default();
+    let hostname = app.data.hostname.as_str();
     let clock = format_clock();
     let right_text = format!("{hostname}  {clock} ");
     let right_len = right_text.len() as u16;
     if area.width > right_len + 10 {
         let right_area = Rect::new(area.x + area.width - right_len, area.y, right_len, 1);
         let right = Paragraph::new(Line::from(vec![
-            Span::styled(&hostname, Style::default().fg(theme::TEXT_DIM)),
+            Span::styled(hostname, Style::default().fg(theme::TEXT_DIM)),
             Span::styled("  ", Style::default()),
             Span::styled(&clock, Style::default().fg(theme::TEXT_PRIMARY).add_modifier(Modifier::BOLD)),
             Span::raw(" "),
@@ -139,13 +139,22 @@ fn format_rate(bytes_per_sec: f64) -> String {
 }
 
 fn format_clock() -> String {
-    use std::time::SystemTime;
-    let secs = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    let h = (secs % 86400) / 3600;
-    let m = (secs % 3600) / 60;
-    let s = secs % 60;
-    format!("{h:02}:{m:02}:{s:02}")
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::SystemInformation::GetLocalTime;
+        let t = unsafe { GetLocalTime() };
+        format!("{:02}:{:02}:{:02}", t.wHour, t.wMinute, t.wSecond)
+    }
+    #[cfg(not(windows))]
+    {
+        use std::time::SystemTime;
+        let secs = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let h = (secs % 86400) / 3600;
+        let m = (secs % 3600) / 60;
+        let s = secs % 60;
+        format!("{h:02}:{m:02}:{s:02}")
+    }
 }
