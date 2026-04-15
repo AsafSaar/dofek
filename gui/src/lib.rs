@@ -42,12 +42,19 @@ fn get_settings(state: tauri::State<'_, AppState>) -> UserSettings {
     state.settings.lock().unwrap().clone()
 }
 
-/// Tauri command: saves user settings to disk.
+/// Tauri command: saves UI settings to disk, preserving telemetry/identity fields.
 #[tauri::command]
 fn save_settings(state: tauri::State<'_, AppState>, settings: UserSettings) -> Result<(), String> {
     let mut current = state.settings.lock().unwrap();
-    *current = settings.clone();
-    settings.save().map_err(|e| e.to_string())
+    // Preserve telemetry and identity fields — only set_telemetry_choice should change these
+    let merged = UserSettings {
+        anonymous_id: current.anonymous_id.clone(),
+        telemetry_prompted: current.telemetry_prompted,
+        telemetry_enabled: current.telemetry_enabled,
+        ..settings
+    };
+    *current = merged.clone();
+    merged.save().map_err(|e| e.to_string())
 }
 
 /// Tauri command: emit a telemetry event from the frontend.

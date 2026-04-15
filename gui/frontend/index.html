@@ -261,7 +261,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="logo">dofek <em>v0.4</em></div>
+  <div class="logo">dofek <em>v0.5</em></div>
   <div class="pills">
     <div class="pill cpu"><span class="lbl">CPU</span><span class="val" id="t-cpu">—</span></div>
     <div class="pill gpu"><span class="lbl">GPU</span><span class="val" id="t-gpu">—</span></div>
@@ -453,7 +453,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 
 <script>
 /* ═══ TAURI IPC ══════════════════════════════════════════ */
-let invoke;
+var invoke;
 // Tauri 2: try @tauri-apps/api path first, then raw internals
 try {
   if (window.__TAURI__ && window.__TAURI__.core) {
@@ -1383,23 +1383,7 @@ function showToast(msg){
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2000);
 }
-document.getElementById('help-overlay').addEventListener('click',e=>{
-  if(e.target.id==='help-overlay') e.target.classList.remove('visible');
-});
-document.getElementById('about-overlay').addEventListener('click',e=>{
-  if(e.target.id==='about-overlay') e.target.classList.remove('visible');
-});
-document.querySelector('.logo').style.cursor='pointer';
-document.querySelector('.logo').addEventListener('click',()=>{
-  document.getElementById('about-overlay').classList.toggle('visible');
-});
-document.getElementById('telem-toggle-cb').addEventListener('change', async (e) => {
-  if (!invoke) return;
-  try {
-    await invoke('set_telemetry_choice', { enabled: e.target.checked });
-    showToast(e.target.checked ? 'Telemetry enabled' : 'Telemetry disabled');
-  } catch(err) { console.error('Failed to save telemetry choice:', err); }
-});
+
 </script>
 
 <!-- Help overlay -->
@@ -1416,7 +1400,7 @@ document.getElementById('telem-toggle-cb').addEventListener('change', async (e) 
       <tr><td class="hk">a</td><td class="hd">About dofek</td></tr>
       <tr><td class="hk">?</td><td class="hd">Toggle this help</td></tr>
     </table>
-    <div class="telem-toggle" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;">
+    <div class="telem-toggle" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;gap:10px;">
       <span style="font-size:11px;color:var(--dim);">Anonymous telemetry</span>
       <label class="toggle-switch">
         <input type="checkbox" id="telem-toggle-cb">
@@ -1430,7 +1414,7 @@ document.getElementById('telem-toggle-cb').addEventListener('change', async (e) 
 <!-- About overlay -->
 <div class="help-overlay" id="about-overlay">
   <div class="help-box" style="text-align:center;min-width:280px;">
-    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v0.4</span></div>
+    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v0.5</span></div>
     <div style="font-size:13px;color:var(--dim);margin-bottom:14px;">Terminal / GUI, AI-aware system monitor</div>
     <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
       <a href="https://dofek.dev" target="_blank" class="about-link" style="font-size:11px;">dofek.dev</a>
@@ -1446,6 +1430,29 @@ document.getElementById('telem-toggle-cb').addEventListener('change', async (e) 
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<script>
+document.getElementById('help-overlay').addEventListener('click',e=>{
+  if(e.target.id==='help-overlay') e.target.classList.remove('visible');
+});
+document.getElementById('about-overlay').addEventListener('click',e=>{
+  if(e.target.id==='about-overlay') e.target.classList.remove('visible');
+});
+document.querySelector('.logo').style.cursor='pointer';
+document.querySelector('.logo').addEventListener('click',()=>{
+  document.getElementById('about-overlay').classList.toggle('visible');
+});
+document.getElementById('telem-toggle-cb').addEventListener('change', async (e) => {
+  if (!invoke) return;
+  try {
+    await invoke('set_telemetry_choice', { enabled: e.target.checked });
+    const t=document.getElementById('toast');
+    t.textContent=e.target.checked ? 'Telemetry enabled' : 'Telemetry disabled';
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),2000);
+  } catch(err) { console.error('Failed to save telemetry choice:', err); }
+});
+</script>
 
 <style>
 .help-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(6,8,16,.85);z-index:100;align-items:center;justify-content:center;}

@@ -46,15 +46,15 @@ These are the files and patterns to update. **All must be updated together.**
 
 | File | Pattern | Example |
 |------|---------|---------|
-| `Cargo.toml` (root) | `version = "X.Y.Z"` | `version = "0.4.0"` |
-| `gui/Cargo.toml` | `version = "X.Y.Z"` | `version = "0.4.0"` |
-| `gui/tauri.conf.json` | `"version": "X.Y.Z"` | `"version": "0.4.0"` |
-| `src/ui/ticker.rs` | `" vX.Y"` | `" v0.4"` |
-| `src/ui/about.rs` | `"vX.Y"` | `"v0.4"` |
-| `gui/frontend/index.html` | `v0.Y` (logo + about modal) | `v0.4` |
-| `gui/docs/dofek-concept-v2.html` | `v0.Y` | `v0.4` |
-| `website/index.html` | `v0.Y` (nav, footer, hero) + `"softwareVersion": "X.Y"` | `v0.4` |
-| `website/plugins/index.html` | `Plugin System vX.Y` | `Plugin System v0.4` |
+| `Cargo.toml` (root) | `version = "X.Y.Z"` | `version = "0.5.0"` |
+| `gui/Cargo.toml` | `version = "X.Y.Z"` | `version = "0.5.0"` |
+| `gui/tauri.conf.json` | `"version": "X.Y.Z"` | `"version": "0.5.0"` |
+| `src/ui/ticker.rs` | `" vX.Y"` | `" v0.5"` |
+| `src/ui/about.rs` | `"vX.Y"` | `"v0.5"` |
+| `gui/frontend/index.html` | `v0.Y` (logo + about modal) | `v0.5` |
+| `gui/docs/dofek-concept-v2.html` | `v0.Y` | `v0.5` |
+| `website/index.html` | `v0.Y` (nav, footer, hero) + `"softwareVersion": "X.Y"` | `v0.5` |
+| `website/plugins/index.html` | `Plugin System vX.Y` | `Plugin System v0.5` |
 | `README.md` | `dofek vX.Y` (screenshot) + `dofek_X.Y.Z_x64_en-US.msi` + roadmap `(current)` marker |
 | `CLAUDE.md` | `dofek_X.Y.Z_x64_en-US.msi` + `Current Status (vX.Y)` |
 
