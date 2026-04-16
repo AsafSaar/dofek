@@ -19,7 +19,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
     // Logo
     spans.push(Span::styled(" dofek", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)));
-    spans.push(Span::styled(" v0.5", Style::default().fg(theme::TEXT_DIM)));
+    spans.push(Span::styled(" v0.7", Style::default().fg(theme::TEXT_DIM)));
     spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
 
     // CPU pill
@@ -38,10 +38,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let mem_pct = app.data.memory.used_percent;
     pill(&mut spans, "MEM", &format!("{:.1}%", mem_pct), val_color(mem_pct, theme::MEM_COLOR));
 
-    // TEMP pill
+    // Temperature pills — labeled by source
+    if let Some(cpu_temp) = app.data.cpu.temperature {
+        if cpu_temp > 0.0 {
+            pill(&mut spans, "CPU", &format!("{:.0}°C", cpu_temp), val_color(cpu_temp, theme::WARN_COLOR));
+        }
+    }
     if let Some(gpu) = app.primary_gpu() {
         if gpu.temperature > 0.0 {
-            pill(&mut spans, "TEMP", &format!("{:.0}°C", gpu.temperature), val_color(gpu.temperature, theme::WARN_COLOR));
+            pill(&mut spans, "GPU", &format!("{:.0}°C", gpu.temperature), val_color(gpu.temperature, theme::WARN_COLOR));
         }
     }
 

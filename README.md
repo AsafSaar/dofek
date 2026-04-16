@@ -9,7 +9,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 ## Screenshot
 
 ```
-dofek v0.5  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+dofek v0.7  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
@@ -33,7 +33,7 @@ dofek v0.5  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDE
  C3  9% C4 10% C5 12%     | VRAM     1.7 GB       | Swap [.....] 0.0%    | up   0 B/s
  C6 15% C7 12% C8  5%     | Temp    36.0 C        |                      |
 -----------------------------------------------------------------------------------------------
- q quit  tab sort  p proc  c cpu  g gpu  m mem  n net  [] resize  1-4 filter  ? help      500ms
+ q quit  tab sort  p proc  / search  x kill  c cpu  g gpu  m mem  n net  1-4 filter  ? help  500ms
 ```
 
 ## Features
@@ -45,6 +45,7 @@ dofek v0.5  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDE
 - **Area charts** — smooth filled charts for GPU, memory, and network with threshold lines at 80%/90%
 - **Horizon chart mode** — press `h` to toggle layered color-band charts across all metrics
 - **AI workload detection** — VRAM per-process, inference/loading/idle badges, auto-classification
+- **Process management** — search by name, kill single or batch processes, navigable selection in both TUI and GUI
 - **Process watchlist with categories** — AI (●), DEV (■), WATCH (★) with color-coded rows and filter tabs
 - **Multi-GPU support** — per-device metrics, overlaid chart lines, aggregate views
 - **Top ticker bar** — live metric pills for CPU, GPU, VRAM, MEM, TEMP, NET at a glance
@@ -86,7 +87,7 @@ cargo build-gui                    # → target/release/dofek-gui.exe + MSI inst
 **MSI installer** (bundles both TUI and GUI into a single installer):
 
 ```powershell
-.\build-all.ps1                    # → target\release\bundle\msi\dofek_0.5.0_x64_en-US.msi
+.\build-all.ps1                    # → target\release\bundle\msi\dofek_0.7.0_x64_en-US.msi
 ```
 
 These commands are cargo aliases defined in `.cargo/config.toml`. The MSI build script requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
@@ -132,12 +133,16 @@ This creates a profile with JetBrains Mono at 9pt. After running, select "dofek"
 | `2` | Process filter: AI only |
 | `3` | Process filter: DEV only |
 | `4` | Process filter: WATCH only |
+| `/` | Search processes by name (live filter) |
+| `↑↓` / `j/k` | Navigate process list |
+| `del` / `x` | Kill selected process (with confirmation) |
+| `X` | Kill all matching processes (search/filter) |
 | `[` / `]` | Resize chart / watchlist split |
 | `+` / `-` | Increase / decrease refresh rate |
 | `s` | Save snapshot to `~/dofek-snapshots/` |
 | `a` | About dofek |
 | `?` | Toggle help overlay |
-| `esc` | Return to dashboard |
+| `esc` | Clear search / return to dashboard |
 | `q` | Quit |
 
 ## Configuration
@@ -294,7 +299,7 @@ A process is classified as an AI workload if:
     │
     ├── dofek-gui ─── Tauri Desktop App (WebView2)
     │     ├── Same Rust backend ── reuses data collection + plugins from core
-    │     ├── Tauri IPC ────────── get_snapshot / get_gpu_info commands
+    │     ├── Tauri IPC ────────── get_snapshot / get_gpu_info / kill_process commands
     │     └── Vanilla HTML/CSS/JS ── canvas charts, CSS bars, drag-resize
     │
     └── plugins/
@@ -418,7 +423,9 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v0.2** — Trading-terminal layout, candlestick charts, multi-GPU, process categories, Tauri GUI, resizable panes
 - **v0.3** — Plugin system (JSON-over-stdio protocol), `dofek-ollama` and `dofek-docker` plugins
 - **v0.4** — Performance optimizations, GUI polish, MSI installer, cargo aliases, SEO
-- **v0.5** (current) — Telemetry settings persistence fix, GUI help modal improvements
+- **v0.5** — Telemetry settings persistence, GUI help modal improvements
+- **v0.6** — Process management (search, kill, kill-all), interactive process table, LHM CPU temp/power
+- **v0.7** (current) — Process tree/grouped view, expanded LHM integration, GUI process management
 - **v1.0** — GUI tray companion with live sparkline in taskbar
 
 ## License

@@ -1,11 +1,40 @@
+use std::collections::{HashMap, HashSet};
+
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::config::Config;
 use crate::data::DataSnapshot;
+use crate::data::process::{ProcessCategory, ProcessInfo};
 use crate::ui::sparkline_buf::{CandleBuf, SparklineBuf};
 
 use dofek::settings::UserSettings;
 use dofek::telemetry::{TelemetryEvent, TelemetryHandle};
+
+/// Pending kill-confirmation state.
+pub enum ConfirmKill {
+    /// Kill a single process.
+    Single { pid: u32, name: String },
+    /// Kill all processes matching the current search/filter.
+    Batch { targets: Vec<(u32, String)> },
+}
+
+/// A row in the grouped process view — either a group header or a child process.
+#[derive(Debug, Clone)]
+pub enum ProcessRow<'a> {
+    /// Collapsed or expandable group header with aggregate stats.
+    Group {
+        name: String,
+        count: usize,
+        cpu_total: f32,
+        mem_total: u64,
+        vram_total: u64,
+        pids: Vec<u32>,
+        expanded: bool,
+        category: ProcessCategory,
+    },
+    /// Individual process (child of an expanded group, or singleton).
+    Process(&'a ProcessInfo),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PanelFocus {
@@ -117,6 +146,20 @@ pub struct App {
     pub should_quit: bool,
     pub refresh_ms: u64,
     pub selected_process: Option<usize>,
+    /// Scroll offset for the full-screen process table.
+    pub process_scroll: usize,
+    /// Live search query for process name filtering.
+    pub search_query: String,
+    /// Whether the search input is actively receiving keystrokes.
+    pub search_active: bool,
+    /// Whether the grouped (tree) process view is active.
+    pub grouped_view: bool,
+    /// Set of group names that are currently expanded.
+    pub expanded_groups: HashSet<String>,
+    /// Pending kill confirmation (shown as overlay in process view).
+    pub confirm_kill: Option<ConfirmKill>,
+    /// Brief status message after a kill attempt (cleared on next key).
+    pub kill_status: Option<String>,
     /// Chart/watchlist horizontal split percentage (chart gets this %, watchlist gets the rest).
     pub split_pct: u16,
     pub telemetry: TelemetryHandle,
@@ -143,6 +186,13 @@ impl App {
             should_quit: false,
             refresh_ms,
             selected_process: None,
+            process_scroll: 0,
+            search_query: String::new(),
+            search_active: false,
+            grouped_view: false,
+            expanded_groups: HashSet::new(),
+            confirm_kill: None,
+            kill_status: None,
             split_pct: 58,
             telemetry_enabled: false,
             telemetry,
@@ -195,6 +245,16 @@ impl App {
 
         // Sort processes
         self.sort_processes();
+
+        // Clamp selection to valid range
+        if let Some(sel) = self.selected_process {
+            let count = self.visible_row_count();
+            if count > 0 {
+                self.selected_process = Some(sel.min(count - 1));
+            } else {
+                self.selected_process = None;
+            }
+        }
     }
 
     fn sort_processes(&mut self) {
@@ -219,7 +279,7 @@ impl App {
 
     pub fn handle_key(&mut self, key: KeyEvent) {
         if self.show_help {
-            if key.code == KeyCode::Char('t') {
+            if key.code == KeyCode::Char('T') {
                 self.telemetry_enabled = !self.telemetry_enabled;
                 return;
             }
@@ -229,6 +289,128 @@ impl App {
         if self.show_about {
             self.show_about = false;
             return;
+        }
+
+        // Kill confirmation dialog intercepts all keys
+        if self.confirm_kill.is_some() {
+            match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    if let Some(ck) = self.confirm_kill.take() {
+                        match ck {
+                            ConfirmKill::Single { pid, name } => {
+                                self.execute_kill(pid, &name);
+                            }
+                            ConfirmKill::Batch { targets } => {
+                                self.execute_kill_batch(&targets);
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    self.confirm_kill = None;
+                }
+            }
+            return;
+        }
+
+        // Clear kill status on any key
+        if self.kill_status.is_some() {
+            self.kill_status = None;
+        }
+
+        // Search input mode: most keys go to the search buffer
+        if self.search_active {
+            match key.code {
+                KeyCode::Esc => {
+                    self.search_query.clear();
+                    self.search_active = false;
+                    self.reset_selection();
+                }
+                KeyCode::Enter => {
+                    // Lock filter, exit input mode (query stays)
+                    self.search_active = false;
+                }
+                KeyCode::Backspace => {
+                    self.search_query.pop();
+                    self.reset_selection();
+                }
+                KeyCode::Char(c) => {
+                    self.search_query.push(c);
+                    self.reset_selection();
+                }
+                // Navigation still works during search
+                KeyCode::Up => { self.move_selection(-1); }
+                KeyCode::Down => { self.move_selection(1); }
+                KeyCode::Delete => { self.initiate_kill(); }
+                _ => {}
+            }
+            return;
+        }
+
+        // Process view: handle navigation and kill keys before global keys
+        if self.focus == PanelFocus::Processes {
+            match key.code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.move_selection(-1);
+                    return;
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.move_selection(1);
+                    return;
+                }
+                KeyCode::Home => {
+                    self.selected_process = Some(0);
+                    self.process_scroll = 0;
+                    return;
+                }
+                KeyCode::End => {
+                    let count = self.visible_row_count();
+                    if count > 0 {
+                        self.selected_process = Some(count - 1);
+                    }
+                    return;
+                }
+                KeyCode::Delete | KeyCode::Char('x') => {
+                    self.initiate_kill();
+                    return;
+                }
+                KeyCode::Char('X') => {
+                    self.initiate_kill_all();
+                    return;
+                }
+                KeyCode::Char('t') => {
+                    self.grouped_view = !self.grouped_view;
+                    self.reset_selection();
+                    return;
+                }
+                KeyCode::Right | KeyCode::Enter => {
+                    if self.grouped_view {
+                        self.toggle_group_expand(true);
+                    }
+                    return;
+                }
+                KeyCode::Left => {
+                    if self.grouped_view {
+                        self.toggle_group_expand(false);
+                    }
+                    return;
+                }
+                KeyCode::Char('/') => {
+                    self.search_active = true;
+                    // Don't clear existing query — let user refine
+                    return;
+                }
+                KeyCode::Esc => {
+                    if !self.search_query.is_empty() {
+                        // First Esc clears search, second goes back to dashboard
+                        self.search_query.clear();
+                        self.reset_selection();
+                        return;
+                    }
+                    // Fall through to global Esc handler below
+                }
+                _ => {} // fall through to global keys
+            }
         }
 
         match key.code {
@@ -259,27 +441,34 @@ impl App {
             // Full-screen process view
             KeyCode::Char('p') => {
                 self.focus = PanelFocus::Processes;
+                if self.selected_process.is_none() && !self.data.processes.is_empty() {
+                    self.selected_process = Some(0);
+                }
                 self.telemetry.track(TelemetryEvent::PanelSwitch { panel: "processes".into() });
             }
             KeyCode::Esc => {
                 self.focus = PanelFocus::Dashboard;
                 self.telemetry.track(TelemetryEvent::PanelSwitch { panel: "dashboard".into() });
             }
-            // Category filter
+            // Category filter (reset selection since filtered list changes)
             KeyCode::Char('1') => {
                 self.category_filter = CategoryFilter::All;
+                self.reset_selection();
                 self.telemetry.track(TelemetryEvent::FilterChange { filter: "all".into() });
             }
             KeyCode::Char('2') => {
                 self.category_filter = CategoryFilter::Ai;
+                self.reset_selection();
                 self.telemetry.track(TelemetryEvent::FilterChange { filter: "ai".into() });
             }
             KeyCode::Char('3') => {
                 self.category_filter = CategoryFilter::Dev;
+                self.reset_selection();
                 self.telemetry.track(TelemetryEvent::FilterChange { filter: "dev".into() });
             }
             KeyCode::Char('4') => {
                 self.category_filter = CategoryFilter::Watch;
+                self.reset_selection();
                 self.telemetry.track(TelemetryEvent::FilterChange { filter: "watch".into() });
             }
             // Refresh rate
@@ -315,6 +504,250 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    fn reset_selection(&mut self) {
+        self.selected_process = if self.focus == PanelFocus::Processes { Some(0) } else { None };
+        self.process_scroll = 0;
+    }
+
+    /// Returns processes filtered by category and search query.
+    pub fn filtered_processes(&self) -> Vec<&ProcessInfo> {
+        let query = self.search_query.to_ascii_lowercase();
+        self.data.processes.iter()
+            .filter(|p| match self.category_filter {
+                CategoryFilter::All => true,
+                CategoryFilter::Ai => p.category == ProcessCategory::Ai,
+                CategoryFilter::Dev => p.category == ProcessCategory::Dev,
+                CategoryFilter::Watch => p.category == ProcessCategory::Watch,
+            })
+            .filter(|p| {
+                query.is_empty() || p.name.to_ascii_lowercase().contains(&query)
+            })
+            .collect()
+    }
+
+    /// Build the grouped process row list for the tree view.
+    pub fn grouped_rows(&self) -> Vec<ProcessRow<'_>> {
+        let filtered = self.filtered_processes();
+        let mut groups: Vec<(String, Vec<&ProcessInfo>)> = Vec::new();
+        let mut group_map: HashMap<String, usize> = HashMap::new();
+
+        for p in &filtered {
+            if let Some(&idx) = group_map.get(&p.name) {
+                groups[idx].1.push(p);
+            } else {
+                group_map.insert(p.name.clone(), groups.len());
+                groups.push((p.name.clone(), vec![p]));
+            }
+        }
+
+        // Sort groups by the same column as processes (using aggregate values)
+        let asc = self.sort_ascending;
+        groups.sort_by(|a, b| {
+            let cmp = match self.sort_column {
+                SortColumn::Name => a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()),
+                SortColumn::Pid => a.1[0].pid.cmp(&b.1[0].pid),
+                SortColumn::Cpu => {
+                    let sa: f32 = a.1.iter().map(|p| p.cpu_percent).sum();
+                    let sb: f32 = b.1.iter().map(|p| p.cpu_percent).sum();
+                    sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
+                }
+                SortColumn::Memory => {
+                    let sa: u64 = a.1.iter().map(|p| p.memory_bytes).sum();
+                    let sb: u64 = b.1.iter().map(|p| p.memory_bytes).sum();
+                    sa.cmp(&sb)
+                }
+                SortColumn::Vram => {
+                    let sa: u64 = a.1.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
+                    let sb: u64 = b.1.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
+                    sa.cmp(&sb)
+                }
+            };
+            if asc { cmp } else { cmp.reverse() }
+        });
+
+        let mut rows = Vec::new();
+        for (name, procs) in &groups {
+            let expanded = self.expanded_groups.contains(name);
+            let count = procs.len();
+
+            if count == 1 {
+                // Singleton — render as a plain process row
+                rows.push(ProcessRow::Process(procs[0]));
+            } else {
+                // Group header
+                let cpu_total: f32 = procs.iter().map(|p| p.cpu_percent).sum();
+                let mem_total: u64 = procs.iter().map(|p| p.memory_bytes).sum();
+                let vram_total: u64 = procs.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
+                let pids: Vec<u32> = procs.iter().map(|p| p.pid).collect();
+                // Use the highest-priority category from the group
+                let category = procs.iter().map(|p| p.category).min_by_key(|c| match c {
+                    ProcessCategory::Watch => 0,
+                    ProcessCategory::Ai => 1,
+                    ProcessCategory::Dev => 2,
+                    ProcessCategory::None => 3,
+                }).unwrap_or(ProcessCategory::None);
+
+                rows.push(ProcessRow::Group {
+                    name: name.clone(),
+                    count,
+                    cpu_total,
+                    mem_total,
+                    vram_total,
+                    pids,
+                    expanded,
+                    category,
+                });
+
+                if expanded {
+                    for p in procs {
+                        rows.push(ProcessRow::Process(p));
+                    }
+                }
+            }
+        }
+        rows
+    }
+
+    fn toggle_group_expand(&mut self, expand: bool) {
+        let rows = self.grouped_rows();
+        let idx = self.selected_process.unwrap_or(0);
+        // Extract the info we need before dropping the borrow
+        let action: Option<(String, bool, Option<usize>)> = match rows.get(idx) {
+            Some(ProcessRow::Group { name, expanded, .. }) => {
+                if expand && !expanded {
+                    Some((name.clone(), true, None))
+                } else if !expand && *expanded {
+                    Some((name.clone(), false, None))
+                } else {
+                    None
+                }
+            }
+            Some(ProcessRow::Process(_)) if !expand => {
+                // Find parent group above
+                let mut found = None;
+                for i in (0..idx).rev() {
+                    if let Some(ProcessRow::Group { name, .. }) = rows.get(i) {
+                        found = Some((name.clone(), false, Some(i)));
+                        break;
+                    }
+                }
+                found
+            }
+            _ => None,
+        };
+        drop(rows);
+
+        if let Some((name, insert, sel)) = action {
+            if insert {
+                self.expanded_groups.insert(name);
+            } else {
+                self.expanded_groups.remove(&name);
+            }
+            if let Some(s) = sel {
+                self.selected_process = Some(s);
+            }
+        }
+    }
+
+    /// Returns the number of visible rows (respects grouped/flat view).
+    fn visible_row_count(&self) -> usize {
+        if self.grouped_view {
+            self.grouped_rows().len()
+        } else {
+            self.filtered_processes().len()
+        }
+    }
+
+    fn move_selection(&mut self, delta: i32) {
+        let count = self.visible_row_count();
+        if count == 0 {
+            return;
+        }
+        let current = self.selected_process.unwrap_or(0) as i32;
+        let next = (current + delta).clamp(0, count as i32 - 1) as usize;
+        self.selected_process = Some(next);
+    }
+
+    fn initiate_kill(&mut self) {
+        let idx = match self.selected_process {
+            Some(i) => i,
+            None => return,
+        };
+
+        if self.grouped_view {
+            let rows = self.grouped_rows();
+            match rows.get(idx) {
+                Some(ProcessRow::Process(p)) => {
+                    self.confirm_kill = Some(ConfirmKill::Single {
+                        pid: p.pid,
+                        name: p.name.clone(),
+                    });
+                }
+                Some(ProcessRow::Group { name, pids, .. }) => {
+                    let targets: Vec<(u32, String)> = pids.iter().map(|&pid| (pid, name.clone())).collect();
+                    self.confirm_kill = Some(ConfirmKill::Batch { targets });
+                }
+                None => {}
+            }
+        } else {
+            let filtered = self.filtered_processes();
+            if let Some(proc) = filtered.get(idx) {
+                self.confirm_kill = Some(ConfirmKill::Single {
+                    pid: proc.pid,
+                    name: proc.name.clone(),
+                });
+            }
+        }
+    }
+
+    fn initiate_kill_all(&mut self) {
+        let filtered = self.filtered_processes();
+        if filtered.is_empty() {
+            return;
+        }
+        let targets: Vec<(u32, String)> = filtered.iter()
+            .map(|p| (p.pid, p.name.clone()))
+            .collect();
+        self.confirm_kill = Some(ConfirmKill::Batch { targets });
+    }
+
+    fn execute_kill(&mut self, pid: u32, name: &str) {
+        match kill_process_by_pid(pid) {
+            Ok(()) => {
+                self.kill_status = Some(format!("Killed {} (PID {})", name, pid));
+                self.telemetry.track(TelemetryEvent::ProcessKill {
+                    success: true,
+                });
+            }
+            Err(e) => {
+                self.kill_status = Some(format!("Failed to kill {}: {}", name, e));
+                self.telemetry.track(TelemetryEvent::ProcessKill {
+                    success: false,
+                });
+            }
+        }
+    }
+
+    fn execute_kill_batch(&mut self, targets: &[(u32, String)]) {
+        let mut killed = 0usize;
+        let mut failed = 0usize;
+        for (pid, _name) in targets {
+            match kill_process_by_pid(*pid) {
+                Ok(()) => killed += 1,
+                Err(_) => failed += 1,
+            }
+        }
+        let total = targets.len();
+        if failed == 0 {
+            self.kill_status = Some(format!("Killed all {total} processes"));
+        } else {
+            self.kill_status = Some(format!("Killed {killed}/{total} ({failed} failed)"));
+        }
+        self.telemetry.track(TelemetryEvent::ProcessKill {
+            success: failed == 0,
+        });
     }
 
     pub fn apply_settings(&mut self, s: &UserSettings) {
@@ -408,6 +841,26 @@ impl App {
         );
         let _ = std::fs::write(&filename, content);
         log::info!("Snapshot saved to {}", filename.display());
+    }
+}
+
+/// Terminate a process by PID using the Windows API.
+fn kill_process_by_pid(pid: u32) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+        use windows::Win32::Foundation::CloseHandle;
+        unsafe {
+            let handle = OpenProcess(PROCESS_TERMINATE, false, pid)
+                .map_err(|e| format!("Access denied or process not found: {e}"))?;
+            let result = TerminateProcess(handle, 1);
+            let _ = CloseHandle(handle);
+            result.map_err(|e| format!("TerminateProcess failed: {e}"))
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        Err("Process kill not supported on this platform".to_string())
     }
 }
 

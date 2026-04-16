@@ -50,6 +50,9 @@ pub enum TelemetryEvent {
         process_count: usize,
         plugin_count: usize,
     },
+    ProcessKill {
+        success: bool,
+    },
     /// Internal sentinel — triggers flush and thread exit. Never serialized over the wire.
     #[serde(skip)]
     Shutdown,

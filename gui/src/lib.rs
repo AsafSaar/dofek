@@ -78,6 +78,52 @@ fn set_telemetry_choice(state: tauri::State<'_, AppState>, enabled: bool) -> Res
     s.save().map_err(|e| e.to_string())
 }
 
+/// Tauri command: kill a single process by PID.
+#[tauri::command]
+fn kill_process(state: tauri::State<'_, AppState>, pid: u32) -> Result<String, String> {
+    kill_pid(pid)?;
+    state.telemetry.track(TelemetryEvent::ProcessKill { success: true });
+    Ok(format!("Killed PID {pid}"))
+}
+
+/// Tauri command: kill multiple processes by PID.
+#[tauri::command]
+fn kill_processes(state: tauri::State<'_, AppState>, pids: Vec<u32>) -> Result<String, String> {
+    let mut killed = 0usize;
+    let mut failed = 0usize;
+    for pid in &pids {
+        match kill_pid(*pid) {
+            Ok(()) => killed += 1,
+            Err(_) => failed += 1,
+        }
+    }
+    state.telemetry.track(TelemetryEvent::ProcessKill { success: failed == 0 });
+    let total = pids.len();
+    if failed == 0 {
+        Ok(format!("Killed all {total} processes"))
+    } else {
+        Err(format!("Killed {killed}/{total} ({failed} failed)"))
+    }
+}
+
+#[cfg(windows)]
+fn kill_pid(pid: u32) -> Result<(), String> {
+    use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+    use windows::Win32::Foundation::CloseHandle;
+    unsafe {
+        let handle = OpenProcess(PROCESS_TERMINATE, false, pid)
+            .map_err(|e| format!("Access denied or not found: {e}"))?;
+        let result = TerminateProcess(handle, 1);
+        let _ = CloseHandle(handle);
+        result.map_err(|e| format!("TerminateProcess failed: {e}"))
+    }
+}
+
+#[cfg(not(windows))]
+fn kill_pid(_pid: u32) -> Result<(), String> {
+    Err("Not supported on this platform".to_string())
+}
+
 pub fn run() {
     env_logger::init();
 
@@ -130,7 +176,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_settings, save_settings, track_event, get_telemetry_prompted, set_telemetry_choice])
+        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_settings, save_settings, track_event, get_telemetry_prompted, set_telemetry_choice, kill_process, kill_processes])
         .build(tauri::generate_context!())
         .expect("error building dofek GUI")
         .run(move |_app, event| {

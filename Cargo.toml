@@ -3,7 +3,7 @@ members = ["gui", "plugins/dofek-ollama", "plugins/dofek-docker"]
 
 [package]
 name = "dofek"
-version = "0.5.0"
+version = "0.7.0"
 edition = "2024"
 description = "Terminal-native system monitor for Windows — AI-aware, visually stunning"
 

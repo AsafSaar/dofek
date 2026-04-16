@@ -147,6 +147,25 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 .cat-tab[data-cat="dev"].on{border-color:var(--dev);color:var(--dev);}
 .cat-tab[data-cat="watch"].on{border-color:var(--watch);color:var(--watch);}
 
+/* search bar */
+.proc-search{display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--bdr);background:var(--surf);flex-shrink:0;}
+.proc-search.hidden{display:none;}
+.proc-search .search-icon{color:var(--warn);font-size:10px;font-weight:700;flex-shrink:0;}
+.proc-search input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:11px;caret-color:var(--warn);}
+.proc-search input::placeholder{color:var(--muted);}
+.proc-search .search-count{color:var(--muted);font-size:9px;flex-shrink:0;letter-spacing:.05em;}
+.proc-search .search-clear{background:transparent;border:1px solid var(--bdr2);color:var(--muted);font-family:var(--font);font-size:9px;cursor:pointer;padding:1px 6px;border-radius:2px;flex-shrink:0;}
+.proc-search .search-clear:hover{color:var(--dim);border-color:var(--dim);}
+
+/* kill actions bar */
+.kill-bar{display:flex;align-items:center;gap:6px;padding:4px 10px;border-bottom:1px solid var(--bdr);background:rgba(248,113,113,.04);flex-shrink:0;}
+.kill-bar.hidden{display:none;}
+.kill-bar .kill-info{flex:1;font-size:10px;color:var(--dim);}
+.kill-bar .kill-info b{color:var(--text);font-weight:600;}
+.kill-btn{background:transparent;border:1px solid rgba(248,113,113,.35);color:var(--crit);font-family:var(--font);font-size:9px;cursor:pointer;padding:2px 10px;border-radius:2px;letter-spacing:.04em;font-weight:600;transition:all .15s;}
+.kill-btn:hover{background:rgba(248,113,113,.12);border-color:var(--crit);}
+.kill-btn.all{border-color:rgba(248,113,113,.5);}
+
 /* process table scroll container */
 .proc-scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;}
 .proc-scroll::-webkit-scrollbar{width:4px;}
@@ -172,6 +191,29 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 .proc-row.cat-watch:hover{background:rgba(251,191,36,.06);border-left-width:3px;}
 .proc-row.default{border-left:2px solid transparent;}
 .proc-row.default:hover{border-left-color:rgba(255,255,255,.08);border-left-width:3px;}
+.proc-row.selected{background:rgba(56,189,248,.08) !important;}
+.proc-row.group-header{cursor:pointer;}
+.proc-row.group-header .pname{font-weight:600;}
+.proc-row.group-header .group-count{color:var(--muted);font-weight:400;font-size:10px;margin-left:3px;}
+.proc-row.group-header .group-arrow{color:var(--muted);font-size:9px;margin-right:2px;display:inline-block;width:10px;transition:transform .15s;}
+.proc-row.group-child td:first-child{padding-left:22px;}
+.proc-row.group-child .pname{color:var(--dim);font-weight:400;}
+.proc-row .row-kill{opacity:0;background:transparent;border:none;color:var(--crit);font-family:var(--font);font-size:9px;cursor:pointer;padding:0 4px;transition:opacity .12s;}
+.proc-row:hover .row-kill{opacity:.7;}
+.proc-row .row-kill:hover{opacity:1;}
+
+/* kill confirm modal */
+.kill-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(6,8,16,.88);z-index:110;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none;}
+.kill-modal.visible{opacity:1;pointer-events:auto;}
+.kill-box{background:var(--surf);border:1px solid var(--crit);border-radius:4px;padding:20px 28px;min-width:280px;max-width:420px;text-align:center;}
+.kill-box .kill-title{font-size:12px;font-weight:700;color:var(--crit);letter-spacing:.08em;margin-bottom:12px;}
+.kill-box .kill-msg{font-size:11px;color:var(--text);margin-bottom:16px;line-height:1.5;}
+.kill-box .kill-msg b{color:var(--crit);font-weight:600;}
+.kill-box .kill-btns{display:flex;gap:10px;justify-content:center;}
+.kill-box .kill-modal-btn{padding:5px 20px;border-radius:2px;border:1px solid var(--bdr2);background:transparent;color:var(--dim);font-family:var(--font);font-size:11px;cursor:pointer;transition:all .15s;}
+.kill-box .kill-modal-btn:hover{border-color:var(--dim);color:var(--text);}
+.kill-box .kill-modal-btn.confirm{border-color:rgba(248,113,113,.5);color:var(--crit);}
+.kill-box .kill-modal-btn.confirm:hover{background:rgba(248,113,113,.12);border-color:var(--crit);}
 
 .cat-dot{display:inline-block;width:10px;text-align:center;font-size:9px;margin-right:2px;}
 .cat-dot.ai{color:var(--ai);}
@@ -261,13 +303,14 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="logo">dofek <em>v0.5</em></div>
+  <div class="logo">dofek <em>v0.7</em></div>
   <div class="pills">
     <div class="pill cpu"><span class="lbl">CPU</span><span class="val" id="t-cpu">—</span></div>
     <div class="pill gpu"><span class="lbl">GPU</span><span class="val" id="t-gpu">—</span></div>
     <div class="pill" style="color:var(--gpu)"><span class="lbl" style="color:var(--muted)">VRAM</span><span class="val" id="t-vram" style="color:var(--gpu);font-weight:600">—</span></div>
     <div class="pill mem"><span class="lbl">MEM</span><span class="val" id="t-mem">—</span></div>
-    <div class="pill tmp"><span class="lbl">TEMP</span><span class="val" id="t-tmp">—</span></div>
+    <div class="pill tmp" id="cpu-temp-pill" style="display:none"><span class="lbl">CPU</span><span class="val" id="t-cpu-tmp">—</span></div>
+    <div class="pill tmp"><span class="lbl">GPU</span><span class="val" id="t-tmp">—</span></div>
     <div class="pill net"><span class="lbl">NET</span><span class="dn" id="t-dn">↓ —</span><span class="sep"> · </span><span class="up" id="t-up">↑ —</span></div>
     <div class="pill ai" id="ai-pill" style="display:none"><span class="dot">●</span><span id="t-ai"></span></div>
   </div>
@@ -314,6 +357,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
     <div class="wl-head">
       PROCESSES
       <div class="sort-grp">
+        <button class="sort-btn" id="tree-toggle-btn" title="Toggle tree view (t)">TREE</button>
         <button class="sort-btn on" data-sort="cpu">CPU</button>
         <button class="sort-btn" data-sort="mem">MEM</button>
         <button class="sort-btn" data-sort="vram">VRAM</button>
@@ -325,15 +369,26 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
       <button class="cat-tab" data-cat="dev">■ DEV</button>
       <button class="cat-tab" data-cat="watch">★ WATCH</button>
     </div>
+    <div class="proc-search hidden" id="proc-search">
+      <span class="search-icon">/</span>
+      <input type="text" id="search-input" placeholder="search processes..." spellcheck="false" autocomplete="off">
+      <span class="search-count" id="search-count"></span>
+      <button class="search-clear" id="search-clear">✕</button>
+    </div>
+    <div class="kill-bar hidden" id="kill-bar">
+      <span class="kill-info" id="kill-info"></span>
+      <button class="kill-btn" id="kill-selected-btn">Kill</button>
+      <button class="kill-btn all" id="kill-all-btn">Kill All</button>
+    </div>
     <div class="proc-scroll">
       <table class="wl-table">
         <colgroup>
-          <col style="width:auto">
-          <col style="width:50px">
-          <col style="width:42px">
-          <col style="width:52px">
-          <col style="width:52px">
-          <col style="width:56px">
+          <col style="width:40%">
+          <col style="width:12%">
+          <col style="width:10%">
+          <col style="width:13%">
+          <col style="width:13%">
+          <col style="width:12%">
         </colgroup>
         <thead>
           <tr>
@@ -368,6 +423,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
       <div class="plabel cpu">CPU <sub id="cpu-sub">—</sub></div>
     </div>
     <div class="cores" id="cores"></div>
+    <div class="cpu-sensors" id="cpu-sensors" style="display:none;margin-top:4px;"></div>
     <canvas class="spark" id="sp-cpu"></canvas>
   </div>
 
@@ -451,6 +507,18 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
   <span class="rrate">500ms</span>
 </div>
 
+<!-- Kill confirmation modal -->
+<div class="kill-modal" id="kill-modal">
+  <div class="kill-box">
+    <div class="kill-title" id="kill-modal-title">CONFIRM KILL</div>
+    <div class="kill-msg" id="kill-modal-msg"></div>
+    <div class="kill-btns">
+      <button class="kill-modal-btn confirm" id="kill-modal-yes">Kill</button>
+      <button class="kill-modal-btn" id="kill-modal-no">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ═══ TAURI IPC ══════════════════════════════════════════ */
 var invoke;
@@ -477,7 +545,7 @@ const S = {
   gpu: 'all',
   cat: 'all',
   sortBy: 'cpu', sortAsc: false,
-  cpu: { hist:[], raw:[], cores:[] },
+  cpu: { hist:[], raw:[], cores:[], temp:null, power:null },
   gpus: [],
   mem: { hist:[], usedGB:0, totalGB:1, swapPct:0 },
   net: { dh:[], uh:[], down:0, up:0 },
@@ -496,6 +564,12 @@ function makeCandle(mean, variance) {
 
 /* ═══ LIVE PROCESS DATA ═════════════════════════════════ */
 let PROCS = [];
+let searchQuery = '';
+let selectedPid = null;        // PID of the selected process row
+let searchVisible = false;
+let pendingKill = null;        // {type:'single'|'batch', pids:[], names:[]}
+let groupedView = false;       // tree view toggle
+let expandedGroups = new Set(); // group names that are expanded
 
 /* Map Rust category enum to frontend category string */
 function mapCategory(proc) {
@@ -542,6 +616,8 @@ async function tick() {
   if (avg >= 99 && S.cpu.hist.length === 0) return; // discard bogus first sample
   S.cpu.cores = snap.cpu.per_core_load || [];
   S.cpu.name = snap.cpu.name || 'CPU';
+  S.cpu.temp = snap.cpu.temperature || null;
+  S.cpu.power = snap.cpu.power || null;
   push(S.cpu.hist, makeCandle(avg, avg*0.3 + 2));
   push(S.cpu.raw, avg);
 
@@ -853,6 +929,14 @@ function upTopBar() {
   setText('t-vram', Math.round(combinedVram)+'/'+Math.round(totalVram)+'MB');
   setText('t-mem', ((S.mem.usedGB/S.mem.totalGB)*100).toFixed(1)+'%');
   setText('t-tmp', maxTemp.toFixed(1)+'°C');
+  /* CPU temp pill (from LHM) */
+  const cpuTempPill = document.getElementById('cpu-temp-pill');
+  if (S.cpu.temp && S.cpu.temp > 0) {
+    cpuTempPill.style.display = '';
+    setText('t-cpu-tmp', S.cpu.temp.toFixed(0)+'°C');
+  } else {
+    cpuTempPill.style.display = 'none';
+  }
   setText('t-dn','↓ '+fmtB(S.net.down));
   setText('t-up','↑ '+fmtB(S.net.up));
 
@@ -987,6 +1071,44 @@ function upCores(){
     el.style.width=Math.min(v,100)+'%';
     el.style.background=v>90?'var(--crit)':v>75?'var(--warn)':'var(--cpu)';
   });
+  /* CPU temp/power from LHM */
+  const sensorsEl = document.getElementById('cpu-sensors');
+  if (S.cpu.temp || S.cpu.power) {
+    sensorsEl.style.display = '';
+    let sh = '';
+    if (S.cpu.temp) {
+      const tc = S.cpu.temp > 90 ? 'var(--crit)' : S.cpu.temp > 75 ? 'var(--warn)' : 'var(--warn)';
+      const tp = Math.min(S.cpu.temp / 105 * 100, 100);
+      sh += `<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">
+        <span style="color:var(--muted);font-size:9px;width:32px;">Temp</span>
+        <div class="strack"><div class="sfill" data-sensor="temp"></div></div>
+        <span style="color:var(--dim);font-size:10px;min-width:36px;text-align:right;">${S.cpu.temp.toFixed(0)}°C</span>
+      </div>`;
+    }
+    if (S.cpu.power) {
+      const pp = Math.min(S.cpu.power / 200 * 100, 100);
+      sh += `<div style="display:flex;align-items:center;gap:4px;">
+        <span style="color:var(--muted);font-size:9px;width:32px;">Powr</span>
+        <div class="strack"><div class="sfill" data-sensor="power"></div></div>
+        <span style="color:var(--dim);font-size:10px;min-width:36px;text-align:right;">${S.cpu.power.toFixed(0)}W</span>
+      </div>`;
+    }
+    sensorsEl.innerHTML = sh;
+    /* Apply widths via DOM */
+    sensorsEl.querySelectorAll('.sfill').forEach(el => {
+      if (el.dataset.sensor === 'temp') {
+        const tp = Math.min(S.cpu.temp / 105 * 100, 100);
+        el.style.width = tp + '%';
+        el.style.background = S.cpu.temp > 90 ? 'var(--crit)' : S.cpu.temp > 75 ? 'var(--warn)' : 'var(--warn)';
+      } else {
+        const pp = Math.min(S.cpu.power / 200 * 100, 100);
+        el.style.width = pp + '%';
+        el.style.background = 'var(--net-up)';
+      }
+    });
+  } else {
+    sensorsEl.style.display = 'none';
+  }
   drawArea(document.getElementById('sp-cpu'),S.cpu.hist.map(d=>d.mean),'#38bdf8',0,100);
 }
 
@@ -1059,25 +1181,76 @@ function upNET(){
 }
 
 let activeCat='all';
-function upProcs(){
-  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
-  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
-  const sorted=[...PROCS]
-    .filter(p=> activeCat==='all' || p.cat===activeCat)
-    .sort((a,b)=>{
-      let cmp=0;
-      switch(S.sortBy){
-        case 'name': cmp=a.name.toLowerCase().localeCompare(b.name.toLowerCase()); break;
-        case 'pid': cmp=a.pid-b.pid; break;
-        case 'cpu': cmp=a.cpu-b.cpu; break;
-        case 'vram': cmp=(a.vram||0)-(b.vram||0); break;
-        default: cmp=a.mem-b.mem;
+function getFilteredProcs() {
+  const q = searchQuery.toLowerCase();
+  return [...PROCS]
+    .filter(p => activeCat === 'all' || p.cat === activeCat)
+    .filter(p => !q || p.name.toLowerCase().includes(q))
+    .sort((a, b) => {
+      let cmp = 0;
+      switch (S.sortBy) {
+        case 'name': cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase()); break;
+        case 'pid': cmp = a.pid - b.pid; break;
+        case 'cpu': cmp = a.cpu - b.cpu; break;
+        case 'vram': cmp = (a.vram || 0) - (b.vram || 0); break;
+        default: cmp = a.mem - b.mem;
       }
       return S.sortAsc ? cmp : -cmp;
     });
+}
+
+function upProcs(){
+  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
+  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
+  const sorted = getFilteredProcs();
+
+  // Update tree toggle button
+  const treeBtn = document.getElementById('tree-toggle-btn');
+  treeBtn.classList.toggle('on', groupedView);
+
+  // Update search count
+  const countEl = document.getElementById('search-count');
+  if (searchVisible) {
+    countEl.textContent = sorted.length + ' match' + (sorted.length === 1 ? '' : 'es');
+  }
+
+  // Update kill bar
+  const killBar = document.getElementById('kill-bar');
+  const killInfo = document.getElementById('kill-info');
+  if (selectedPid && sorted.find(p => p.pid === selectedPid)) {
+    const sel = sorted.find(p => p.pid === selectedPid);
+    killBar.classList.remove('hidden');
+    killInfo.innerHTML = `<b>${sel.name}</b> (PID ${sel.pid})`;
+    document.getElementById('kill-selected-btn').style.display = '';
+    document.getElementById('kill-all-btn').style.display =
+      (searchQuery || activeCat !== 'all') && sorted.length > 1 ? '' : 'none';
+    document.getElementById('kill-all-btn').textContent = `Kill All (${sorted.length})`;
+  } else {
+    if ((searchQuery || activeCat !== 'all') && sorted.length > 0) {
+      killBar.classList.remove('hidden');
+      killInfo.innerHTML = `<b>${sorted.length}</b> processes match`;
+      document.getElementById('kill-selected-btn').style.display = 'none';
+      document.getElementById('kill-all-btn').style.display = '';
+      document.getElementById('kill-all-btn').textContent = `Kill All (${sorted.length})`;
+    } else {
+      killBar.classList.add('hidden');
+    }
+    if (selectedPid) { selectedPid = null; }
+  }
 
   const tb=document.getElementById('proctbody'); tb.innerHTML='';
-  sorted.forEach(p=>{
+
+  if (groupedView) {
+    renderGroupedRows(tb, sorted);
+  } else {
+    renderFlatRows(tb, sorted);
+  }
+}
+
+function renderFlatRows(tb, sorted) {
+  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
+  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
+  sorted.forEach(p => {
     const cat=p.cat||'null';
     const aiHtml=p.ai==='inf'
       ?'<span class="badge inf"><span class="bd">●</span> infer</span>'
@@ -1087,16 +1260,152 @@ function upProcs(){
     const cpuCls=p.cpu>20?'crit':p.cpu>12?'warn':'';
     const vramHtml=p.vram?`<span class="pvram">${fmtMB(p.vram)}</span>`:'<span class="pvram none">—</span>';
     const tr=document.createElement('tr');
-    tr.className='proc-row '+(p.cat?'cat-'+p.cat:'default');
+    tr.className='proc-row '+(p.cat?'cat-'+p.cat:'default') + (p.pid===selectedPid?' selected':'');
     tr.innerHTML=`
       <td><span class="cat-dot ${DOTCLS[cat]}">${DOT[cat]}</span><span class="pname">${p.name}</span></td>
       <td class="ppid">${p.pid}</td>
       <td class="pcpu ${cpuCls}">${p.cpu.toFixed(1)}</td>
       <td class="pmem">${fmtMB(p.mem)}</td>
       <td>${vramHtml}</td>
-      <td>${aiHtml}</td>`;
+      <td>${aiHtml}<button class="row-kill" title="Kill process">✕</button></td>`;
+    tr.addEventListener('click', (e) => {
+      if (e.target.classList.contains('row-kill')) return;
+      selectedPid = (selectedPid === p.pid) ? null : p.pid;
+      document.getElementById('kill-selected-btn').style.display = '';
+      upProcs();
+    });
+    tr.querySelector('.row-kill').addEventListener('click', (e) => {
+      e.stopPropagation();
+      showKillConfirm('single', [{pid:p.pid, name:p.name}]);
+    });
     tb.appendChild(tr);
   });
+}
+
+function renderGroupedRows(tb, sorted) {
+  // Group by name, preserving sort order
+  const groups = [];
+  const groupMap = {};
+  sorted.forEach(p => {
+    if (groupMap[p.name] !== undefined) {
+      groups[groupMap[p.name]].procs.push(p);
+    } else {
+      groupMap[p.name] = groups.length;
+      groups.push({ name: p.name, procs: [p] });
+    }
+  });
+
+  // Sort groups by aggregate of the active sort column
+  groups.sort((a, b) => {
+    let cmp = 0;
+    switch (S.sortBy) {
+      case 'name': cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase()); break;
+      case 'pid': cmp = a.procs[0].pid - b.procs[0].pid; break;
+      case 'cpu': cmp = a.procs.reduce((s,p)=>s+p.cpu,0) - b.procs.reduce((s,p)=>s+p.cpu,0); break;
+      case 'vram': cmp = a.procs.reduce((s,p)=>s+(p.vram||0),0) - b.procs.reduce((s,p)=>s+(p.vram||0),0); break;
+      default: cmp = a.procs.reduce((s,p)=>s+p.mem,0) - b.procs.reduce((s,p)=>s+p.mem,0);
+    }
+    return S.sortAsc ? cmp : -cmp;
+  });
+
+  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
+  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
+
+  groups.forEach(g => {
+    const count = g.procs.length;
+    const expanded = expandedGroups.has(g.name);
+
+    if (count === 1) {
+      // Singleton — render as flat row
+      const p = g.procs[0];
+      renderSingleRow(tb, p);
+      return;
+    }
+
+    // Group header row
+    const cpuTotal = g.procs.reduce((s,p) => s+p.cpu, 0);
+    const memTotal = g.procs.reduce((s,p) => s+p.mem, 0);
+    const vramTotal = g.procs.reduce((s,p) => s+(p.vram||0), 0);
+    // Highest priority category in the group
+    const catPriority = {watch:0, ai:1, dev:2, null:3};
+    const bestCat = g.procs.reduce((best, p) => {
+      const pc = catPriority[p.cat||'null']||3;
+      const bc = catPriority[best||'null']||3;
+      return pc < bc ? p.cat : best;
+    }, null);
+    const cat = bestCat || 'null';
+    const catCls = bestCat ? 'cat-'+bestCat : 'default';
+
+    const arrow = expanded ? '▾' : '▸';
+    const cpuCls = cpuTotal>20?'crit':cpuTotal>12?'warn':'';
+    const vramHtml = vramTotal > 0
+      ? `<span class="pvram">${fmtMB(vramTotal)}</span>`
+      : '<span class="pvram none">—</span>';
+
+    const tr = document.createElement('tr');
+    tr.className = `proc-row group-header ${catCls}`;
+    tr.innerHTML = `
+      <td><span class="group-arrow">${arrow}</span><span class="cat-dot ${DOTCLS[cat]}">${DOT[cat]}</span><span class="pname">${g.name}<span class="group-count">(${count})</span></span></td>
+      <td class="ppid"></td>
+      <td class="pcpu ${cpuCls}">${cpuTotal.toFixed(1)}</td>
+      <td class="pmem">${fmtMB(memTotal)}</td>
+      <td>${vramHtml}</td>
+      <td><button class="row-kill" title="Kill all ${g.name}">✕</button></td>`;
+
+    tr.addEventListener('click', (e) => {
+      if (e.target.classList.contains('row-kill')) return;
+      if (expanded) expandedGroups.delete(g.name);
+      else expandedGroups.add(g.name);
+      upProcs();
+    });
+    tr.querySelector('.row-kill').addEventListener('click', (e) => {
+      e.stopPropagation();
+      showKillConfirm('batch', g.procs.map(p => ({pid:p.pid, name:p.name})));
+    });
+    tb.appendChild(tr);
+
+    // Child rows if expanded
+    if (expanded) {
+      g.procs.forEach(p => {
+        renderSingleRow(tb, p, true);
+      });
+    }
+  });
+}
+
+function renderSingleRow(tb, p, isChild) {
+  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
+  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
+  const cat=p.cat||'null';
+  const aiHtml=p.ai==='inf'
+    ?'<span class="badge inf"><span class="bd">●</span> infer</span>'
+    :p.ai==='ild'
+    ?'<span class="badge ild">○ idle</span>'
+    :'<span style="color:var(--muted)">—</span>';
+  const cpuCls=p.cpu>20?'crit':p.cpu>12?'warn':'';
+  const vramHtml=p.vram?`<span class="pvram">${fmtMB(p.vram)}</span>`:'<span class="pvram none">—</span>';
+  const tr=document.createElement('tr');
+  const childCls = isChild ? ' group-child' : '';
+  tr.className='proc-row '+(p.cat?'cat-'+p.cat:'default') + (p.pid===selectedPid?' selected':'') + childCls;
+  const dotHtml = isChild ? '' : `<span class="cat-dot ${DOTCLS[cat]}">${DOT[cat]}</span>`;
+  tr.innerHTML=`
+    <td>${dotHtml}<span class="pname">${p.name}</span></td>
+    <td class="ppid">${p.pid}</td>
+    <td class="pcpu ${cpuCls}">${p.cpu.toFixed(1)}</td>
+    <td class="pmem">${fmtMB(p.mem)}</td>
+    <td>${vramHtml}</td>
+    <td>${aiHtml}<button class="row-kill" title="Kill process">✕</button></td>`;
+  tr.addEventListener('click', (e) => {
+    if (e.target.classList.contains('row-kill')) return;
+    selectedPid = (selectedPid === p.pid) ? null : p.pid;
+    document.getElementById('kill-selected-btn').style.display = '';
+    upProcs();
+  });
+  tr.querySelector('.row-kill').addEventListener('click', (e) => {
+    e.stopPropagation();
+    showKillConfirm('single', [{pid:p.pid, name:p.name}]);
+  });
+  tb.appendChild(tr);
 }
 
 /* ═══ CONTROLS ═══════════════════════════════════════════ */
@@ -1141,6 +1450,101 @@ document.querySelectorAll('.cat-tab').forEach(btn=>{
   });
 });
 
+/* ═══ SEARCH ════════════════════════════════════════════ */
+const searchBar = document.getElementById('proc-search');
+const searchInput = document.getElementById('search-input');
+
+function openSearch() {
+  searchVisible = true;
+  searchBar.classList.remove('hidden');
+  searchInput.focus();
+}
+function closeSearch() {
+  searchVisible = false;
+  searchQuery = '';
+  searchInput.value = '';
+  searchBar.classList.add('hidden');
+  selectedPid = null;
+  upProcs();
+}
+
+searchInput.addEventListener('input', () => {
+  searchQuery = searchInput.value;
+  selectedPid = null;
+  upProcs();
+});
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeSearch(); e.preventDefault(); }
+  if (e.key === 'Enter') { searchInput.blur(); e.preventDefault(); }
+  e.stopPropagation(); // prevent global shortcuts while typing
+});
+document.getElementById('search-clear').addEventListener('click', closeSearch);
+
+/* ═══ KILL ACTIONS ══════════════════════════════════════ */
+document.getElementById('kill-selected-btn').addEventListener('click', () => {
+  if (!selectedPid) return;
+  const p = PROCS.find(p => p.pid === selectedPid);
+  if (p) showKillConfirm('single', [{pid:p.pid, name:p.name}]);
+});
+document.getElementById('kill-all-btn').addEventListener('click', () => {
+  const filtered = getFilteredProcs();
+  if (filtered.length === 0) return;
+  showKillConfirm('batch', filtered.map(p => ({pid:p.pid, name:p.name})));
+});
+
+function showKillConfirm(type, targets) {
+  pendingKill = {type, targets};
+  const modal = document.getElementById('kill-modal');
+  const title = document.getElementById('kill-modal-title');
+  const msg = document.getElementById('kill-modal-msg');
+  if (type === 'single') {
+    title.textContent = 'CONFIRM KILL';
+    msg.innerHTML = `Kill <b>${targets[0].name}</b> (PID ${targets[0].pid})?`;
+  } else {
+    title.textContent = 'CONFIRM KILL ALL';
+    const unique = [...new Set(targets.map(t => t.name))];
+    const preview = unique.slice(0,4).join(', ') + (unique.length > 4 ? ', ...' : '');
+    msg.innerHTML = `Kill <b>${targets.length}</b> processes (${preview})?`;
+  }
+  modal.classList.add('visible');
+}
+
+document.getElementById('kill-modal-yes').addEventListener('click', async () => {
+  document.getElementById('kill-modal').classList.remove('visible');
+  if (!pendingKill || !invoke) return;
+  try {
+    if (pendingKill.type === 'single') {
+      const result = await invoke('kill_process', {pid: pendingKill.targets[0].pid});
+      showToast(result);
+    } else {
+      const pids = pendingKill.targets.map(t => t.pid);
+      const result = await invoke('kill_processes', {pids});
+      showToast(result);
+    }
+  } catch(e) {
+    showToast(String(e));
+  }
+  pendingKill = null;
+  selectedPid = null;
+  upProcs();
+});
+document.getElementById('kill-modal-no').addEventListener('click', () => {
+  document.getElementById('kill-modal').classList.remove('visible');
+  pendingKill = null;
+});
+document.getElementById('kill-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'kill-modal') {
+    e.target.classList.remove('visible');
+    pendingKill = null;
+  }
+});
+
+/* Tree toggle */
+document.getElementById('tree-toggle-btn').addEventListener('click', () => {
+  groupedView = !groupedView;
+  upProcs();
+});
+
 /* GPU panel tabs */
 document.querySelectorAll('.gpu-tab').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -1154,6 +1558,15 @@ document.querySelectorAll('.gpu-tab').forEach(btn=>{
 document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
 
+  // If kill modal is open, y confirms, anything else cancels
+  const killModal = document.getElementById('kill-modal');
+  if (killModal.classList.contains('visible')) {
+    if (k === 'y') document.getElementById('kill-modal-yes').click();
+    else document.getElementById('kill-modal-no').click();
+    e.preventDefault();
+    return;
+  }
+
   // If any overlay is open, any key closes it
   const helpEl = document.getElementById('help-overlay');
   const aboutEl = document.getElementById('about-overlay');
@@ -1165,6 +1578,43 @@ document.addEventListener('keydown', e => {
   if (aboutEl.classList.contains('visible')) {
     aboutEl.classList.remove('visible');
     e.preventDefault();
+    return;
+  }
+
+  // Search: / opens, Escape clears
+  if (e.key === '/' && document.activeElement !== searchInput) {
+    e.preventDefault();
+    openSearch();
+    return;
+  }
+  if (e.key === 'Escape' && searchVisible) {
+    closeSearch();
+    e.preventDefault();
+    return;
+  }
+
+  // Kill selected: x or Delete
+  if ((k === 'x' && !e.shiftKey) || e.key === 'Delete') {
+    if (selectedPid) {
+      const p = PROCS.find(p => p.pid === selectedPid);
+      if (p) showKillConfirm('single', [{pid:p.pid, name:p.name}]);
+    }
+    return;
+  }
+
+  // Kill all matching: X (shift+x)
+  if (e.key === 'X' && e.shiftKey) {
+    const filtered = getFilteredProcs();
+    if (filtered.length > 0 && (searchQuery || activeCat !== 'all')) {
+      showKillConfirm('batch', filtered.map(p => ({pid:p.pid, name:p.name})));
+    }
+    return;
+  }
+
+  // Toggle tree/grouped view: t
+  if (k === 't') {
+    groupedView = !groupedView;
+    upProcs();
     return;
   }
 
@@ -1395,6 +1845,10 @@ function showToast(msg){
       <tr><td class="hk">c / g / m / n</td><td class="hd">CPU / GPU / MEM / NET chart</td></tr>
       <tr><td class="hk">h</td><td class="hd">Toggle horizon chart</td></tr>
       <tr><td class="hk">1-4</td><td class="hd">Filter ALL / AI / DEV / WATCH</td></tr>
+      <tr><td class="hk">/</td><td class="hd">Search processes</td></tr>
+      <tr><td class="hk">x / del</td><td class="hd">Kill selected process</td></tr>
+      <tr><td class="hk">X</td><td class="hd">Kill all matching</td></tr>
+      <tr><td class="hk">t</td><td class="hd">Toggle tree / flat view</td></tr>
       <tr><td class="hk">[ ]</td><td class="hd">Resize chart / watchlist</td></tr>
       <tr><td class="hk">s</td><td class="hd">Save snapshot</td></tr>
       <tr><td class="hk">a</td><td class="hd">About dofek</td></tr>
@@ -1414,7 +1868,7 @@ function showToast(msg){
 <!-- About overlay -->
 <div class="help-overlay" id="about-overlay">
   <div class="help-box" style="text-align:center;min-width:280px;">
-    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v0.5</span></div>
+    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v0.7</span></div>
     <div style="font-size:13px;color:var(--dim);margin-bottom:14px;">Terminal / GUI, AI-aware system monitor</div>
     <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
       <a href="https://dofek.dev" target="_blank" class="about-link" style="font-size:11px;">dofek.dev</a>

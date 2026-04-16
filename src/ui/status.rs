@@ -21,6 +21,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         ("q", "quit"),
         ("tab", "sort"),
         ("p", "proc"),
+        ("/", "search"),
+        ("x", "kill"),
+        ("t", "tree"),
         ("c", "cpu"),
         ("g", "gpu"),
         ("m", "mem"),
@@ -28,8 +31,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         ("h", "horizon"),
         ("1-4", "filter"),
         ("[]", "resize"),
-        ("s", "snapshot"),
-        ("a", "about"),
+        ("s", "snap"),
         ("?", "help"),
     ];
 

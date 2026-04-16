@@ -9,8 +9,9 @@ use crate::ui::theme;
 pub fn render(f: &mut Frame, telemetry_enabled: bool) {
     let area = f.area();
 
-    let width = 44.min(area.width.saturating_sub(4));
-    let height = 22.min(area.height.saturating_sub(4));
+    let width = 46.min(area.width.saturating_sub(4));
+    // 19 help lines + telemetry + footer + spacing + 2 for border
+    let height = 25u16.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(width)) / 2;
     let y = (area.height.saturating_sub(height)) / 2;
     let popup = Rect::new(x, y, width, height);
@@ -32,6 +33,12 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
         help_line("q", "Quit"),
         help_line("tab", "Cycle sort column"),
         help_line("p", "Full-screen processes"),
+        help_line("↑↓/j/k", "Navigate process list"),
+        help_line("/", "Search processes by name"),
+        help_line("del/x", "Kill selected process"),
+        help_line("X", "Kill all matching"),
+        help_line("t", "Toggle tree/flat view"),
+        help_line("→/←", "Expand/collapse group"),
         help_line("c/g/m/n", "CPU / GPU / MEM / NET"),
         help_line("1-4", "Filter ALL/AI/DEV/WATCH"),
         help_line("esc", "Return to dashboard"),
@@ -43,7 +50,7 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
         help_line("?", "Toggle this help"),
         Line::from(""),
         Line::from(vec![
-            Span::styled("        t  ", Style::default().fg(theme::ACCENT_INDIGO).add_modifier(Modifier::BOLD)),
+            Span::styled("        T  ", Style::default().fg(theme::ACCENT_INDIGO).add_modifier(Modifier::BOLD)),
             Span::styled("Telemetry: ", Style::default().fg(theme::TEXT_PRIMARY)),
             Span::styled(telem_status, Style::default().fg(telem_color).add_modifier(Modifier::BOLD)),
         ]),

@@ -1,6 +1,6 @@
 ---
-name: version-bump
-description: Bump the synchronized version number across all dofek packages and files. Analyzes recent commits to suggest patch/minor/major, updates all version locations, stages them. Triggered by "/version-bump" or "bump version", "update version".
+name: dofek-version-bump
+description: Bump the synchronized version number across all dofek packages and files. Analyzes recent commits to suggest patch/minor/major, updates all version locations, stages them. Triggered by "/dofek-version-bump" or "dofek bump version", "dofek update version".
 disable-model-invocation: true
 allowed-tools: Bash(git *)
 argument-hint: "[level|version]"
@@ -11,9 +11,9 @@ argument-hint: "[level|version]"
 Bump the version number across all files that contain it. Analyze recent commits to determine the appropriate level (patch/minor/major) unless specified.
 
 ## Usage
-- Auto-detect level: `/version-bump`
-- Explicit level: `/version-bump minor`
-- Exact version: `/version-bump 1.0.0`
+- Auto-detect level: `/dofek-version-bump`
+- Explicit level: `/dofek-version-bump minor`
+- Exact version: `/dofek-version-bump 1.0.0`
 
 ## Arguments
 - `$ARGUMENTS` — optional: `patch`, `minor`, `major`, or an exact semver like `1.2.3`

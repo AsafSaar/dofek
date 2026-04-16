@@ -46,7 +46,12 @@ fn render_cpu_compact(f: &mut Frame, area: Rect, app: &App) {
         return;
     }
 
-    // Grid layout: cores in N columns x M rows, then sparkline
+    // Supplemental sensor rows (CPU temp/power from LHM)
+    let has_temp = app.data.cpu.temperature.is_some();
+    let has_power = app.data.cpu.power.is_some();
+    let sensor_rows = (has_temp as u16) + (has_power as u16);
+
+    // Grid layout: cores in N columns x M rows, then optional sensors, then sparkline
     let cores = &app.data.cpu.per_core_load;
     let num_cols = 4u16.min(inner.width / 8); // 4 columns, each needs ~8 chars
     if num_cols == 0 || cores.is_empty() {
@@ -56,15 +61,17 @@ fn render_cpu_compact(f: &mut Frame, area: Rect, app: &App) {
         );
         return;
     }
-    let num_rows = ((cores.len() as u16 + num_cols - 1) / num_cols).min(inner.height.saturating_sub(2));
-    let sparkline_height = 1u16.min(inner.height.saturating_sub(num_rows));
+    let num_rows = ((cores.len() as u16 + num_cols - 1) / num_cols).min(inner.height.saturating_sub(2 + sensor_rows));
+    let sparkline_height = 1u16.min(inner.height.saturating_sub(num_rows + sensor_rows));
+
+    let mut constraints = vec![Constraint::Length(num_rows)];
+    if has_temp { constraints.push(Constraint::Length(1)); }
+    if has_power { constraints.push(Constraint::Length(1)); }
+    constraints.push(Constraint::Length(sparkline_height));
 
     let vert = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(num_rows),
-            Constraint::Length(sparkline_height),
-        ])
+        .constraints(constraints)
         .split(inner);
 
     // Grid of core cells
@@ -118,11 +125,22 @@ fn render_cpu_compact(f: &mut Frame, area: Rect, app: &App) {
         );
     }
 
+    // Temp and power rows (from LHM)
+    let mut next_row = 1;
+    if let Some(temp) = app.data.cpu.temperature {
+        render_metric_bar(f, vert[next_row], "Temp", temp, 105.0, "°C", theme::WARN_COLOR);
+        next_row += 1;
+    }
+    if let Some(power) = app.data.cpu.power {
+        render_metric_bar(f, vert[next_row], "Powr", power, 200.0, "W", theme::NET_TX_COLOR);
+        next_row += 1;
+    }
+
     // Sparkline at bottom
     let spark_data = app.history.cpu_total.as_slice();
     f.render_widget(
         Sparkline::default().data(spark_data).max(100).style(Style::default().fg(theme::CPU_COLOR)),
-        vert[1],
+        vert[next_row],
     );
 }
 

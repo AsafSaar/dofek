@@ -22,7 +22,7 @@ cargo build-tui                    # → target/release/dofek-tui.exe
 cargo build-gui                    # → target/release/dofek-gui.exe + MSI
 
 # MSI installer (bundles both TUI + GUI)
-.\build-all.ps1                    # → target/release/bundle/msi/dofek_0.5.0_x64_en-US.msi
+.\build-all.ps1                    # → target/release/bundle/msi/dofek_0.7.0_x64_en-US.msi
 ```
 
 **Prerequisites:** Rust toolchain (stable, edition 2024), Visual Studio Build Tools with C++ workload, Tauri CLI (`cargo install tauri-cli --version "^2"`) for GUI builds.
@@ -141,7 +141,7 @@ See `dofek.toml.example` for all options. Key settings:
 - `lhm.url` (default `http://localhost:8085`) — LHM web server address (only used as GPU fallback)
 - `[[plugins]]` — plugin definitions (name, command, args, enabled, timeout_ms)
 
-## Current Status (v0.5)
+## Current Status (v0.7)
 
 Trading-terminal layout with dual interface (TUI + Tauri GUI), candlestick CPU chart, area/horizon charts for GPU/MEM/NET, multi-GPU support, process categories (AI/DEV/WATCH), top ticker bar, compact bottom strip, plugin system with JSON-over-stdio protocol. Custom chart widgets use Buffer manipulation with half-block characters for 2x vertical resolution.
 

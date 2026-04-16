@@ -74,33 +74,50 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
             system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
             // CPU and memory from sysinfo (always available)
-            let cpu = sysinfo_source::extract_cpu(&system);
+            let mut cpu = sysinfo_source::extract_cpu(&system);
             let memory = sysinfo_source::extract_memory(&system);
 
-            // GPU: try NVML first, fall back to LHM (only if NVML unavailable)
+            // GPU: try NVML first
             let nvml_snap = nvml.query();
-            let gpu_sensors: Vec<GpuSensors> = if !nvml_snap.devices.is_empty() {
-                nvml_snap.devices.iter().map(|dev| GpuSensors {
-                    name: dev.name.clone(),
-                    utilization: dev.utilization,
-                    vram_used_mb: dev.vram_used_mb,
-                    vram_total_mb: dev.vram_total_mb,
-                    temperature: dev.temperature,
-                    power_watts: dev.power_watts,
-                }).collect()
-            } else if !lhm_failed {
-                // Fallback: try LHM for GPU data (e.g. AMD GPUs)
+            let nvml_gpus: Vec<GpuSensors> = nvml_snap.devices.iter().map(|dev| GpuSensors {
+                name: dev.name.clone(),
+                utilization: dev.utilization,
+                vram_used_mb: dev.vram_used_mb,
+                vram_total_mb: dev.vram_total_mb,
+                temperature: dev.temperature,
+                power_watts: dev.power_watts,
+            }).collect();
+
+            // Always try LHM for supplemental data (CPU temp/power, GPU fallback)
+            let mut lhm_connected_now = false;
+            let mut gpu_sensors: Vec<GpuSensors> = nvml_gpus;
+
+            if !lhm_failed {
                 match lhm::fetch_lhm_data(&config.lhm.url) {
-                    Ok(root) => lhm::extract_gpus(&root),
+                    Ok(root) => {
+                        lhm_connected_now = true;
+
+                        // Enrich CPU with temp/power from LHM (sysinfo can't provide these on Windows)
+                        if let Some(lhm_cpu) = lhm::extract_cpu(&root) {
+                            if cpu.temperature.is_none() {
+                                cpu.temperature = lhm_cpu.temperature;
+                            }
+                            if cpu.power.is_none() {
+                                cpu.power = lhm_cpu.power;
+                            }
+                        }
+
+                        // GPU: use LHM as fallback if NVML returned nothing
+                        if gpu_sensors.is_empty() {
+                            gpu_sensors = lhm::extract_gpus(&root);
+                        }
+                    }
                     Err(_) => {
                         lhm_failed = true;
-                        log::info!("LHM not available, GPU panel disabled");
-                        Vec::new()
+                        log::info!("LHM not available at {}, supplemental sensors disabled", config.lhm.url);
                     }
                 }
-            } else {
-                Vec::new()
-            };
+            }
 
             let network = network::query_network_stats(&mut net_tracker);
 
@@ -172,7 +189,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 network,
                 processes,
                 nvml_available: nvml.is_available(),
-                lhm_connected: true, // sysinfo always provides data
+                lhm_connected: lhm_connected_now,
                 hostname: hostname.clone(),
                 timestamp: Instant::now(),
                 plugin_statuses,
