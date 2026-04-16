@@ -585,7 +585,7 @@ footer {
         View on GitHub
       </a>
     </div>
-    <div class="hero-meta">TUI + Desktop<span>·</span>no runtime dependencies<span>·</span>built with Rust</div>
+    <div class="hero-meta">TUI + Desktop<span>·</span>process management<span>·</span>built with Rust</div>
   </div>
 
   <!-- LIVE MINI TERMINAL -->
@@ -715,13 +715,15 @@ footer {
   <div class="feature-split rev" id="ai-features">
     <div class="feature-text reveal">
       <div class="section-tag">PROCESS INTELLIGENCE</div>
-      <h2>Your processes,<br><span class="hl-ai">categorized</span>.</h2>
-      <p class="section-sub">Tag processes as AI, DEV, or WATCH. Filter the table to just the ones you care about. dofek auto-detects known AI runtimes and dev tools — and lets you extend the list in your config.</p>
+      <h2>Your processes,<br><span class="hl-ai">managed</span>.</h2>
+      <p class="section-sub">Tag processes as AI, DEV, or WATCH. Search, filter, group, and kill — all without leaving dofek. Auto-detects known AI runtimes and dev tools, and lets you extend the list in your config.</p>
       <ul class="feature-bullets">
         <li><span style="white-space:nowrap;color:var(--ai)">● AI</span> — ollama, python, LM Studio, any VRAM consumer</li>
         <li><span style="white-space:nowrap;color:var(--dev)">■ DEV</span> — VS Code, browsers, terminals, build tools</li>
         <li><span style="white-space:nowrap;color:var(--watch)">★ WATCH</span> — your own pipeline processes, user-defined</li>
-        <li>Extend categories via <code style="color:var(--cpu);font-size:12px">dofek.toml</code> config</li>
+        <li><strong style="color:var(--cpu)">/</strong> live search — type to filter by name instantly</li>
+        <li><strong style="color:var(--cpu)">t</strong> tree view — group by name with aggregate CPU/MEM/VRAM, expand to see individual PIDs</li>
+        <li><strong style="color:var(--crit)">x</strong> kill — terminate single processes or entire groups, with confirmation</li>
         <li>Filter tabs narrow the table without losing sort order</li>
       </ul>
     </div>
@@ -730,6 +732,7 @@ footer {
         <div class="proc-demo-head">
           PROCESSES
           <div class="proc-demo-sort">
+            <button class="pd-sort" style="font-size:8px">TREE</button>
             <button class="pd-sort">CPU</button>
             <button class="pd-sort on">MEM</button>
             <button class="pd-sort">VRAM</button>
@@ -797,7 +800,7 @@ footer {
       <ul class="feature-bullets">
         <li>Resizable chart and watchlist panes via drag handle</li>
         <li>Candlestick and horizon chart modes with tab switching</li>
-        <li>Clickable column sorting in the process table</li>
+        <li>Process search, tree view, click-to-select, kill with confirmation</li>
         <li>Full keyboard shortcut support (same bindings as TUI)</li>
         <li>Lightweight — Tauri, not Electron. Small binary, low overhead</li>
       </ul>
@@ -877,7 +880,7 @@ footer {
     <div class="install-step reveal reveal-d2">
       <div class="step-num">03 — OPTIONAL</div>
       <div class="step-title">LibreHardwareMonitor</div>
-      <div class="step-body">For non-NVIDIA GPUs or extra CPU temperature/power sensors, run LHM as admin with the web server on port 8085. dofek will auto-detect it as a fallback.</div>
+      <div class="step-body">Run LHM as admin with the web server on port 8085. dofek auto-detects it and pulls CPU temperature and power draw — data that sysinfo can't provide on Windows. Also serves as GPU fallback for non-NVIDIA systems.</div>
     </div>
   </div>
   <a href="https://github.com/AsafSaar/dofek" target="_blank" rel="noopener" class="btn-primary" style="display:inline-flex;margin:0 auto">
