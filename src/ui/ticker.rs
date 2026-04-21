@@ -19,7 +19,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
     // Logo
     spans.push(Span::styled(" dofek", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)));
-    spans.push(Span::styled(" v0.7", Style::default().fg(theme::TEXT_DIM)));
+    spans.push(Span::styled(" v0.8", Style::default().fg(theme::TEXT_DIM)));
     spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
 
     // CPU pill

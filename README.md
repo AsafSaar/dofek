@@ -87,7 +87,7 @@ cargo build-gui                    # → target/release/dofek-gui.exe + MSI inst
 **MSI installer** (bundles both TUI and GUI into a single installer):
 
 ```powershell
-.\build-all.ps1                    # → target\release\bundle\msi\dofek_0.7.0_x64_en-US.msi
+.\build-all.ps1                    # → target\release\bundle\msi\dofek_0.8.0_x64_en-US.msi
 ```
 
 These commands are cargo aliases defined in `.cargo/config.toml`. The MSI build script requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
@@ -425,7 +425,8 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v0.4** — Performance optimizations, GUI polish, MSI installer, cargo aliases, SEO
 - **v0.5** — Telemetry settings persistence, GUI help modal improvements
 - **v0.6** — Process management (search, kill, kill-all), interactive process table, LHM CPU temp/power
-- **v0.7** (current) — Process tree/grouped view, expanded LHM integration, GUI process management
+- **v0.7** — Process tree/grouped view, expanded LHM integration, GUI process management
+- **v0.8** (current) — Centered loading state, ollama plugin, GUI icon, Windows Terminal profile icon
 - **v1.0** — GUI tray companion with live sparkline in taskbar
 
 ## License

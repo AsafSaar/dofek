@@ -195,11 +195,19 @@ fn render_chart_body(f: &mut Frame, area: Rect, app: &App) {
                         .thresholds(0.8, 0.9);
                     f.render_widget(chart, area);
                 } else {
-                    // Show placeholder while collecting initial data
-                    let msg = Paragraph::new(format!("Collecting data... ({} samples)", data.len()))
+                    // Show placeholder centered in chart area while collecting initial data
+                    let rows = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Fill(1),
+                            Constraint::Length(1),
+                            Constraint::Fill(1),
+                        ])
+                        .split(area);
+                    let msg = Paragraph::new(format!("Please Wait... Collecting data. ({} samples)", data.len()))
                         .style(Style::default().fg(theme::TEXT_DIM))
                         .alignment(ratatui::layout::Alignment::Center);
-                    f.render_widget(msg, area);
+                    f.render_widget(msg, rows[1]);
                 }
             }
         }
