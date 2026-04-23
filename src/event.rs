@@ -11,6 +11,7 @@ pub enum AppEvent {
 
 /// Spawns a thread that reads crossterm events and sends them over the channel.
 /// Returns the receiver. The thread runs until the channel is dropped.
+#[allow(clippy::collapsible_match)]
 pub fn spawn_event_reader(tick_rate: Duration) -> mpsc::Receiver<AppEvent> {
     let (tx, rx) = mpsc::channel();
     thread::spawn(move || loop {
