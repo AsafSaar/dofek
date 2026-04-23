@@ -190,7 +190,7 @@ fn render_chart_body(f: &mut Frame, area: Rect, app: &App) {
                 // Fallback: area chart from sparkline data while candles accumulate
                 let data = app.history.cpu_total.as_slice();
                 if data.len() >= 2 {
-                    let chart = AreaChart::new(&data, theme::CPU_COLOR)
+                    let chart = AreaChart::new(data, theme::CPU_COLOR)
                         .max_value(100)
                         .thresholds(0.8, 0.9);
                     f.render_widget(chart, area);
@@ -217,13 +217,13 @@ fn render_chart_body(f: &mut Frame, area: Rect, app: &App) {
             if app.history.gpu_util_per_device.len() > 1 {
                 let primary = app.history.gpu_util_per_device[0].as_slice();
                 let secondary = app.history.gpu_util_per_device[1].as_slice();
-                let chart = AreaChart::new(&primary, theme::GPU_COLOR)
+                let chart = AreaChart::new(primary, theme::GPU_COLOR)
                     .max_value(100)
-                    .secondary(&secondary, Color::Rgb(0xDB, 0x27, 0x77)) // pink
+                    .secondary(secondary, Color::Rgb(0xDB, 0x27, 0x77)) // pink
                     .thresholds(0.85, 0.95);
                 f.render_widget(chart, area);
             } else {
-                let chart = AreaChart::new(&data, theme::GPU_COLOR)
+                let chart = AreaChart::new(data, theme::GPU_COLOR)
                     .max_value(100)
                     .thresholds(0.85, 0.95);
                 f.render_widget(chart, area);
@@ -231,7 +231,7 @@ fn render_chart_body(f: &mut Frame, area: Rect, app: &App) {
         }
         ChartTab::Mem => {
             let data = app.history.memory_used.as_slice();
-            let chart = AreaChart::new(&data, theme::MEM_COLOR)
+            let chart = AreaChart::new(data, theme::MEM_COLOR)
                 .max_value(100)
                 .thresholds(0.8, 0.9);
             f.render_widget(chart, area);
@@ -240,9 +240,9 @@ fn render_chart_body(f: &mut Frame, area: Rect, app: &App) {
             let rx_data = app.history.net_rx.as_slice();
             let tx_data = app.history.net_tx.as_slice();
             let max_val = rx_data.iter().chain(tx_data.iter()).copied().max().unwrap_or(1).max(1);
-            let chart = AreaChart::new(&rx_data, theme::NET_RX_COLOR)
+            let chart = AreaChart::new(rx_data, theme::NET_RX_COLOR)
                 .max_value(max_val)
-                .secondary(&tx_data, theme::NET_TX_COLOR);
+                .secondary(tx_data, theme::NET_TX_COLOR);
             f.render_widget(chart, area);
         }
     }
@@ -253,7 +253,7 @@ fn render_horizon(f: &mut Frame, area: Rect, app: &App) {
         ChartTab::Cpu => {
             let data = app.history.cpu_total.as_slice();
             if data.len() >= 2 {
-                let chart = HorizonChart::new(&data, theme::CPU_COLOR)
+                let chart = HorizonChart::new(data, theme::CPU_COLOR)
                     .max_value(100)
                     .thresholds(0.8, 0.9);
                 f.render_widget(chart, area);
@@ -262,7 +262,7 @@ fn render_horizon(f: &mut Frame, area: Rect, app: &App) {
         ChartTab::Gpu => {
             let data = app.history.gpu_util.as_slice();
             if data.len() >= 2 {
-                let chart = HorizonChart::new(&data, theme::GPU_COLOR)
+                let chart = HorizonChart::new(data, theme::GPU_COLOR)
                     .max_value(100)
                     .thresholds(0.85, 0.95);
                 f.render_widget(chart, area);
@@ -271,7 +271,7 @@ fn render_horizon(f: &mut Frame, area: Rect, app: &App) {
         ChartTab::Mem => {
             let data = app.history.memory_used.as_slice();
             if data.len() >= 2 {
-                let chart = HorizonChart::new(&data, theme::MEM_COLOR)
+                let chart = HorizonChart::new(data, theme::MEM_COLOR)
                     .max_value(100)
                     .thresholds(0.8, 0.9);
                 f.render_widget(chart, area);
@@ -282,7 +282,7 @@ fn render_horizon(f: &mut Frame, area: Rect, app: &App) {
             let tx_data = app.history.net_tx.as_slice();
             let max_val = rx_data.iter().chain(tx_data.iter()).copied().max().unwrap_or(1).max(1);
             if rx_data.len() >= 2 {
-                let chart = HorizonChart::new(&rx_data, theme::NET_RX_COLOR)
+                let chart = HorizonChart::new(rx_data, theme::NET_RX_COLOR)
                     .max_value(max_val);
                 f.render_widget(chart, area);
             }

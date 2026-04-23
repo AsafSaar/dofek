@@ -1,5 +1,8 @@
 # dofek Plugin Development Guide
 
+> ⚠️ **Plugin API: experimental, subject to change until further notice.**
+> The JSON protocol is versioned (`schema_version: 1`), but expect breaking changes as the API matures. Pin your plugin to a specific dofek version if stability matters. Once dofek's plugin contract stabilizes, it will follow semver.
+
 Build external plugins that inject data into the dofek dashboard. Plugins are standalone executables that communicate with dofek via JSON-over-stdio.
 
 ## How It Works

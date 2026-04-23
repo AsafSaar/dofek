@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Discussions
+    url: https://github.com/AsafSaar/dofek/discussions
+    about: Ideas, plugin showcase, general questions, and design feedback
+  - name: Security vulnerability
+    url: https://github.com/AsafSaar/dofek/security/advisories/new
+    about: Report a security issue privately (do NOT open a public issue)

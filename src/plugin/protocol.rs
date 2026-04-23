@@ -35,6 +35,12 @@ impl PollRequest {
 
 impl ShutdownRequest {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for ShutdownRequest {
+    fn default() -> Self {
         Self {
             msg_type: "shutdown",
         }

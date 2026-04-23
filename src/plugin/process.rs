@@ -77,29 +77,20 @@ impl PluginProcess {
     }
 
     fn read_line_timeout(&mut self, timeout: Duration) -> Result<String> {
-        // On Windows, BufReader on pipes is blocking. We use a polling approach
-        // with a tight loop checking elapsed time. For the typical 2s timeout and
-        // plugins that respond in <100ms, this is fine.
+        // BufReader on Windows pipes is blocking and std doesn't support non-blocking
+        // pipe reads. We do a single blocking read; per-plugin timeouts plus the
+        // sequential collector thread keep this acceptable. If the plugin hangs, the
+        // next poll cycle's is_alive() check catches it after kill.
         let start = Instant::now();
-        loop {
-            // Try a non-blocking read by checking if data is available
-            // Unfortunately std doesn't support non-blocking pipe reads on Windows,
-            // so we rely on the plugin responding quickly. If it blocks past timeout,
-            // we'll detect it on the next poll cycle when is_alive() returns false
-            // after we kill it.
-            //
-            // For v0.3, this blocking read is acceptable since each plugin has its
-            // own timeout and the collector thread polls sequentially.
-            self.read_buf.clear();
-            match self.reader.read_line(&mut self.read_buf) {
-                Ok(0) => anyhow::bail!("Plugin closed stdout (EOF)"),
-                Ok(_) => return Ok(self.read_buf.trim().to_string()),
-                Err(e) => {
-                    if start.elapsed() > timeout {
-                        anyhow::bail!("Plugin read timed out after {:?}", timeout);
-                    }
-                    anyhow::bail!("Plugin read error: {e}");
+        self.read_buf.clear();
+        match self.reader.read_line(&mut self.read_buf) {
+            Ok(0) => anyhow::bail!("Plugin closed stdout (EOF)"),
+            Ok(_) => Ok(self.read_buf.trim().to_string()),
+            Err(e) => {
+                if start.elapsed() > timeout {
+                    anyhow::bail!("Plugin read timed out after {:?}", timeout);
                 }
+                anyhow::bail!("Plugin read error: {e}");
             }
         }
     }

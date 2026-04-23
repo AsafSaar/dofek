@@ -1,0 +1,170 @@
+name: Release
+
+# Triggers a release build when you push a semver tag (e.g. `git tag v1.0.0 && git push --tags`)
+# or when manually dispatched from the Actions tab.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.0.0). Must already exist.'
+        required: true
+
+permissions:
+  contents: write    # Needed to create the GitHub Release
+
+jobs:
+  build:
+    name: Build (windows-latest)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+          components: clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Clippy
+        run: cargo clippy --release --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --release
+
+      - name: Build TUI
+        run: cargo build --release -p dofek --bin dofek-tui
+
+      # Tauri's externalBin expects the binary name suffixed with the target triple.
+      # Mirrors the local build-all.ps1 step.
+      - name: Stage TUI binary for Tauri externalBin
+        shell: pwsh
+        run: |
+          $triple = (rustc -vV | Select-String "^host:").ToString().Split(" ")[1]
+          Write-Host "Target: $triple"
+          Copy-Item "target/release/dofek-tui.exe" "target/release/dofek-tui-$triple.exe" -Force
+
+      - name: Install tauri-cli
+        run: cargo install tauri-cli --version '^2.0' --locked
+
+      - name: Build GUI (Tauri)
+        working-directory: gui
+        run: cargo tauri build
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+
+          if (Test-Path target/release/dofek-tui.exe) {
+            Copy-Item target/release/dofek-tui.exe artifacts/
+          } else {
+            Write-Warning "TUI binary not found at target/release/dofek-tui.exe"
+          }
+
+          $bundleRoot = "target/release/bundle"
+          if (Test-Path $bundleRoot) {
+            Get-ChildItem $bundleRoot -Recurse -Include *.msi,*.exe `
+              | Copy-Item -Destination artifacts/ -Force
+          } else {
+            Write-Warning "No Tauri bundle output found under $bundleRoot."
+          }
+
+          Write-Host "`nArtifacts:"
+          Get-ChildItem artifacts | Format-Table Name, Length
+
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        working-directory: artifacts
+        run: |
+          Get-ChildItem -File | ForEach-Object {
+            $hash = (Get-FileHash $_.Name -Algorithm SHA256).Hash
+            "$hash  $($_.Name)"
+          } | Out-File -Encoding ascii SHA256SUMS.txt
+
+          Write-Host "`nSHA256SUMS.txt:"
+          Get-Content SHA256SUMS.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: artifacts/*
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (for release notes generation)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: artifacts
+
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect prerelease
+        id: prerelease
+        shell: bash
+        run: |
+          if [[ "${{ steps.tag.outputs.value }}" == *-* ]]; then
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.value }}
+          name: dofek ${{ steps.tag.outputs.value }}
+          draft: true
+          prerelease: ${{ steps.prerelease.outputs.value }}
+          generate_release_notes: true
+          files: artifacts/*
+          body: |
+            ## Downloads
+
+            | Artifact | Description |
+            | --- | --- |
+            | `dofek_*.msi` | Desktop GUI installer (Windows x64) — bundles both TUI and GUI |
+            | `dofek-tui.exe` | Standalone TUI binary |
+            | `SHA256SUMS.txt` | Checksums for verification |
+
+            Verify before installing:
+
+            ```powershell
+            Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256
+            ```
+
+            Compare against `SHA256SUMS.txt`.
+
+            > ⚠️ Binaries are currently unsigned. Windows SmartScreen may show a warning on first run. Right-click the installer → Properties → check "Unblock", then run.
+
+            ## Changelog
+
+            Auto-generated below.

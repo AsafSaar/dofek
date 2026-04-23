@@ -108,16 +108,16 @@ impl PluginInstance {
         match proc.poll(request, timeout) {
             Ok(response) => {
                 // Capture manifest on first successful response
-                if self.manifest.is_none() {
-                    if let Some(ref manifest) = response.manifest {
-                        log::info!(
-                            "Plugin '{}' identified: {} v{}",
-                            self.config.name,
-                            manifest.name,
-                            manifest.version
-                        );
-                        self.manifest = Some(manifest.clone());
-                    }
+                if self.manifest.is_none()
+                    && let Some(ref manifest) = response.manifest
+                {
+                    log::info!(
+                        "Plugin '{}' identified: {} v{}",
+                        self.config.name,
+                        manifest.name,
+                        manifest.version
+                    );
+                    self.manifest = Some(manifest.clone());
                 }
 
                 self.last_response = Some(response);

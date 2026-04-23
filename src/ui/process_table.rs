@@ -92,7 +92,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         let cursor = if (std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_millis() / 500) % 2 == 0
+            .as_millis() / 500).is_multiple_of(2)
         { "█" } else { " " };
         let total = app.filtered_processes().len();
         let search_line = Line::from(vec![
@@ -267,7 +267,7 @@ fn render_flat_row(p: &crate::data::process::ProcessInfo, i: usize, app: &App, n
         Span::styled(format!("{:>9}", format_bytes(p.memory_bytes)), Style::default().fg(theme::MEM_COLOR)),
     ];
     if show_vram {
-        let vram_str = p.vram_bytes.map(|v| format_bytes(v)).unwrap_or_else(|| "—".to_string());
+        let vram_str = p.vram_bytes.map(format_bytes).unwrap_or_else(|| "—".to_string());
         cells.push(Span::styled(format!("{:>9}", vram_str), Style::default().fg(theme::VRAM_COLOR)));
     }
     cells.push(ai_span);
@@ -338,7 +338,7 @@ fn render_grouped_row(row: &ProcessRow<'_>, i: usize, app: &App, name_width: usi
                 Span::styled(format!("{:>9}", format_bytes(p.memory_bytes)), Style::default().fg(theme::MEM_COLOR)),
             ];
             if show_vram {
-                let vram_str = p.vram_bytes.map(|v| format_bytes(v)).unwrap_or_else(|| "—".to_string());
+                let vram_str = p.vram_bytes.map(format_bytes).unwrap_or_else(|| "—".to_string());
                 cells.push(Span::styled(format!("{:>9}", vram_str), Style::default().fg(theme::VRAM_COLOR)));
             }
             cells.push(ai_span);

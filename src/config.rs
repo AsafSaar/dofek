@@ -11,7 +11,7 @@ pub struct Cli {
     pub config: Option<PathBuf>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct Config {
     #[serde(default)]
     pub general: GeneralConfig,
@@ -183,20 +183,6 @@ impl Default for AiConfig {
 impl Default for LhmConfig {
     fn default() -> Self {
         Self { url: default_lhm_url() }
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            display: DisplayConfig::default(),
-            ai: AiConfig::default(),
-            lhm: LhmConfig::default(),
-            categories: CategoriesConfig::default(),
-            telemetry: TelemetryConfig::default(),
-            plugins: Vec::new(),
-        }
     }
 }
 

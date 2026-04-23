@@ -98,7 +98,7 @@ impl Widget for HorizonChart<'_> {
 
                 let from_top = sub_h - 1 - sub_y;
                 let row = from_top / 2;
-                let is_top_half = from_top % 2 == 0;
+                let is_top_half = from_top.is_multiple_of(2);
                 let cy = area.y + row as u16;
 
                 if cy >= area.y + area.height {
@@ -158,7 +158,7 @@ fn draw_threshold_line(buf: &mut Buffer, area: Rect, y_sub: usize, color: Color)
     let dim_col = dim(color, 0.4);
     for col in 0..area.width {
         let x = area.x + col;
-        if (col as usize / 3) % 2 == 0 {
+        if (col as usize / 3).is_multiple_of(2) {
             let cell = buf.cell_mut((x, cy)).unwrap();
             if cell.symbol() == " " {
                 cell.set_char('╌');

@@ -198,7 +198,7 @@ fn render_process_table(f: &mut Frame, area: Rect, app: &App) {
 
         let mem_str = format_bytes(p.memory_bytes);
         let vram_str = p.vram_bytes
-            .map(|v| format_bytes(v))
+            .map(format_bytes)
             .unwrap_or_else(|| "—".to_string());
 
         let mut cells = vec![
@@ -291,8 +291,8 @@ fn render_plugin_dock(f: &mut Frame, area: Rect, app: &App) {
             ];
 
             // Show first panel's content inline if available
-            if let Some(ref response) = status.response {
-                if let Some(panel) = response.panels.first() {
+            if let Some(ref response) = status.response
+                && let Some(panel) = response.panels.first() {
                     for entry in panel.content.iter().take(2) {
                         let style = match entry.style.as_str() {
                             "accent" => Style::default().fg(theme::CPU_COLOR),
@@ -305,7 +305,6 @@ fn render_plugin_dock(f: &mut Frame, area: Rect, app: &App) {
                         spans.push(Span::styled(&entry.value, style));
                     }
                 }
-            }
 
             // Show state label for non-healthy states
             match status.state {

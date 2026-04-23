@@ -141,8 +141,8 @@ fn main() -> Result<()> {
                 f.render_widget(msg, area);
             })?;
 
-            if poll(Duration::from_millis(100))? {
-                if let Event::Key(key) = read()? {
+            if poll(Duration::from_millis(100))?
+                && let Event::Key(key) = read()? {
                     match key.code {
                         EK::Char('y') | EK::Char('Y') => {
                             settings.telemetry_enabled = true;
@@ -155,7 +155,6 @@ fn main() -> Result<()> {
                         _ => {}
                     }
                 }
-            }
         }
         settings.telemetry_prompted = true;
         let _ = settings.save();
@@ -207,7 +206,7 @@ fn main() -> Result<()> {
             }
 
             // Heartbeat every ~300 snapshots (~2.5 min at 500ms refresh)
-            if snapshot_count % 300 == 0 {
+            if snapshot_count.is_multiple_of(300) {
                 telemetry.track(TelemetryEvent::Heartbeat {
                     current_tab: format!("{:?}", app.chart_tab).to_lowercase(),
                     process_count: app.data.processes.len(),

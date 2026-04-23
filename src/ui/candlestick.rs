@@ -76,7 +76,7 @@ impl Widget for CandlestickChart<'_> {
             if cy < area.y + area.height {
                 for col in 0..area.width {
                     let x = area.x + col;
-                    if (col as usize) % 4 == 0 {
+                    if (col as usize).is_multiple_of(4) {
                         let cell = buf.cell_mut((x, cy)).unwrap();
                         if cell.symbol() == " " {
                             cell.set_char('·');
@@ -205,7 +205,7 @@ fn draw_dashed_line(buf: &mut Buffer, area: Rect, y_sub: usize, color: Color) {
 
     for col in 0..area.width {
         let x = area.x + col;
-        if (col as usize / 3) % 2 == 0 {
+        if (col as usize / 3).is_multiple_of(2) {
             let cell = buf.cell_mut((x, cy)).unwrap();
             if cell.symbol() == " " || cell.symbol() == "·" {
                 cell.set_char('╌');

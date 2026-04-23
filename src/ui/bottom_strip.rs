@@ -61,7 +61,7 @@ fn render_cpu_compact(f: &mut Frame, area: Rect, app: &App) {
         );
         return;
     }
-    let num_rows = ((cores.len() as u16 + num_cols - 1) / num_cols).min(inner.height.saturating_sub(2 + sensor_rows));
+    let num_rows = (cores.len() as u16).div_ceil(num_cols).min(inner.height.saturating_sub(2 + sensor_rows));
     let sparkline_height = 1u16.min(inner.height.saturating_sub(num_rows + sensor_rows));
 
     let mut constraints = vec![Constraint::Length(num_rows)];

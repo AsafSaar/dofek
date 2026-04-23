@@ -63,7 +63,7 @@ impl Widget for AreaChart<'_> {
         };
 
         // Resample data to fit the chart width
-        let data_points: Vec<usize> = resample(self.data, w, |v| map_y(v));
+        let data_points: Vec<usize> = resample(self.data, w, map_y);
 
         // Draw threshold lines first (behind the chart)
         if let Some(warn) = self.warn_threshold {
@@ -77,7 +77,7 @@ impl Widget for AreaChart<'_> {
 
         // Draw secondary series (if any) — line only, no fill
         if let Some((sec_data, sec_color)) = self.secondary {
-            let sec_points: Vec<usize> = resample(sec_data, w, |v| map_y(v));
+            let sec_points: Vec<usize> = resample(sec_data, w, map_y);
             draw_line_only(buf, area, &sec_points, sec_color, sub_h);
         }
 
@@ -212,7 +212,7 @@ fn draw_threshold_line(buf: &mut Buffer, area: Rect, y_sub: usize, color: Color,
     for col in 0..area.width {
         let x = area.x + col;
         // Dashed: draw every other 3 chars
-        if (col as usize / 3) % 2 == 0 {
+        if (col as usize / 3).is_multiple_of(2) {
             let cell = buf.cell_mut((x, cy)).unwrap();
             // Don't overwrite existing chart data
             if cell.symbol() == " " {

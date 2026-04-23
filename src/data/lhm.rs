@@ -171,7 +171,7 @@ pub fn extract_gpus(root: &LhmNode) -> Vec<GpuSensors> {
             let t = n.text.to_lowercase();
             t.contains("nvidia") || t.contains("radeon") || t.contains("geforce") || t.contains("gpu")
         })
-        .filter_map(|gpu_node| extract_single_gpu(gpu_node))
+        .filter_map(extract_single_gpu)
         .collect()
 }
 

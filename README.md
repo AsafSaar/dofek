@@ -2,14 +2,38 @@
 
 **GUI and Terminal-native, AI-aware system monitor for Windows.**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Platform: Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4)](https://github.com/AsafSaar/dofek/releases)
+[![Release](https://img.shields.io/github/v/release/AsafSaar/dofek)](https://github.com/AsafSaar/dofek/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/AsafSaar/dofek/release.yml)](https://github.com/AsafSaar/dofek/actions)
+
 > *dofek* (Hebrew: דּוֹפֶק) means "pulse" or "heartbeat"
 
 Most system monitors were designed before LLMs ran locally. They treat GPU as an afterthought and VRAM as a footnote. dofek is built for the developer who has `ollama` running in the background, is watching a model load into VRAM, and needs to know at a glance whether their system can handle the next task.
 
-## Screenshot
+## Screenshots
+
+**GUI** — Tauri desktop app:
+
+![dofek GUI](docs/assets/gui-screenshot.png)
+
+**TUI** — terminal interface:
+
+![dofek TUI](docs/assets/tui-screenshot.png)
+
+<details>
+<summary>More GUI views</summary>
+
+![dofek GUI — process management](docs/assets/gui-another-screenshot.png)
+![dofek GUI — chart detail](docs/assets/gui-another-screenshot-2.png)
+
+</details>
+
+<details>
+<summary>ASCII layout reference</summary>
 
 ```
-dofek v0.7  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+dofek v1.0  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
@@ -35,6 +59,22 @@ dofek v0.7  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDE
 -----------------------------------------------------------------------------------------------
  q quit  tab sort  p proc  / search  x kill  c cpu  g gpu  m mem  n net  1-4 filter  ? help  500ms
 ```
+
+</details>
+
+## Download
+
+Pre-built Windows binaries are published on the [Releases page](https://github.com/AsafSaar/dofek/releases/latest):
+
+| Asset | Description |
+| --- | --- |
+| [`dofek_1.0.0_x64_en-US.msi`](https://github.com/AsafSaar/dofek/releases/latest) | Desktop GUI installer — bundles both TUI and GUI |
+| [`dofek-tui.exe`](https://github.com/AsafSaar/dofek/releases/latest) | Standalone TUI binary, no installer |
+| `SHA256SUMS.txt` | Checksums for verification |
+
+> ⚠️ **SmartScreen warning on first run.** Binaries are currently unsigned. Code signing is on the post-1.0 roadmap. For now: right-click the installer → Properties → check "Unblock", then run.
+
+Verify with `Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256` and compare against `SHA256SUMS.txt`.
 
 ## Features
 
@@ -87,7 +127,7 @@ cargo build-gui                    # → target/release/dofek-gui.exe + MSI inst
 **MSI installer** (bundles both TUI and GUI into a single installer):
 
 ```powershell
-.\build-all.ps1                    # → target\release\bundle\msi\dofek_0.8.0_x64_en-US.msi
+.\build-all.ps1                    # → target\release\bundle\msi\dofek_1.0.0_x64_en-US.msi
 ```
 
 These commands are cargo aliases defined in `.cargo/config.toml`. The MSI build script requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
@@ -226,6 +266,9 @@ dofek includes opt-in anonymous telemetry to help improve the app during beta. *
 - To disable: remove or set `enabled = false` in the `[telemetry]` section of `dofek.toml`
 
 ## Plugins
+
+> ⚠️ **Plugin API: experimental, subject to change until further notice.**
+> The plugin JSON schema is versioned (`schema_version: 1`), but expect breaking changes as the API matures. Pin your plugin to a specific dofek version if stability matters to you. Once dofek's plugin contract stabilizes, the API will follow semver.
 
 Plugins are external processes that inject data into the dofek dashboard. dofek spawns each plugin as a child process and communicates via newline-delimited JSON over stdio (stdin/stdout).
 
@@ -426,8 +469,9 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v0.5** — Telemetry settings persistence, GUI help modal improvements
 - **v0.6** — Process management (search, kill, kill-all), interactive process table, LHM CPU temp/power
 - **v0.7** — Process tree/grouped view, expanded LHM integration, GUI process management
-- **v0.8** (current) — Centered loading state, ollama plugin, GUI icon, Windows Terminal profile icon
-- **v1.0** — GUI tray companion with live sparkline in taskbar
+- **v0.8** — Centered loading state, ollama plugin, GUI icon, Windows Terminal profile icon
+- **v1.0** (current) — Public GA: MSI installer, dofek.dev downloads, hardened plugin protocol, GitHub Actions release pipeline
+- **v1.1+** — GUI tray companion with live sparkline in taskbar, code signing for binaries, AMD GPU VRAM, disk I/O metrics
 
 ## License
 
