@@ -1854,7 +1854,10 @@ function showToast(msg){
       <tr><td class="hk">a</td><td class="hd">About dofek</td></tr>
       <tr><td class="hk">?</td><td class="hd">Toggle this help</td></tr>
     </table>
-    <div class="telem-toggle" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;gap:10px;">
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;">
+      <button id="open-manual-btn" class="manual-btn">📖 Open full manual</button>
+    </div>
+    <div class="telem-toggle" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;gap:10px;">
       <span style="font-size:11px;color:var(--dim);">Anonymous telemetry</span>
       <label class="toggle-switch">
         <input type="checkbox" id="telem-toggle-cb">
@@ -1896,6 +1899,12 @@ document.querySelector('.logo').style.cursor='pointer';
 document.querySelector('.logo').addEventListener('click',()=>{
   document.getElementById('about-overlay').classList.toggle('visible');
 });
+document.getElementById('open-manual-btn').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!invoke) return;
+  try { await invoke('open_manual'); }
+  catch(err) { console.error('Failed to open manual:', err); }
+});
 document.getElementById('telem-toggle-cb').addEventListener('change', async (e) => {
   if (!invoke) return;
   try {
@@ -1919,6 +1928,8 @@ document.getElementById('telem-toggle-cb').addEventListener('change', async (e) 
 .help-footer{color:var(--muted);font-size:10px;margin-top:14px;text-align:center;}
 .about-link{color:var(--cpu);text-decoration:none;font-size:11px;transition:color .15s;}
 .about-link:hover{color:var(--text);text-decoration:underline;}
+.manual-btn{background:rgba(56,189,248,.08);color:var(--cpu);border:1px solid rgba(56,189,248,.3);padding:6px 14px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.04em;border-radius:3px;cursor:pointer;transition:all .15s;}
+.manual-btn:hover{background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.5);color:var(--text);}
 /* Toggle switch */
 .toggle-switch{position:relative;display:inline-block;width:36px;height:18px;}
 .toggle-switch input{opacity:0;width:0;height:0;}

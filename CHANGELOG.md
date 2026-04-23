@@ -13,6 +13,8 @@ First public, generally-available release.
 - `.github/workflows/ci.yml` — clippy + tests on every PR and push to `main`
 - Issue templates for bug reports and feature requests
 - Real TUI/GUI screenshots embedded in the README
+- **Offline user manual** bundled with the MSI (`manual.html`) — accessible from the Start Menu ("dofek Manual") and from the GUI help overlay ("Open full manual" button)
+- `README.txt` in the install directory as a quick pointer to the manual and config locations
 
 ### Changed
 - Plugin API explicitly marked as **experimental** until further notice; the `schema_version: 1` field allows plugins to pin against breaking changes

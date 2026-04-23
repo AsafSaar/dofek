@@ -36,6 +36,22 @@ pub struct GpuDef {
     pub vram_total_mb: f32,
 }
 
+/// Tauri command: opens the bundled offline manual.html in the user's default browser.
+#[tauri::command]
+fn open_manual(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    use tauri_plugin_shell::ShellExt;
+    let manual = app
+        .path()
+        .resource_dir()
+        .map_err(|e| e.to_string())?
+        .join("manual.html");
+    #[allow(deprecated)]
+    app.shell()
+        .open(manual.to_string_lossy().to_string(), None)
+        .map_err(|e| e.to_string())
+}
+
 /// Tauri command: returns the current user settings.
 #[tauri::command]
 fn get_settings(state: tauri::State<'_, AppState>) -> UserSettings {
@@ -176,7 +192,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_settings, save_settings, track_event, get_telemetry_prompted, set_telemetry_choice, kill_process, kill_processes])
+        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_settings, save_settings, track_event, get_telemetry_prompted, set_telemetry_choice, kill_process, kill_processes, open_manual])
         .build(tauri::generate_context!())
         .expect("error building dofek GUI")
         .run(move |_app, event| {

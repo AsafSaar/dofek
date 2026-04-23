@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Adds a "dofek Manual" Start Menu shortcut that opens the bundled offline
+  manual.html in the user's default browser.
+
+  Referenced from gui/tauri.conf.json via bundle.windows.wix.fragmentPaths.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="ProgramMenuFolder">
+      <Component Id="ManualShortcutComponent"
+                 Guid="B4E0E7F8-1F5D-4C3E-9A8F-2D8E9F1A3C5B">
+        <Shortcut Id="DofekManualShortcut"
+                  Name="dofek Manual"
+                  Description="dofek user manual (offline)"
+                  Target="[INSTALLDIR]manual.html"
+                  WorkingDirectory="INSTALLDIR" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\dofek\Manual"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

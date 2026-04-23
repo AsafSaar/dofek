@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dofek v1.0 — User Manual</title>
+<style>
+:root {
+  --bg:     #060810;
+  --surf:   #0b1120;
+  --surf2:  #0f1929;
+  --bdr:    #182035;
+  --bdr2:   #1f2d48;
+  --cpu:    #38bdf8;
+  --gpu:    #a78bfa;
+  --mem:    #34d399;
+  --net:    #fb923c;
+  --ai:     #c084fc;
+  --dev:    #60a5fa;
+  --watch:  #fbbf24;
+  --warn:   #fbbf24;
+  --crit:   #f87171;
+  --text:   #e2e8f0;
+  --dim:    #94a3b8;
+  --muted:  #3d5070;
+  --font:   'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', ui-monospace, monospace;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.65;
+  padding: 0;
+}
+a { color: var(--cpu); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: var(--font); }
+code {
+  background: var(--surf);
+  color: var(--cpu);
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 12.5px;
+  border: 1px solid var(--bdr);
+}
+pre {
+  background: var(--surf);
+  border: 1px solid var(--bdr2);
+  border-radius: 3px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+pre code { background: none; border: none; padding: 0; color: var(--text); }
+strong { color: var(--text); font-weight: 600; }
+em { color: var(--dim); font-style: normal; }
+
+/* ── NAV ─────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 52px;
+  background: rgba(6,8,16,0.88);
+  border-bottom: 1px solid var(--bdr);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.nav-logo {
+  font-size: 15px; font-weight: 700; color: var(--cpu); letter-spacing: .08em;
+}
+.nav-logo em { font-weight: 300; color: var(--muted); font-size: 11px; margin-left: 6px; }
+.nav-links { display: flex; align-items: center; gap: 22px; }
+.nav-links a {
+  color: var(--dim); font-size: 11px;
+  letter-spacing: .06em; font-weight: 500;
+  text-transform: uppercase;
+}
+.nav-links a:hover { color: var(--text); text-decoration: none; }
+
+/* ── LAYOUT ─────────────────────────────────── */
+.wrap { max-width: 960px; margin: 0 auto; padding: 84px 32px 80px; }
+
+h1 {
+  font-size: 36px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.01em; margin-bottom: 8px;
+}
+h1 .v { font-size: 18px; color: var(--cpu); font-weight: 400; margin-left: 10px; vertical-align: middle; }
+.lede { color: var(--dim); font-size: 14px; margin-bottom: 40px; max-width: 640px; }
+
+h2 {
+  font-size: 20px; font-weight: 700; color: var(--cpu);
+  letter-spacing: .02em; margin: 44px 0 14px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--bdr);
+  scroll-margin-top: 70px;
+}
+h3 {
+  font-size: 15px; font-weight: 600; color: var(--text);
+  margin: 24px 0 10px; letter-spacing: .02em;
+}
+p { margin: 8px 0 14px; color: var(--text); }
+ul, ol { margin: 8px 0 14px 24px; color: var(--text); }
+ul li, ol li { margin: 4px 0; }
+
+/* ── TABLE ─────────────────────────────────── */
+table.kb, table.ref {
+  width: 100%; border-collapse: collapse; margin: 10px 0 20px;
+  font-size: 13px;
+}
+table.kb th, table.ref th {
+  text-align: left; padding: 8px 12px;
+  background: var(--surf); color: var(--dim);
+  font-weight: 600; font-size: 11px; letter-spacing: .08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--bdr2);
+}
+table.kb td, table.ref td {
+  padding: 7px 12px; border-bottom: 1px solid var(--bdr);
+  vertical-align: top;
+}
+table.kb td:first-child { width: 150px; color: var(--cpu); font-weight: 600; }
+table.ref td:first-child { width: 200px; color: var(--gpu); font-weight: 600; }
+table.ref td code { font-size: 12px; }
+
+/* ── CALLOUTS ─────────────────────────────────── */
+.note, .warn, .tip {
+  border-left: 2px solid var(--cpu);
+  background: rgba(56,189,248,.06);
+  padding: 12px 16px; margin: 16px 0;
+  font-size: 13px; border-radius: 0 3px 3px 0;
+}
+.warn { border-left-color: var(--watch); background: rgba(251,191,36,.06); }
+.tip  { border-left-color: var(--mem);   background: rgba(52,211,153,.06); }
+.note b, .warn b, .tip b { color: var(--text); }
+
+/* ── SCREENSHOTS ─────────────────────────────────── */
+.shot {
+  border: 1px solid var(--bdr2); border-radius: 3px;
+  margin: 18px 0; overflow: hidden;
+  background: var(--surf);
+}
+.shot img { display: block; width: 100%; height: auto; }
+.shot-caption {
+  padding: 8px 12px; font-size: 11px; color: var(--dim);
+  letter-spacing: .06em; text-transform: uppercase;
+  border-top: 1px solid var(--bdr);
+}
+
+/* ── HERO ─────────────────────────────────── */
+.hero-tag {
+  display: inline-block; padding: 3px 10px;
+  border: 1px solid var(--mem); color: var(--mem);
+  font-size: 10px; font-weight: 600; letter-spacing: .12em;
+  border-radius: 2px; margin-bottom: 12px;
+}
+
+/* ── TOC ─────────────────────────────────── */
+.toc {
+  background: var(--surf); border: 1px solid var(--bdr2); border-radius: 3px;
+  padding: 18px 24px; margin: 20px 0 32px;
+}
+.toc-title {
+  font-size: 11px; color: var(--dim); letter-spacing: .1em;
+  text-transform: uppercase; margin-bottom: 10px;
+}
+.toc ol { margin: 0 0 0 18px; }
+.toc li { margin: 3px 0; font-size: 13px; }
+.toc a { color: var(--text); }
+.toc a:hover { color: var(--cpu); }
+
+/* ── FOOTER ─────────────────────────────────── */
+footer {
+  margin-top: 80px; padding-top: 24px;
+  border-top: 1px solid var(--bdr);
+  font-size: 11px; color: var(--muted); text-align: center;
+}
+footer a { color: var(--dim); }
+
+/* ── KBD ─────────────────────────────────── */
+kbd {
+  display: inline-block; font-family: var(--font);
+  font-size: 11px; padding: 1px 6px;
+  background: var(--surf2); border: 1px solid var(--bdr2);
+  border-bottom-width: 2px; border-radius: 2px;
+  color: var(--cpu);
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">dofek <em>v1.0 manual</em></div>
+  <div class="nav-links">
+    <a href="https://dofek.dev" target="_blank">dofek.dev</a>
+    <a href="https://github.com/AsafSaar/dofek" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<div class="hero-tag">USER MANUAL · v1.0</div>
+<h1>dofek<span class="v">the AI-era system monitor for Windows</span></h1>
+<p class="lede">This manual covers everything you need to run, configure, and extend dofek — both the terminal (TUI) and desktop (GUI) interfaces. It ships alongside the binaries in <code>C:\Program Files\dofek\</code> and works entirely offline.</p>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">What is dofek?</a></li>
+    <li><a href="#quickstart">Quickstart</a></li>
+    <li><a href="#interfaces">TUI vs. GUI</a></li>
+    <li><a href="#keybindings">Keybindings reference (TUI)</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#categories">Process categories (AI / DEV / WATCH)</a></li>
+    <li><a href="#ai-detect">AI workload detection</a></li>
+    <li><a href="#gpu">GPU support & LibreHardwareMonitor</a></li>
+    <li><a href="#plugins">Plugins</a></li>
+    <li><a href="#telemetry">Telemetry</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+    <li><a href="#links">Links & support</a></li>
+  </ol>
+</div>
+
+<!-- ─────────────────── 1 ─────────────────── -->
+<h2 id="intro">1. What is dofek?</h2>
+<p><em>dofek</em> (Hebrew: דּוֹפֶק — "pulse" or "heartbeat") is a Windows-native system monitor built for developers running local AI workloads. It tracks per-process VRAM, flags Ollama and other inference workloads automatically, and renders CPU history as candlestick charts so you see real variance — not smoothed averages.</p>
+<p>It ships as two interfaces driven by the same Rust core:</p>
+<ul>
+  <li><strong>dofek-tui</strong> — terminal UI (Ratatui). Lives happily inside Windows Terminal, Tabby, or any VT-capable console.</li>
+  <li><strong>dofek-gui</strong> — desktop app (Tauri + WebView2). Same data, same plugins, graphical charts.</li>
+</ul>
+
+<div class="shot">
+  <img src="assets/gui-screenshot.png" alt="dofek GUI — main dashboard" />
+  <div class="shot-caption">dofek GUI — main dashboard</div>
+</div>
+<div class="shot">
+  <img src="assets/tui-screenshot.png" alt="dofek TUI — terminal layout" />
+  <div class="shot-caption">dofek TUI — trading-terminal layout</div>
+</div>
+
+<!-- ─────────────────── 2 ─────────────────── -->
+<h2 id="quickstart">2. Quickstart</h2>
+
+<h3>GUI (desktop app)</h3>
+<ol>
+  <li>Launch <strong>dofek</strong> from the Start Menu, or run <code>dofek.exe</code> from <code>C:\Program Files\dofek\</code>.</li>
+  <li>The dashboard opens with live CPU, GPU, memory, and network charts. The process watchlist on the right shows the top VRAM/CPU/MEM consumers.</li>
+  <li>Click <strong>AI / DEV / WATCH</strong> tabs to filter the watchlist.</li>
+  <li>Press <kbd>?</kbd> for the keybinding overlay, or click the <strong>Manual</strong> link inside the help overlay to reopen this document.</li>
+</ol>
+
+<h3>TUI (terminal)</h3>
+<ol>
+  <li>Open Windows Terminal (or PowerShell), then run:
+    <pre><code>dofek-tui</code></pre>
+  </li>
+  <li>With a custom config:
+    <pre><code>dofek-tui --config "%APPDATA%\dofek\dofek.toml"</code></pre>
+  </li>
+  <li>Press <kbd>?</kbd> for help, <kbd>q</kbd> to quit. See <a href="#keybindings">the full keybinding table</a>.</li>
+</ol>
+
+<div class="tip"><b>Font size tip:</b> the TUI is designed for <strong>9–10pt</strong> monospace. JetBrains Mono works well. Run <code>install-wt-profile.ps1</code> (ships with the source) to add a pre-configured "dofek" profile to Windows Terminal.</div>
+
+<!-- ─────────────────── 3 ─────────────────── -->
+<h2 id="interfaces">3. TUI vs. GUI</h2>
+<p>Both interfaces read the same config, run the same plugins, and collect the same data. Pick based on context:</p>
+
+<table class="ref">
+  <tr><th>Use case</th><th>Recommended</th></tr>
+  <tr><td>Remote session / SSH / low-resource</td><td>TUI</td></tr>
+  <tr><td>Always-visible dashboard on your desktop</td><td>GUI</td></tr>
+  <tr><td>Scripting + snapshot exports (<kbd>s</kbd> key)</td><td>TUI</td></tr>
+  <tr><td>Smoothed Bezier charts, click-to-kill</td><td>GUI</td></tr>
+  <tr><td>Running alongside <code>ollama</code>, <code>lm-studio</code></td><td>Either — both detect AI workloads</td></tr>
+</table>
+
+<!-- ─────────────────── 4 ─────────────────── -->
+<h2 id="keybindings">4. Keybindings reference (TUI)</h2>
+
+<table class="kb">
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td><kbd>c</kbd></td><td>Switch main chart to CPU (candlestick)</td></tr>
+  <tr><td><kbd>g</kbd></td><td>Switch main chart to GPU (area chart)</td></tr>
+  <tr><td><kbd>m</kbd></td><td>Switch main chart to Memory</td></tr>
+  <tr><td><kbd>n</kbd></td><td>Switch main chart to Network</td></tr>
+  <tr><td><kbd>h</kbd></td><td>Toggle horizon chart mode</td></tr>
+  <tr><td><kbd>p</kbd></td><td>Full-screen process view</td></tr>
+  <tr><td><kbd>tab</kbd></td><td>Cycle sort column (Name / PID / CPU% / MEM / VRAM)</td></tr>
+  <tr><td><kbd>1</kbd> – <kbd>4</kbd></td><td>Filter: ALL / AI / DEV / WATCH</td></tr>
+  <tr><td><kbd>/</kbd></td><td>Search processes by name (live filter)</td></tr>
+  <tr><td><kbd>↑</kbd> <kbd>↓</kbd> / <kbd>j</kbd> <kbd>k</kbd></td><td>Navigate process list</td></tr>
+  <tr><td><kbd>del</kbd> / <kbd>x</kbd></td><td>Kill selected process (with confirmation)</td></tr>
+  <tr><td><kbd>X</kbd></td><td>Kill all matching processes (search/filter)</td></tr>
+  <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>Resize chart / watchlist split</td></tr>
+  <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Increase / decrease refresh rate</td></tr>
+  <tr><td><kbd>s</kbd></td><td>Save snapshot to <code>~/dofek-snapshots/</code></td></tr>
+  <tr><td><kbd>a</kbd></td><td>About dofek</td></tr>
+  <tr><td><kbd>?</kbd></td><td>Toggle help overlay</td></tr>
+  <tr><td><kbd>esc</kbd></td><td>Clear search / close overlays</td></tr>
+  <tr><td><kbd>q</kbd></td><td>Quit</td></tr>
+</table>
+
+<!-- ─────────────────── 5 ─────────────────── -->
+<h2 id="config">5. Configuration</h2>
+<p>dofek loads config from the first file it finds, in this order:</p>
+<ol>
+  <li><code>--config &lt;path&gt;</code> command-line flag (TUI only)</li>
+  <li><code>./dofek.toml</code> in the current working directory</li>
+  <li><code>%APPDATA%\dofek\dofek.toml</code> — <strong>recommended location</strong></li>
+</ol>
+<p>All sections are optional. Missing values fall back to sensible defaults.</p>
+
+<h3>Example config</h3>
+<pre><code>[general]
+refresh_ms = 500          # Poll interval (milliseconds)
+history_len = 60          # Chart samples to keep in memory
+
+[display]
+show_temps = true
+show_power = true
+process_count = 50        # Max processes in watchlist
+
+[ai]
+vram_threshold_gb = 1.0   # VRAM above this flags a process as AI
+known_ai_processes = ["ollama", "ollama_llama_server", "python", "lm_studio", "claude"]
+
+[categories]
+dev_processes   = ["code", "cargo", "rustc", "node", "npm", "git", "docker", "go"]
+watch_processes = ["ffmpeg", "obs"]
+watch_pids      = []
+
+[lhm]
+url = "http://localhost:8085"   # LibreHardwareMonitor web server (fallback)
+
+[telemetry]
+enabled = false           # Opt-in; disabled by default
+
+[[plugins]]
+name       = "ollama"
+command    = "dofek-ollama"
+args       = ["--host", "http://localhost:11434"]
+enabled    = true
+timeout_ms = 2000
+</code></pre>
+
+<h3>Option reference</h3>
+<table class="ref">
+  <tr><th>Key</th><th>Description</th></tr>
+  <tr><td><code>general.refresh_ms</code></td><td>Poll interval. Lower = smoother, more CPU. Default <code>500</code>.</td></tr>
+  <tr><td><code>general.history_len</code></td><td>Samples retained per chart. Default <code>60</code>.</td></tr>
+  <tr><td><code>display.show_temps</code></td><td>Show temperature bars in the bottom strip.</td></tr>
+  <tr><td><code>display.show_power</code></td><td>Show GPU power draw bars.</td></tr>
+  <tr><td><code>display.process_count</code></td><td>Max watchlist length; panel height auto-fits.</td></tr>
+  <tr><td><code>ai.vram_threshold_gb</code></td><td>VRAM above this (per-process) flags the process as AI workload.</td></tr>
+  <tr><td><code>ai.known_ai_processes</code></td><td>Substring match (case-insensitive). Matches are treated as AI workloads regardless of VRAM.</td></tr>
+  <tr><td><code>categories.dev_processes</code></td><td>Substrings matched against process names for the <strong>DEV</strong> category.</td></tr>
+  <tr><td><code>categories.watch_processes</code></td><td>Substrings pinned to the <strong>WATCH</strong> category.</td></tr>
+  <tr><td><code>categories.watch_pids</code></td><td>Specific PIDs pinned to WATCH (useful for jobs you're babysitting).</td></tr>
+  <tr><td><code>lhm.url</code></td><td>LibreHardwareMonitor web-server URL. Only used if NVML is unavailable.</td></tr>
+  <tr><td><code>telemetry.enabled</code></td><td>Anonymous usage telemetry. <strong>Disabled by default.</strong></td></tr>
+  <tr><td><code>[[plugins]]</code></td><td>Repeatable table. Each entry spawns a plugin child process.</td></tr>
+</table>
+
+<!-- ─────────────────── 6 ─────────────────── -->
+<h2 id="categories">6. Process categories (AI / DEV / WATCH)</h2>
+<p>Every process gets classified into zero or one category. Priority goes <strong>WATCH → AI → DEV → none</strong>.</p>
+
+<table class="ref">
+  <tr><th>Category</th><th>How it's assigned</th></tr>
+  <tr><td>AI <span style="color:var(--ai)">●</span></td><td>Name matches <code>ai.known_ai_processes</code>, <em>or</em> VRAM &gt; <code>ai.vram_threshold_gb</code>, <em>or</em> name ends with <code>_server</code> and uses any VRAM.</td></tr>
+  <tr><td>DEV <span style="color:var(--dev)">■</span></td><td>Name matches <code>categories.dev_processes</code>.</td></tr>
+  <tr><td>WATCH <span style="color:var(--watch)">★</span></td><td>Name matches <code>categories.watch_processes</code>, or PID listed in <code>categories.watch_pids</code>.</td></tr>
+</table>
+
+<p>Filter the watchlist with keys <kbd>1</kbd> (ALL) / <kbd>2</kbd> (AI) / <kbd>3</kbd> (DEV) / <kbd>4</kbd> (WATCH), or click the tabs in the GUI.</p>
+
+<!-- ─────────────────── 7 ─────────────────── -->
+<h2 id="ai-detect">7. AI workload detection</h2>
+<p>Once a process is classified as AI, dofek tags its current state:</p>
+
+<table class="ref">
+  <tr><th>Badge</th><th>Condition</th></tr>
+  <tr><td><span style="color:var(--ai)">● inferring</span></td><td>VRAM &gt; threshold <strong>and</strong> GPU utilization &gt; 20%.</td></tr>
+  <tr><td><span style="color:var(--warn)">● loading</span></td><td>VRAM increasing by &gt; 200 MB between polls.</td></tr>
+  <tr><td><span style="color:var(--dim)">○ idle</span></td><td>Known AI process, low utilization.</td></tr>
+</table>
+
+<p>The <strong>AI badge</strong> in the top ticker bar always reflects the currently-most-active AI workload.</p>
+
+<!-- ─────────────────── 8 ─────────────────── -->
+<h2 id="gpu">8. GPU support & LibreHardwareMonitor</h2>
+<p>dofek talks to two data sources for GPU metrics:</p>
+<ol>
+  <li><strong>NVML</strong> (primary) — NVIDIA driver API. Provides utilization, VRAM, temperature, power, <em>and</em> per-process VRAM. No extra install required beyond the NVIDIA driver.</li>
+  <li><strong>LibreHardwareMonitor HTTP</strong> (fallback) — for non-NVIDIA GPUs or when NVML isn't available.</li>
+</ol>
+
+<h3>Setting up LibreHardwareMonitor</h3>
+<ol>
+  <li>Download <a href="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases" target="_blank">LibreHardwareMonitor</a> and extract.</li>
+  <li>Run <code>LibreHardwareMonitor.exe</code> <strong>as administrator</strong>.</li>
+  <li>Enable the web server: <strong>Options → Remote Web Server → Run</strong> (default port <code>8085</code>).</li>
+  <li>If you changed the port, update <code>lhm.url</code> in <code>dofek.toml</code>.</li>
+</ol>
+
+<div class="warn"><b>Multi-GPU:</b> NVML is fully multi-GPU aware. LHM support is basic — primary GPU only. If you have multiple GPUs and NVML isn't working, open an issue.</div>
+
+<!-- ─────────────────── 9 ─────────────────── -->
+<h2 id="plugins">9. Plugins</h2>
+
+<div class="warn"><b>Plugin API is experimental.</b> The JSON protocol is versioned (<code>schema_version: 1</code>) but subject to breaking changes until further notice. Pin your plugin to a specific dofek version if stability matters.</div>
+
+<p>Plugins are external processes that dofek spawns and polls via newline-delimited JSON over stdin/stdout. Each poll cycle, dofek writes a request, reads a response, and renders any panels / process annotations / metrics the plugin returned.</p>
+
+<h3>Built-in plugins</h3>
+<table class="ref">
+  <tr><th>Plugin</th><th>Purpose</th><th>Requires</th></tr>
+  <tr><td><code>dofek-ollama</code></td><td>Shows loaded models + inference state, annotates Ollama processes</td><td>Ollama running locally</td></tr>
+  <tr><td><code>dofek-docker</code></td><td>Lists running containers, annotates Docker processes</td><td>Docker Desktop with TCP API enabled</td></tr>
+</table>
+
+<p>Enable a plugin by adding a <code>[[plugins]]</code> table to <code>dofek.toml</code>. See the example config above.</p>
+
+<h3>Plugin health dock</h3>
+<p>The plugin dock (inside the watchlist panel) shows one row per plugin:</p>
+<ul>
+  <li><span style="color:var(--mem)">●</span> healthy</li>
+  <li><span style="color:var(--warn)">●</span> unhealthy (5+ consecutive errors)</li>
+  <li><span style="color:var(--crit)">●</span> crashed — dofek restarts with exponential backoff (1s → 30s cap)</li>
+  <li><span style="color:var(--dim)">○</span> starting</li>
+</ul>
+
+<p>Plugin development docs: <a href="https://dofek.dev/plugins/" target="_blank">dofek.dev/plugins</a>.</p>
+
+<!-- ─────────────────── 10 ─────────────────── -->
+<h2 id="telemetry">10. Telemetry</h2>
+<p>dofek includes opt-in anonymous telemetry to help improve the app. <strong>It is disabled by default.</strong> Nothing is sent unless you explicitly enable it.</p>
+
+<h3>What's collected (if you opt in)</h3>
+<ul>
+  <li>Session duration and interface (TUI vs. GUI)</li>
+  <li>Feature usage: which tabs, filters, modes you use</li>
+  <li>GPU detection path (NVML / LHM / none) and device count</li>
+  <li>Periodic heartbeats (process count, active tab)</li>
+</ul>
+
+<h3>What's never collected</h3>
+<ul>
+  <li>Process names, hostnames, IP addresses, or any identifying information</li>
+  <li>System metric values (CPU %, memory usage, etc.)</li>
+  <li>Config file contents or custom process lists</li>
+</ul>
+
+<p>A random anonymous UUID is generated on first run and stored at <code>%APPDATA%\dofek\settings.toml</code>. Events batch locally and flush via HTTPS every 60 seconds. If the endpoint is unreachable, batches are silently dropped.</p>
+
+<p>To disable: toggle the switch in the GUI help overlay, or set <code>telemetry.enabled = false</code> in <code>dofek.toml</code>.</p>
+
+<!-- ─────────────────── 11 ─────────────────── -->
+<h2 id="troubleshooting">11. Troubleshooting</h2>
+
+<h3>SmartScreen warning on install or first run</h3>
+<p>The v1.0 binaries are unsigned. Code signing is on the post-1.0 roadmap. Workaround:</p>
+<ol>
+  <li>Right-click the installer or executable → <strong>Properties</strong>.</li>
+  <li>Check <strong>Unblock</strong> at the bottom of the General tab.</li>
+  <li>Click OK, then run as normal.</li>
+</ol>
+<p>Verify the download first by comparing against <code>SHA256SUMS.txt</code> from the GitHub release:</p>
+<pre><code>Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256</code></pre>
+
+<h3>GPU panel shows "no devices"</h3>
+<ul>
+  <li><strong>NVIDIA GPU?</strong> Make sure drivers are current. <code>nvidia-smi</code> should work from a terminal.</li>
+  <li><strong>AMD / Intel GPU?</strong> NVML won't work — set up <a href="#gpu">LibreHardwareMonitor</a> as the fallback.</li>
+  <li><strong>WSL / VM?</strong> NVML isn't available inside WSL2 without <code>--runtime=nvidia</code>. Run dofek on the Windows host instead.</li>
+</ul>
+
+<h3>Ollama plugin not showing models</h3>
+<ul>
+  <li>Verify Ollama is running: <code>curl http://localhost:11434/api/tags</code></li>
+  <li>Check the plugin dock — is it green (<span style="color:var(--mem)">●</span>) or red (<span style="color:var(--crit)">●</span>)?</li>
+  <li>If red, the plugin likely crashed. Run <code>dofek-ollama.exe</code> directly from <code>C:\Program Files\dofek\</code> to see its stderr output.</li>
+  <li>Confirm the plugin is enabled in <code>dofek.toml</code> under <code>[[plugins]]</code>.</li>
+</ul>
+
+<h3>TUI looks cramped or wraps awkwardly</h3>
+<ul>
+  <li>Set terminal font size to <strong>9–10pt</strong> (JetBrains Mono, Cascadia Code, or Consolas all work).</li>
+  <li>Minimum terminal width ~110 columns, height ~30 rows. Below that, dofek shows a size hint.</li>
+  <li>In Windows Terminal, run <code>install-wt-profile.ps1</code> (from the source repo) for a pre-configured profile.</li>
+</ul>
+
+<h3>CPU temperature always shows as "—"</h3>
+<p>On Windows, CPU temperature sensors aren't exposed to user-space processes without elevation. Enable LibreHardwareMonitor (see above) to get temperatures via its HTTP fallback.</p>
+
+<h3>Process kill fails with "Access is denied"</h3>
+<p>Some processes (system services, antivirus components, protected processes) can only be killed as admin. Launch dofek from an elevated prompt if you need that capability. Running dofek elevated is <em>not</em> generally recommended.</p>
+
+<!-- ─────────────────── 12 ─────────────────── -->
+<h2 id="links">12. Links & support</h2>
+<table class="ref">
+  <tr><td>Website</td><td><a href="https://dofek.dev" target="_blank">dofek.dev</a></td></tr>
+  <tr><td>Source &amp; releases</td><td><a href="https://github.com/AsafSaar/dofek" target="_blank">github.com/AsafSaar/dofek</a></td></tr>
+  <tr><td>Bug reports</td><td><a href="https://github.com/AsafSaar/dofek/issues" target="_blank">github.com/AsafSaar/dofek/issues</a></td></tr>
+  <tr><td>Discussions / plugin showcase</td><td><a href="https://github.com/AsafSaar/dofek/discussions" target="_blank">github.com/AsafSaar/dofek/discussions</a></td></tr>
+  <tr><td>Security disclosure</td><td><a href="https://github.com/AsafSaar/dofek/security/advisories/new" target="_blank">Private security advisory</a></td></tr>
+</table>
+
+<footer>
+  dofek v1.0 — <a href="https://dofek.dev" target="_blank">dofek.dev</a> · MIT Licensed · Built by <a href="https://linkedin.com/in/asafsaar" target="_blank">Asaf Saar</a>
+</footer>
+
+</div>
+</body>
+</html>

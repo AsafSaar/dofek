@@ -15,7 +15,19 @@
     ],
     "externalBin": [
       "../target/release/dofek-tui"
-    ]
+    ],
+    "resources": {
+      "../docs/manual.html": "manual.html",
+      "../docs/assets/tui-screenshot.png": "assets/tui-screenshot.png",
+      "../docs/assets/gui-screenshot.png": "assets/gui-screenshot.png",
+      "../README-install.txt": "README.txt"
+    },
+    "windows": {
+      "wix": {
+        "fragmentPaths": ["wix/manual-shortcut.wxs"],
+        "componentRefs": ["ManualShortcutComponent"]
+      }
+    }
   },
   "app": {
     "windows": [
