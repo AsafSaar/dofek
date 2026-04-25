@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "dofek"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -876,7 +876,7 @@ dependencies = [
 
 [[package]]
 name = "dofek-gui"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "dofek",
  "env_logger",
