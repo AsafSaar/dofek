@@ -2,6 +2,31 @@
 
 All notable changes to dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-25
+
+Linux support — dofek is now a first-class Linux application alongside Windows.
+
+### Added
+- **Linux x86_64 support** for both the TUI (`dofek-tui`) and the Tauri GUI (`dofek-gui`).
+- Native Linux installers / packages: `.deb`, `.AppImage`, `.rpm`, alongside the existing Windows `.msi`.
+- CPU temperature on Linux via `sysinfo::Components` (reads `/sys/class/hwmon`) — no LibreHardwareMonitor dependency.
+- Network statistics on Linux via `sysinfo::Networks`, sharing the same rate-tracking machinery as the Windows `GetIfTable2` path.
+- Process kill on Linux via `nix::sys::signal::kill(SIGTERM)`.
+- Cross-platform local time rendering via `chrono::Local` (replaces both the Windows `GetLocalTime` and the previous UTC fallback).
+- `check-linux` job in CI on `ubuntu-latest`, mirroring the existing Windows lint+test job.
+- `build-linux` job in the release pipeline, producing `dofek-tui`, `.deb`, `.rpm`, and `.AppImage` with `sha256sum` checksums.
+
+### Changed
+- Config and settings now look up `dirs::config_dir()` (Windows: `%APPDATA%\dofek`, Linux: `~/.config/dofek`).
+- Hostname now comes from `sysinfo::System::host_name()` instead of the `COMPUTERNAME` env var.
+- OS version reporting renamed `windows_version_string()` → `os_version_string()`; the Linux branch reads `/etc/os-release` `PRETTY_NAME`.
+- Tauri bundle config switched to `targets: "all"` so each runner produces its native bundles.
+- README, CLAUDE.md, and `dofek.toml.example` updated for the dual-OS story.
+
+### Notes
+- AMD GPU VRAM, CPU power on Linux (RAPL), macOS, and ARM64 remain on the roadmap.
+- The Linux GUI build requires Tauri's standard apt deps: `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libssl-dev`, `libgtk-3-dev` (and `rpm` for `.rpm` packaging).
+
 ## [1.0.0] - 2026-04-23
 
 First public, generally-available release.
