@@ -1,0 +1,39 @@
+# Dependabot keeps dependencies fresh and surfaces security advisories
+# automatically. Grouped by ecosystem, batched weekly so the volume stays
+# manageable.
+version: 2
+updates:
+  # Rust workspace (covers root, gui/, plugins/* via workspace members).
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "rust"
+    groups:
+      cargo-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Website (Vercel) — currently only a package-lock for transitive scanning.
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "website"
+
+  # GitHub Actions versions in .github/workflows/*.yml
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
