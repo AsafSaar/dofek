@@ -85,10 +85,16 @@ jobs:
         shell: pwsh
         working-directory: artifacts
         run: |
-          Get-ChildItem -File | ForEach-Object {
-            $hash = (Get-FileHash $_.Name -Algorithm SHA256).Hash
-            "$hash  $($_.Name)"
-          } | Out-File -Encoding ascii SHA256SUMS.txt
+          # Snapshot the file list before opening the output file. The previous
+          # streamed pipeline raced with Out-File: Get-ChildItem is lazy, so it
+          # re-enumerated SHA256SUMS.txt while it was still locked for writing.
+          $files = Get-ChildItem -File -Exclude SHA256SUMS.txt |
+                   Select-Object -ExpandProperty Name
+          $lines = foreach ($f in $files) {
+            $hash = (Get-FileHash $f -Algorithm SHA256).Hash
+            "$hash  $f"
+          }
+          $lines | Out-File -Encoding ascii SHA256SUMS.txt
 
           Write-Host "`nSHA256SUMS.txt:"
           Get-Content SHA256SUMS.txt
