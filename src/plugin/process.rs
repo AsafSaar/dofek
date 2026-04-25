@@ -1,4 +1,5 @@
 use std::io::{BufRead, BufReader, Write};
+#[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
@@ -17,12 +18,14 @@ pub struct PluginProcess {
 impl PluginProcess {
     /// Spawn a new plugin child process.
     pub fn spawn(command: &str, args: &[String]) -> Result<Self> {
-        let mut child = Command::new(command)
-            .args(args)
+        let mut cmd = Command::new(command);
+        cmd.args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .creation_flags(windows_creation_flags())
+            .stderr(Stdio::piped());
+        #[cfg(windows)]
+        cmd.creation_flags(windows_creation_flags());
+        let mut child = cmd
             .spawn()
             .with_context(|| format!("Failed to spawn plugin: {command}"))?;
 
@@ -97,6 +100,7 @@ impl PluginProcess {
 }
 
 /// Windows: CREATE_NO_WINDOW flag to suppress console window for plugin processes.
+#[cfg(windows)]
 fn windows_creation_flags() -> u32 {
     0x08000000 // CREATE_NO_WINDOW
 }

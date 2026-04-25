@@ -60,6 +60,41 @@ pub fn extract_memory(system: &System) -> MemorySensors {
     }
 }
 
+/// Pick the most representative CPU temperature from sysinfo Components on Linux.
+///
+/// Tries package/die-level sensors first (best signal), then falls back to averaging
+/// per-core sensors. Common labels by vendor:
+///   - Intel coretemp: "Package id 0", "Core 0".."Core N"
+///   - AMD k10temp:    "Tctl", "Tdie"
+///   - ARM/embedded:   "cpu_thermal", "cpu-thermal 0"
+#[cfg(target_os = "linux")]
+pub fn pick_cpu_temp(components: &sysinfo::Components) -> Option<f32> {
+    // Preferred package-level labels in priority order.
+    const PACKAGE_LABELS: &[&str] = &["Package id 0", "Tctl", "Tdie", "cpu_thermal", "cpu-thermal"];
+
+    for pref in PACKAGE_LABELS {
+        for c in components.iter() {
+            if c.label().contains(pref)
+                && let Some(t) = c.temperature()
+            {
+                return Some(t);
+            }
+        }
+    }
+
+    // Fallback: average per-core readings if any are present.
+    let cores: Vec<f32> = components
+        .iter()
+        .filter(|c| c.label().starts_with("Core "))
+        .filter_map(|c| c.temperature())
+        .collect();
+    if cores.is_empty() {
+        None
+    } else {
+        Some(cores.iter().sum::<f32>() / cores.len() as f32)
+    }
+}
+
 /// Enumerate processes from sysinfo, merging in NVML VRAM data.
 pub fn enumerate_processes(
     system: &System,

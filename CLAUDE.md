@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**dofek** (דּוֹפֶק — Hebrew for "pulse") is a dual-interface, AI-aware system monitor for Windows, built with Rust. The TUI uses Ratatui + crossterm, the GUI uses Tauri 2 + WebView2. Both share a common core library for data collection. It uses the `sysinfo` crate for CPU/memory/process data, NVML for NVIDIA GPU metrics and per-process VRAM, and a plugin system for extensibility via JSON-over-stdio.
+**dofek** (דּוֹפֶק — Hebrew for "pulse") is a dual-interface, AI-aware system monitor for Windows and Linux, built with Rust. The TUI uses Ratatui + crossterm, the GUI uses Tauri 2 (WebView2 on Windows, WebKitGTK on Linux). Both share a common core library for data collection. It uses the `sysinfo` crate for CPU/memory/process/network/hostname data, NVML for NVIDIA GPU metrics and per-process VRAM, and a plugin system for extensibility via JSON-over-stdio.
 
-Target: Windows 11 (Windows 10 build 19041+). Single binary per interface, no runtime dependencies.
+Targets: Windows 11 (Windows 10 build 19041+), Linux x86_64 (Ubuntu 24.04, Fedora 40, Arch). Single binary per interface, no runtime dependencies.
 
 ## Build & Run
 
@@ -18,18 +18,21 @@ cargo tui                          # Run TUI
 cargo gui                          # Run GUI (hot-reload)
 
 # Release builds (LTO + strip)
-cargo build-tui                    # → target/release/dofek-tui.exe
-cargo build-gui                    # → target/release/dofek-gui.exe + MSI
+cargo build-tui                    # → target/release/dofek-tui[.exe]
+cargo build-gui                    # → target/release/dofek-gui[.exe] + native bundles
 
-# MSI installer (bundles both TUI + GUI)
-.\build-all.ps1                    # → target/release/bundle/msi/dofek_1.0.0_x64_en-US.msi
+# Native installer / packages (bundles both TUI + GUI)
+.\build-all.ps1                    # Windows → target/release/bundle/msi/dofek_*.msi
+./build-all.sh                     # Linux   → target/release/bundle/{deb,rpm,appimage}/dofek_*
 ```
 
-**Prerequisites:** Rust toolchain (stable, edition 2024), Visual Studio Build Tools with C++ workload, Tauri CLI (`cargo install tauri-cli --version "^2"`) for GUI builds.
+**Prerequisites:** Rust toolchain (stable, edition 2024), Tauri CLI (`cargo install tauri-cli --version "^2"`) for GUI builds, plus per-OS:
+- **Windows:** Visual Studio Build Tools with C++ workload.
+- **Linux (apt):** `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev` — and `rpm` if you want `.rpm` bundles.
 
 **Optional for enhanced functionality:**
-- NVIDIA GPU + drivers for GPU metrics and per-process VRAM (NVML). Gracefully degrades without it.
-- LibreHardwareMonitor with web server on port 8085 — optional fallback for GPU data on non-NVIDIA systems.
+- NVIDIA GPU + drivers for GPU metrics and per-process VRAM (NVML — `nvml.dll` on Windows, `libnvidia-ml.so` on Linux). Gracefully degrades without it.
+- **Windows only:** LibreHardwareMonitor with web server on port 8085 — fallback for CPU temp/power and non-NVIDIA GPU data. On Linux, dofek reads CPU temps directly from `/sys/class/hwmon` via `sysinfo::Components`, so LHM is not needed.
 
 ## Architecture
 
@@ -73,7 +76,7 @@ cargo build-gui                    # → target/release/dofek-gui.exe + MSI
   - `gpu.rs` — NVML wrapper: multi-GPU device metrics + per-process VRAM
   - `lhm.rs` — LHM HTTP client (optional GPU fallback, multi-GPU aware)
   - `process.rs` — `ProcessInfo`, `AiState`, `ProcessCategory` definitions
-  - `network.rs` — `GetIfTable2` for per-interface rx/tx bytes, delta computation
+  - `network.rs` — Per-interface rx/tx bytes with delta-based rate computation. Windows uses `GetIfTable2`, Linux uses `sysinfo::Networks`. Both share the `NetworkTracker` state struct.
   - `ai_detect.rs` — AI workload + category classification (AI/DEV/WATCH)
 - `src/plugin/` — Plugin system:
   - `mod.rs` — `PluginManager`: spawn, poll, restart, shutdown
@@ -82,7 +85,7 @@ cargo build-gui                    # → target/release/dofek-gui.exe + MSI
 - `src/ui/` — Rendering layer (trading-terminal layout):
   - `mod.rs` — Master layout: ticker + chart/watchlist split + bottom strip + status bar
   - `theme.rs` — Trading-terminal color palette (sky blue CPU, violet GPU, emerald MEM, etc.)
-  - `ticker.rs` — Top ticker bar with metric pills, AI badge, hostname, clock (uses GetLocalTime on Windows)
+  - `ticker.rs` — Top ticker bar with metric pills, AI badge, hostname, clock (uses `chrono::Local` cross-platform)
   - `chart.rs` — Main chart panel with tab switching (CPU/GPU/MEM/NET)
   - `candlestick.rs` — Custom candlestick widget (Buffer manipulation, half-blocks)
   - `area_chart.rs` — Custom area chart widget (filled, multi-series, thresholds)
@@ -148,7 +151,8 @@ Trading-terminal layout with dual interface (TUI + Tauri GUI), candlestick CPU c
 Keybindings (TUI): q/tab/p/c/g/m/n/h/1-4/esc/?/+/-/s/a/[/].
 
 ### Known Limitations
-- AMD GPU VRAM not supported (NVML is NVIDIA-only; LHM fallback provides basic GPU data)
+- AMD GPU VRAM not supported (NVML is NVIDIA-only; on Windows, the LHM fallback provides basic GPU data)
 - No disk I/O stats yet
-- CPU temperature/power not available without LHM (sysinfo doesn't provide these on Windows without elevation)
-- Windows-only (intentional)
+- **Windows:** CPU temperature/power not available without LHM (sysinfo doesn't provide these on Windows without elevation)
+- **Linux:** CPU temperature works via sysinfo::Components (reads /sys/class/hwmon). CPU power is not yet implemented — RAPL (`/sys/class/powercap/intel-rapl/...`) is a future addition.
+- macOS and ARM64 builds are not part of v1.1 — tracked for future releases.

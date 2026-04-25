@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "dofek", version, about = "Terminal-native system monitor for Windows")]
+#[command(name = "dofek", version, about = "Terminal-native system monitor for Windows and Linux")]
 pub struct Cli {
     /// Path to config file
     #[arg(short, long)]
@@ -197,14 +197,15 @@ impl Config {
     /// Load config from file lookup order:
     /// 1. --config CLI flag
     /// 2. ./dofek.toml
-    /// 3. %APPDATA%/dofek/dofek.toml
+    /// 3. user config dir / dofek / dofek.toml
+    ///    (Windows: %APPDATA%\dofek\dofek.toml; Linux: ~/.config/dofek/dofek.toml)
     pub fn load(cli: &Cli) -> Result<Self> {
         let candidates: Vec<PathBuf> = if let Some(ref path) = cli.config {
             vec![path.clone()]
         } else {
             let mut paths = vec![PathBuf::from("dofek.toml")];
-            if let Ok(appdata) = std::env::var("APPDATA") {
-                paths.push(PathBuf::from(appdata).join("dofek").join("dofek.toml"));
+            if let Some(dir) = dirs::config_dir() {
+                paths.push(dir.join("dofek").join("dofek.toml"));
             }
             paths
         };

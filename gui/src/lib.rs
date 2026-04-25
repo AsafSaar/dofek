@@ -135,9 +135,12 @@ fn kill_pid(pid: u32) -> Result<(), String> {
     }
 }
 
-#[cfg(not(windows))]
-fn kill_pid(_pid: u32) -> Result<(), String> {
-    Err("Not supported on this platform".to_string())
+#[cfg(unix)]
+fn kill_pid(pid: u32) -> Result<(), String> {
+    use nix::sys::signal::{kill, Signal};
+    use nix::unistd::Pid;
+    kill(Pid::from_raw(pid as i32), Signal::SIGTERM)
+        .map_err(|e| format!("kill({pid}, SIGTERM) failed: {e}"))
 }
 
 pub fn run() {
@@ -159,7 +162,7 @@ pub fn run() {
     telemetry.track(TelemetryEvent::SessionStart {
         interface: "gui".into(),
         app_version: env!("CARGO_PKG_VERSION").into(),
-        os_version: dofek::windows_version_string(),
+        os_version: dofek::os_version_string(),
     });
     let session_start = Instant::now();
     let shutdown_telemetry = telemetry.clone();
