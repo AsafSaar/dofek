@@ -132,6 +132,14 @@ cargo tui                          # Run TUI
 cargo gui                          # Run GUI (launches with hot-reload)
 ```
 
+The Tauri GUI declares `dofek-tui` as an `externalBin`, suffixed with the host target triple. If you've never run a release build, `cargo gui` will fail with `resource path '../target/release/dofek-tui-<triple>' doesn't exist`. Run the helper once to build the TUI and stage the suffixed copy:
+
+```bash
+./dev-gui.sh                       # builds dofek-tui release, stages it, runs cargo tauri dev
+```
+
+After that, `cargo gui` works on its own as long as the staged binary stays in place.
+
 **Release** (optimized, LTO + strip):
 
 ```bash
