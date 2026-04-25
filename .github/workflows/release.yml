@@ -212,30 +212,35 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Each build job uploads its own SHA256SUMS.txt. Download into separate
+      # directories so the second download doesn't overwrite the first; then
+      # combine into a single canonical SHA256SUMS.txt for the release.
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
           name: windows-build
-          path: artifacts
+          path: artifacts-win
 
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
           name: linux-build
-          path: artifacts
+          path: artifacts-linux
 
-      # Both jobs upload a SHA256SUMS.txt; merge them into one combined file so the
-      # release has a single canonical checksum manifest.
-      - name: Merge checksum files
-        working-directory: artifacts
+      - name: Stage artifacts and combine checksums
         run: |
-          if compgen -G "SHA256SUMS*.txt" > /dev/null; then
-            cat SHA256SUMS*.txt > SHA256SUMS.combined.txt
-            rm -f SHA256SUMS.txt SHA256SUMS*.txt
-            mv SHA256SUMS.combined.txt SHA256SUMS.txt
-            echo "Combined SHA256SUMS.txt:"
-            cat SHA256SUMS.txt
-          fi
+          mkdir -p artifacts
+          # Copy every artifact except the per-platform SHA256SUMS.txt files.
+          find artifacts-win artifacts-linux -mindepth 1 -maxdepth 1 -type f \
+            ! -name 'SHA256SUMS.txt' -exec cp -t artifacts/ {} +
+          # Combine the per-platform manifests into one.
+          cat artifacts-win/SHA256SUMS.txt artifacts-linux/SHA256SUMS.txt \
+            > artifacts/SHA256SUMS.txt
+          echo "Combined SHA256SUMS.txt:"
+          cat artifacts/SHA256SUMS.txt
+          echo
+          echo "Final artifacts/:"
+          ls -lh artifacts/
 
       - name: Resolve tag
         id: tag
