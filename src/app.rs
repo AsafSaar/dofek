@@ -277,6 +277,7 @@ impl App {
         });
     }
 
+    #[allow(clippy::collapsible_match, clippy::collapsible_if)]
     pub fn handle_key(&mut self, key: KeyEvent) {
         if self.show_help {
             if key.code == KeyCode::Char('T') {
@@ -844,7 +845,7 @@ impl App {
     }
 }
 
-/// Terminate a process by PID using the Windows API.
+/// Terminate a process by PID. Uses TerminateProcess on Windows, SIGTERM on Unix.
 fn kill_process_by_pid(pid: u32) -> Result<(), String> {
     #[cfg(windows)]
     {
@@ -858,9 +859,12 @@ fn kill_process_by_pid(pid: u32) -> Result<(), String> {
             result.map_err(|e| format!("TerminateProcess failed: {e}"))
         }
     }
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
-        Err("Process kill not supported on this platform".to_string())
+        use nix::sys::signal::{kill, Signal};
+        use nix::unistd::Pid;
+        kill(Pid::from_raw(pid as i32), Signal::SIGTERM)
+            .map_err(|e| format!("kill({pid}, SIGTERM) failed: {e}"))
     }
 }
 

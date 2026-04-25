@@ -16,7 +16,7 @@ permissions:
   contents: write    # Needed to create the GitHub Release
 
 jobs:
-  build:
+  build-windows:
     name: Build (windows-latest)
     runs-on: windows-latest
 
@@ -100,9 +100,104 @@ jobs:
           path: artifacts/*
           retention-days: 14
 
+  build-linux:
+    name: Build (ubuntu-latest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Tauri build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libgtk-3-dev \
+            rpm
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-unknown-linux-gnu
+          components: clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Clippy
+        run: cargo clippy --release --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --release
+
+      - name: Build TUI
+        run: cargo build --release -p dofek --bin dofek-tui
+
+      # Tauri externalBin expects the binary name suffixed with the host target triple.
+      - name: Stage TUI binary for Tauri externalBin
+        run: |
+          triple=$(rustc -vV | sed -n 's/^host: //p')
+          echo "Target: $triple"
+          cp "target/release/dofek-tui" "target/release/dofek-tui-${triple}"
+
+      - name: Install tauri-cli
+        run: cargo install tauri-cli --version '^2.0' --locked
+
+      - name: Build GUI (Tauri)
+        working-directory: gui
+        run: cargo tauri build
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+
+          if [ -f target/release/dofek-tui ]; then
+            cp target/release/dofek-tui artifacts/
+          else
+            echo "::warning::TUI binary not found at target/release/dofek-tui"
+          fi
+
+          bundle_root="target/release/bundle"
+          if [ -d "$bundle_root" ]; then
+            find "$bundle_root" -type f \
+              \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) \
+              -exec cp {} artifacts/ \;
+          else
+            echo "::warning::No Tauri bundle output found under $bundle_root"
+          fi
+
+          echo
+          echo "Artifacts:"
+          ls -lh artifacts/
+
+      - name: Generate SHA256 checksums
+        working-directory: artifacts
+        run: |
+          # Hash every regular file in the directory; write to SHA256SUMS.txt
+          : > SHA256SUMS.txt
+          for f in *; do
+            [ -f "$f" ] && [ "$f" != "SHA256SUMS.txt" ] && sha256sum "$f" >> SHA256SUMS.txt
+          done
+
+          echo
+          echo "SHA256SUMS.txt:"
+          cat SHA256SUMS.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: artifacts/*
+          retention-days: 14
+
   release:
     name: Publish GitHub Release
-    needs: build
+    needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
 
     steps:
@@ -111,11 +206,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download build artifacts
+      - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
           name: windows-build
           path: artifacts
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: artifacts
+
+      # Both jobs upload a SHA256SUMS.txt; merge them into one combined file so the
+      # release has a single canonical checksum manifest.
+      - name: Merge checksum files
+        working-directory: artifacts
+        run: |
+          if compgen -G "SHA256SUMS*.txt" > /dev/null; then
+            cat SHA256SUMS*.txt > SHA256SUMS.combined.txt
+            rm -f SHA256SUMS.txt SHA256SUMS*.txt
+            mv SHA256SUMS.combined.txt SHA256SUMS.txt
+            echo "Combined SHA256SUMS.txt:"
+            cat SHA256SUMS.txt
+          fi
 
       - name: Resolve tag
         id: tag
@@ -149,21 +263,33 @@ jobs:
           body: |
             ## Downloads
 
+            ### Windows (x64)
             | Artifact | Description |
             | --- | --- |
-            | `dofek_*.msi` | Desktop GUI installer (Windows x64) — bundles both TUI and GUI |
+            | `dofek_*.msi` | Desktop GUI installer — bundles both TUI and GUI |
             | `dofek-tui.exe` | Standalone TUI binary |
-            | `SHA256SUMS.txt` | Checksums for verification |
 
-            Verify before installing:
+            ### Linux (x86_64)
+            | Artifact | Description |
+            | --- | --- |
+            | `dofek_*.deb` | Debian / Ubuntu package — bundles both TUI and GUI |
+            | `dofek_*.rpm` | Fedora / RHEL / openSUSE package |
+            | `dofek_*.AppImage` | Universal portable binary (chmod +x and run) |
+            | `dofek-tui` | Standalone TUI binary |
 
+            ### Verification
+            `SHA256SUMS.txt` contains checksums for every artifact above.
+
+            Windows:
             ```powershell
             Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256
             ```
+            Linux:
+            ```sh
+            sha256sum -c SHA256SUMS.txt
+            ```
 
-            Compare against `SHA256SUMS.txt`.
-
-            > ⚠️ Binaries are currently unsigned. Windows SmartScreen may show a warning on first run. Right-click the installer → Properties → check "Unblock", then run.
+            > ⚠️ Binaries are currently unsigned. On Windows, SmartScreen may show a warning on first run (right-click installer → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running.
 
             ## Changelog
 

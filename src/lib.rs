@@ -9,11 +9,12 @@ pub mod plugin;
 pub mod settings;
 pub mod telemetry;
 
-/// Returns a human-readable Windows version string, e.g. "Windows 11".
-/// Uses RtlGetVersion (ntdll) which bypasses compatibility shims and
-/// always returns the real OS version, unlike GetVersionExW.
+/// Returns a human-readable OS version string, e.g. "Windows 11" or "Ubuntu 24.04 LTS".
+///
+/// On Windows, uses RtlGetVersion (ntdll) which bypasses compatibility shims.
+/// On Linux, parses /etc/os-release and returns PRETTY_NAME.
 #[cfg(windows)]
-pub fn windows_version_string() -> String {
+pub fn os_version_string() -> String {
     use windows::Wdk::System::SystemServices::RtlGetVersion;
     use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
 
@@ -31,7 +32,21 @@ pub fn windows_version_string() -> String {
     if build >= 22000 { "Windows 11".into() } else { "Windows 10".into() }
 }
 
-#[cfg(not(windows))]
-pub fn windows_version_string() -> String {
-    std::env::var("OS").unwrap_or_else(|_| "Unknown".into())
+#[cfg(target_os = "linux")]
+pub fn os_version_string() -> String {
+    let content = match std::fs::read_to_string("/etc/os-release") {
+        Ok(s) => s,
+        Err(_) => return "Linux".into(),
+    };
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix("PRETTY_NAME=") {
+            return rest.trim().trim_matches('"').to_string();
+        }
+    }
+    "Linux".into()
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
+pub fn os_version_string() -> String {
+    std::env::consts::OS.to_string()
 }

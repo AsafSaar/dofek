@@ -5,7 +5,7 @@ members = ["gui", "plugins/dofek-ollama", "plugins/dofek-docker"]
 name = "dofek"
 version = "1.0.0"
 edition = "2024"
-description = "Terminal-native system monitor for Windows — AI-aware, visually stunning"
+description = "Terminal-native system monitor for Windows and Linux — AI-aware, visually stunning"
 
 [[bin]]
 name = "dofek-tui"
@@ -45,6 +45,12 @@ log = "0.4"
 env_logger = "0.11"
 dirs = "6.0.0"
 uuid = { version = "1", features = ["v4"] }
+
+# Local time formatting (cross-platform; replaces the OS-specific clock blocks)
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["signal"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [

@@ -155,24 +155,7 @@ fn format_clock() -> String {
         let elapsed = cache.1.elapsed();
         if elapsed.as_millis() >= 900 || cache.0.is_empty() {
             cache.1 = Instant::now();
-            #[cfg(windows)]
-            {
-                use windows::Win32::System::SystemInformation::GetLocalTime;
-                let t = unsafe { GetLocalTime() };
-                cache.0 = format!("{:02}:{:02}:{:02}", t.wHour, t.wMinute, t.wSecond);
-            }
-            #[cfg(not(windows))]
-            {
-                use std::time::SystemTime;
-                let secs = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-                let h = (secs % 86400) / 3600;
-                let m = (secs % 3600) / 60;
-                let s = secs % 60;
-                cache.0 = format!("{h:02}:{m:02}:{s:02}");
-            }
+            cache.0 = chrono::Local::now().format("%H:%M:%S").to_string();
         }
         cache.0.clone()
     })

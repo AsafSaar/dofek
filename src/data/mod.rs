@@ -45,7 +45,7 @@ impl Default for DataSnapshot {
             processes: Vec::new(),
             nvml_available: false,
             lhm_connected: false,
-            hostname: std::env::var("COMPUTERNAME").unwrap_or_default(),
+            hostname: System::host_name().unwrap_or_default(),
             timestamp: Instant::now(),
             plugin_statuses: Vec::new(),
         }
@@ -62,10 +62,15 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
         let mut prev_vram: HashMap<u32, u64> = HashMap::new();
         let mut lhm_failed = false; // stop retrying LHM after first failure
         let mut plugin_manager = PluginManager::new(&config.plugins);
-        let hostname = std::env::var("COMPUTERNAME").unwrap_or_default();
+        let hostname = System::host_name().unwrap_or_default();
 
         // sysinfo::System persists across polls for CPU% delta computation
         let mut system = System::new();
+
+        // Linux: read CPU package temperature from /sys/class/hwmon via sysinfo.
+        // Components is platform-specific in sysinfo 0.33 — only useful on Linux/macOS.
+        #[cfg(target_os = "linux")]
+        let mut components = sysinfo::Components::new_with_refreshed_list();
 
         loop {
             // Refresh sysinfo data
@@ -76,6 +81,15 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
             // CPU and memory from sysinfo (always available)
             let mut cpu = sysinfo_source::extract_cpu(&system);
             let memory = sysinfo_source::extract_memory(&system);
+
+            // Linux: enrich CPU temperature from hwmon (Windows uses LHM below).
+            #[cfg(target_os = "linux")]
+            {
+                components.refresh(true);
+                if cpu.temperature.is_none() {
+                    cpu.temperature = sysinfo_source::pick_cpu_temp(&components);
+                }
+            }
 
             // GPU: try NVML first
             let nvml_snap = nvml.query();

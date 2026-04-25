@@ -1,9 +1,9 @@
 # dofek
 
-**GUI and Terminal-native, AI-aware system monitor for Windows.**
+**GUI and Terminal-native, AI-aware system monitor for Windows and Linux.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Platform: Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4)](https://github.com/AsafSaar/dofek/releases)
+[![Platform: Windows | Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-0078d4)](https://github.com/AsafSaar/dofek/releases)
 [![Release](https://img.shields.io/github/v/release/AsafSaar/dofek)](https://github.com/AsafSaar/dofek/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/AsafSaar/dofek/release.yml)](https://github.com/AsafSaar/dofek/actions)
 
@@ -64,17 +64,30 @@ dofek v1.0  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDE
 
 ## Download
 
-Pre-built Windows binaries are published on the [Releases page](https://github.com/AsafSaar/dofek/releases/latest):
+Pre-built binaries are published on the [Releases page](https://github.com/AsafSaar/dofek/releases/latest):
+
+**Windows (x64):**
 
 | Asset | Description |
 | --- | --- |
-| [`dofek_1.0.0_x64_en-US.msi`](https://github.com/AsafSaar/dofek/releases/latest) | Desktop GUI installer — bundles both TUI and GUI |
-| [`dofek-tui.exe`](https://github.com/AsafSaar/dofek/releases/latest) | Standalone TUI binary, no installer |
-| `SHA256SUMS.txt` | Checksums for verification |
+| `dofek_*.msi` | Desktop GUI installer — bundles both TUI and GUI |
+| `dofek-tui.exe` | Standalone TUI binary, no installer |
 
-> ⚠️ **SmartScreen warning on first run.** Binaries are currently unsigned. Code signing is on the post-1.0 roadmap. For now: right-click the installer → Properties → check "Unblock", then run.
+**Linux (x86_64):**
 
-Verify with `Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256` and compare against `SHA256SUMS.txt`.
+| Asset | Description |
+| --- | --- |
+| `dofek_*.deb` | Debian / Ubuntu package — bundles both TUI and GUI |
+| `dofek_*.rpm` | Fedora / RHEL / openSUSE package |
+| `dofek_*.AppImage` | Universal portable binary (`chmod +x` and run) |
+| `dofek-tui` | Standalone TUI binary, no installer |
+
+`SHA256SUMS.txt` has checksums for every artifact.
+
+> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running.
+
+Verify (Windows): `Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256`
+Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 
 ## Features
 
@@ -95,11 +108,13 @@ Verify with `Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256` and com
 
 ## Requirements
 
-- **Windows 10** (build 19041+) or **Windows 11**
-- **NVIDIA GPU + drivers** *(optional)* — for GPU metrics and per-process VRAM via NVML. Gracefully degrades without it.
-- **[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)** *(optional fallback)* — for GPU data on non-NVIDIA systems
-  - Download the latest release ZIP, extract, and run as administrator
-  - Enable the web server: **Options > Remote Web Server > Run** (default port 8085)
+**OS:**
+- **Windows 10** (build 19041+) or **Windows 11**, *or*
+- **Linux** (x86_64) — tested on Ubuntu 24.04, Fedora 40, and Arch. CPU temperature reads from `/sys/class/hwmon` via sysinfo (works out-of-the-box on most distros).
+
+**Optional:**
+- **NVIDIA GPU + drivers** — for GPU metrics and per-process VRAM via NVML (`libnvidia-ml.so` on Linux, `nvml.dll` on Windows). Gracefully degrades without it.
+- **[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)** *(Windows only)* — for CPU temp/power and non-NVIDIA GPU fallback. Download the latest release ZIP, extract, run as administrator, then enable the web server: **Options > Remote Web Server > Run** (default port 8085). Linux gets CPU temps natively from hwmon and does not need LHM.
 
 ## Install
 
@@ -124,19 +139,43 @@ cargo build-tui                    # → target/release/dofek-tui.exe
 cargo build-gui                    # → target/release/dofek-gui.exe + MSI installer
 ```
 
-**MSI installer** (bundles both TUI and GUI into a single installer):
+**Native installers / packages** (bundles both TUI and GUI):
 
 ```powershell
-.\build-all.ps1                    # → target\release\bundle\msi\dofek_1.0.0_x64_en-US.msi
+# Windows
+.\build-all.ps1                    # → target\release\bundle\msi\dofek_*.msi
 ```
 
-These commands are cargo aliases defined in `.cargo/config.toml`. The MSI build script requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
+```bash
+# Linux (Ubuntu, Fedora, etc.)
+./build-all.sh                     # → target/release/bundle/{deb,rpm,appimage}/dofek_*
+```
+
+These commands are cargo aliases defined in `.cargo/config.toml`. The bundle build requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
 
 ### Prerequisites
 
+**Common:**
 - [Rust toolchain](https://rustup.rs/) (stable, edition 2024)
-- [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with C++ workload
 - For GUI: [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`)
+
+**Windows:**
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with C++ workload
+
+**Linux** (apt example for Ubuntu/Debian — adjust for your distro):
+
+```bash
+sudo apt install \
+  libwebkit2gtk-4.1-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev \
+  libssl-dev \
+  libgtk-3-dev
+# To produce .rpm bundles too:
+sudo apt install rpm
+```
+
+Equivalent on Fedora: `sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel gtk3-devel rpm-build`.
 
 ## Usage
 
@@ -150,13 +189,15 @@ dofek-tui --config path/to/dofek.toml
 
 The TUI is best viewed at font size **9-10pt**. If your terminal is too small, dofek will show a hint on startup.
 
-**Windows Terminal profile** (recommended): Run this once to add a "dofek" entry to your Windows Terminal dropdown with optimal font settings:
+**Windows Terminal profile** (Windows only, recommended): Run this once to add a "dofek" entry to your Windows Terminal dropdown with optimal font settings:
 
 ```powershell
 .\install-wt-profile.ps1
 ```
 
 This creates a profile with JetBrains Mono at 9pt. After running, select "dofek" from the Windows Terminal dropdown to launch with the right settings.
+
+On Linux, set your terminal's font to a monospace nerd-font-style face at 9–10pt (JetBrains Mono, Fira Code, and Cascadia Code all render the half-block charts correctly).
 
 ## Keybindings (TUI)
 
@@ -193,11 +234,13 @@ dofek loads its config from the first file found, in this order:
 
 1. `--config <path>` flag (TUI only)
 2. `./dofek.toml` (current working directory)
-3. `%APPDATA%\dofek\dofek.toml` (user config directory)
+3. User config directory:
+   - **Windows:** `%APPDATA%\dofek\dofek.toml`
+   - **Linux:** `~/.config/dofek/dofek.toml`
 
-**Recommended:** Place your config at `%APPDATA%\dofek\dofek.toml` — this works reliably for both the TUI and GUI regardless of working directory. The GUI doesn't support `--config`, so it always checks `./dofek.toml` then `%APPDATA%`.
+**Recommended:** Place your config in the user config directory — this works reliably for both the TUI and GUI regardless of working directory. The GUI doesn't support `--config`, so it always checks `./dofek.toml` then the user config directory.
 
-To find your `%APPDATA%` path, run `echo %APPDATA%` in a terminal (typically `C:\Users\<you>\AppData\Roaming`).
+To find the path: `echo %APPDATA%` (Windows; typically `C:\Users\<you>\AppData\Roaming`) or `echo "$XDG_CONFIG_HOME${XDG_CONFIG_HOME:+/}${XDG_CONFIG_HOME:-$HOME/.config}"` (Linux).
 
 A `dofek.toml.example` is included in the repository with all available options.
 
@@ -260,7 +303,7 @@ dofek includes opt-in anonymous telemetry to help improve the app during beta. *
 
 ### How it works
 
-- A random anonymous UUID is generated on first run and stored in `%APPDATA%\dofek\settings.toml`
+- A random anonymous UUID is generated on first run and stored in the user config directory (`%APPDATA%\dofek\settings.toml` on Windows, `~/.config/dofek/settings.toml` on Linux)
 - Events are batched in memory and flushed via HTTPS every 60 seconds
 - If the endpoint is unreachable, batches are silently dropped (no disk queue, no retries)
 - To disable: remove or set `enabled = false` in the `[telemetry]` section of `dofek.toml`
@@ -333,10 +376,10 @@ A process is classified as an AI workload if:
 ```
     dofek
     ├── dofek-tui ─── Terminal UI (Ratatui + crossterm)
-    │     ├── sysinfo crate ──── CPU, memory, processes (with CPU%)
+    │     ├── sysinfo crate ──── CPU, memory, processes, network, hostname (cross-platform)
     │     ├── NVML ──────────── GPU metrics + per-process VRAM (NVIDIA, multi-GPU)
-    │     ├── LHM HTTP ─────── GPU fallback (optional, non-NVIDIA)
-    │     ├── Windows API ───── network stats (GetIfTable2)
+    │     ├── LHM HTTP ─────── CPU temp/power + GPU fallback (Windows only)
+    │     ├── /sys/hwmon ────── CPU temps via sysinfo::Components (Linux only)
     │     ├── Plugin system ─── JSON-over-stdio child process plugins
     │     └── Ratatui TUI ───── rendering (trading-terminal layout)
     │
@@ -376,7 +419,7 @@ src/
     sysinfo_source.rs  sysinfo-backed CPU, memory, process extraction
     gpu.rs             NVML wrapper: multi-GPU device metrics + per-process VRAM
     lhm.rs             LHM HTTP client (optional GPU fallback, multi-GPU aware)
-    network.rs         GetIfTable2 for per-interface rx/tx bytes
+    network.rs         Per-interface rx/tx bytes (GetIfTable2 on Windows, sysinfo::Networks on Linux)
     process.rs         ProcessInfo, AiState, ProcessCategory definitions
     ai_detect.rs       AI workload + category classification
 
@@ -450,14 +493,16 @@ LHM fallback ──> GPU sensors (if NVML unavailable) ────────�
 | HTTP client | ureq | 2 |
 | Config | toml + clap | 0.8 / 4 |
 | Serialization | serde + serde_json | 1 |
-| Win32 API | windows | 0.58 |
+| Win32 API (Windows only) | windows | 0.58 |
+| POSIX signals (Unix only) | nix | 0.29 |
+| Local time formatting | chrono | 0.4 |
 | Error handling | anyhow | 1 |
 | Logging | log + env_logger | 0.4 / 0.11 |
 | Home directory | dirs | 6 |
 | Anonymous ID | uuid | 1 |
 | GUI framework | tauri | 2 |
 
-**Rust edition**: 2024 | **Target**: `x86_64-pc-windows-msvc` (also builds on `aarch64-pc-windows-msvc`)
+**Rust edition**: 2024 | **Targets**: `x86_64-pc-windows-msvc`, `x86_64-unknown-linux-gnu` (also builds on `aarch64-*` variants of both)
 
 Release build: LTO enabled, symbols stripped, opt-level 3.
 
@@ -470,8 +515,9 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v0.6** — Process management (search, kill, kill-all), interactive process table, LHM CPU temp/power
 - **v0.7** — Process tree/grouped view, expanded LHM integration, GUI process management
 - **v0.8** — Centered loading state, ollama plugin, GUI icon, Windows Terminal profile icon
-- **v1.0** (current) — Public GA: MSI installer, dofek.dev downloads, hardened plugin protocol, GitHub Actions release pipeline
-- **v1.1+** — GUI tray companion with live sparkline in taskbar, code signing for binaries, AMD GPU VRAM, disk I/O metrics
+- **v1.0** — Public GA: MSI installer, dofek.dev downloads, hardened plugin protocol, GitHub Actions release pipeline
+- **v1.1** (current) — Linux support: TUI + GUI on x86_64, native `.deb` / `.rpm` / `.AppImage` bundles, dual Windows/Linux CI and release pipeline
+- **v1.2+** — GUI tray companion with live sparkline in taskbar, code signing for binaries, AMD GPU VRAM, CPU power on Linux (RAPL), disk I/O metrics, ARM64 builds
 
 ## License
 
