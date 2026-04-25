@@ -33,7 +33,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 <summary>ASCII layout reference</summary>
 
 ```
-dofek v1.0  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+dofek v1.1  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
@@ -86,7 +86,7 @@ Pre-built binaries are published on the [Releases page](https://github.com/AsafS
 
 > ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running.
 
-Verify (Windows): `Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256`
+Verify (Windows): `Get-FileHash .\dofek_1.1.0_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 
 ## Features

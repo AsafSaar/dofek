@@ -144,7 +144,7 @@ See `dofek.toml.example` for all options. Key settings:
 - `lhm.url` (default `http://localhost:8085`) — LHM web server address (only used as GPU fallback)
 - `[[plugins]]` — plugin definitions (name, command, args, enabled, timeout_ms)
 
-## Current Status (v1.0)
+## Current Status (v1.1)
 
 Trading-terminal layout with dual interface (TUI + Tauri GUI), candlestick CPU chart, area/horizon charts for GPU/MEM/NET, multi-GPU support, process categories (AI/DEV/WATCH), top ticker bar, compact bottom strip, plugin system with JSON-over-stdio protocol. Custom chart widgets use Buffer manipulation with half-block characters for 2x vertical resolution.
 
