@@ -123,7 +123,11 @@ fn render_meta(f: &mut Frame, area: Rect, app: &App) {
                     theme::GPU_COLOR,
                 )
             } else {
-                ("N/A".to_string(), "No GPU".to_string(), theme::TEXT_DIM)
+                (
+                    "N/A".to_string(),
+                    dofek::gpu_empty_state().title.clone(),
+                    theme::TEXT_DIM,
+                )
             }
         }
         ChartTab::Mem => (

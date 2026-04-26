@@ -201,9 +201,94 @@ jobs:
           path: artifacts/*
           retention-days: 14
 
+  build-macos:
+    name: Build (macos-latest, aarch64)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin
+          components: clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Clippy
+        run: cargo clippy --release --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --release
+
+      - name: Build TUI
+        run: cargo build --release -p dofek --bin dofek-tui
+
+      # Tauri externalBin expects the binary name suffixed with the host target triple.
+      - name: Stage TUI binary for Tauri externalBin
+        run: |
+          triple=$(rustc -vV | sed -n 's/^host: //p')
+          echo "Target: $triple"
+          cp "target/release/dofek-tui" "target/release/dofek-tui-${triple}"
+
+      - name: Install tauri-cli
+        run: cargo install tauri-cli --version '^2.0' --locked
+
+      # Unsigned DMGs are useless to end users (Gatekeeper rejects on first open),
+      # so we ship only the .app bundle (zipped) plus the standalone TUI.
+      - name: Build GUI (Tauri, .app only)
+        working-directory: gui
+        run: cargo tauri build --bundles app
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+
+          if [ -f target/release/dofek-tui ]; then
+            cp target/release/dofek-tui artifacts/
+          else
+            echo "::warning::TUI binary not found at target/release/dofek-tui"
+          fi
+
+          # The .app bundle is a directory — zip it for upload/distribution.
+          app_path=$(find target/release/bundle/macos -maxdepth 1 -name '*.app' -type d | head -n1)
+          if [ -n "$app_path" ]; then
+            ( cd "$(dirname "$app_path")" && \
+              zip -ry "$GITHUB_WORKSPACE/artifacts/dofek-gui-aarch64-apple-darwin.app.zip" "$(basename "$app_path")" )
+          else
+            echo "::warning::No .app bundle found under target/release/bundle/macos"
+          fi
+
+          echo
+          echo "Artifacts:"
+          ls -lh artifacts/
+
+      - name: Generate SHA256 checksums
+        working-directory: artifacts
+        run: |
+          : > SHA256SUMS.txt
+          for f in *; do
+            [ -f "$f" ] && [ "$f" != "SHA256SUMS.txt" ] && shasum -a 256 "$f" >> SHA256SUMS.txt
+          done
+
+          echo
+          echo "SHA256SUMS.txt:"
+          cat SHA256SUMS.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: artifacts/*
+          retention-days: 14
+
   release:
     name: Publish GitHub Release
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
 
     steps:
@@ -227,14 +312,22 @@ jobs:
           name: linux-build
           path: artifacts-linux
 
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: artifacts-macos
+
       - name: Stage artifacts and combine checksums
         run: |
           mkdir -p artifacts
           # Copy every artifact except the per-platform SHA256SUMS.txt files.
-          find artifacts-win artifacts-linux -mindepth 1 -maxdepth 1 -type f \
+          find artifacts-win artifacts-linux artifacts-macos -mindepth 1 -maxdepth 1 -type f \
             ! -name 'SHA256SUMS.txt' -exec cp -t artifacts/ {} +
           # Combine the per-platform manifests into one.
-          cat artifacts-win/SHA256SUMS.txt artifacts-linux/SHA256SUMS.txt \
+          cat artifacts-win/SHA256SUMS.txt \
+              artifacts-linux/SHA256SUMS.txt \
+              artifacts-macos/SHA256SUMS.txt \
             > artifacts/SHA256SUMS.txt
           echo "Combined SHA256SUMS.txt:"
           cat artifacts/SHA256SUMS.txt
@@ -288,6 +381,14 @@ jobs:
             | `dofek_*.AppImage` | Universal portable binary (chmod +x and run) |
             | `dofek-tui` | Standalone TUI binary |
 
+            ### macOS (Apple Silicon — aarch64)
+            | Artifact | Description |
+            | --- | --- |
+            | `dofek-gui-aarch64-apple-darwin.app.zip` | Unsigned `.app` bundle — unzip and drag to Applications |
+            | `dofek-tui` | Standalone TUI binary (`chmod +x` and run) |
+
+            Intel Macs are not supported in this release.
+
             ### Verification
             `SHA256SUMS.txt` contains checksums for every artifact above.
 
@@ -299,8 +400,12 @@ jobs:
             ```sh
             sha256sum -c SHA256SUMS.txt
             ```
+            macOS:
+            ```sh
+            shasum -a 256 -c SHA256SUMS.txt
+            ```
 
-            > ⚠️ Binaries are currently unsigned. On Windows, SmartScreen may show a warning on first run (right-click installer → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running.
+            > ⚠️ Binaries are currently unsigned. On Windows, SmartScreen may show a warning on first run (right-click installer → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper will block first launch — right-click the .app → **Open** → **Open**, or run `xattr -dr com.apple.quarantine /Applications/dofek.app`.
 
             ## Changelog
 

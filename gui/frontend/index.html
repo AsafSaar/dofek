@@ -251,9 +251,12 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 .plabel.cpu{color:var(--cpu)} .plabel.gpu{color:var(--gpu)} .plabel.mem{color:var(--mem)} .plabel.net{color:var(--net-up)}
 
 /* GPU panel tabs */
-.gpu-tabs{display:flex;gap:2px;margin-bottom:0;}
+.gpu-tabs{display:flex;gap:2px;margin-bottom:0;align-items:center;}
 .gpu-tab{padding:2px 7px;border:1px solid var(--bdr2);background:transparent;color:var(--muted);font-family:var(--font);font-size:9px;cursor:pointer;border-radius:2px;}
 .gpu-tab.on{color:var(--gpu);border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.07);}
+.gpu-empty{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px 2px;color:var(--muted);font-family:var(--font);font-size:10px;line-height:1.35;}
+.gpu-empty .title{color:var(--gpu);font-weight:600;letter-spacing:0.04em;}
+.gpu-empty .body{color:var(--muted);font-style:italic;}
 
 /* cores */
 .cores{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;flex:1;}
@@ -303,7 +306,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="logo">dofek <em>v1.1</em></div>
+  <div class="logo">dofek <em>v1.2</em></div>
   <div class="pills">
     <div class="pill cpu"><span class="lbl">CPU</span><span class="val" id="t-cpu">—</span></div>
     <div class="pill gpu"><span class="lbl">GPU</span><span class="val" id="t-gpu">—</span></div>
@@ -538,6 +541,10 @@ let dashOffset = 0; // animated threshold dash offset
 /* GPU definitions — populated from first snapshot */
 let GPUS = [];
 
+/* Platform-specific empty-state labels for the GPU tile.
+   On Apple Silicon this becomes the chip name + unified-memory hint. */
+let PLATFORM_INFO = null;
+
 /* ═══ STATE ══════════════════════════════════════════════ */
 const S = {
   metric: 'cpu',
@@ -602,6 +609,10 @@ async function tick() {
   } catch(e) {
     console.error('Failed to get snapshot:', e);
     return;
+  }
+
+  if (!PLATFORM_INFO) {
+    invoke('get_platform_info').then(p => { PLATFORM_INFO = p; }).catch(() => {});
   }
 
   /* Dismiss loading overlay on first real data */
@@ -980,7 +991,7 @@ function upMainChart() {
     legend.style.display='flex';
   } else if(m==='gpu'){
     const n=S.gpus.length;
-    if(!n){ valStr='N/A'; hw='No GPU'; }
+    if(!n){ valStr='N/A'; hw=(PLATFORM_INFO&&PLATFORM_INFO.title)||'No GPU'; }
     else if(n>=2){
       const h0=S.gpus[0].hist, h1=S.gpus[1].hist;
       const combined=h0.map((v,i)=>(v+(h1[i]||0))/2);
@@ -1113,7 +1124,33 @@ function upCores(){
 }
 
 function upGPU(){
-  if(!S.gpus.length || !GPUS.length) return;
+  if(!S.gpus.length){
+    /* No GPU detected — hide the placeholder tabs and stat rows, show an
+       inline empty-state mirroring the TUI: chip-name title + unified-memory body.
+       We re-render until PLATFORM_INFO actually arrives over IPC, so we don't
+       lock in "No GPU" before the chip name is known. */
+    const tabs    = document.querySelector('.gpu-tabs');
+    const statsEl = document.getElementById('gpu-stats');
+    const sparkEl = document.getElementById('sp-gpu');
+    if (tabs)    tabs.style.display    = 'none';
+    if (sparkEl) sparkEl.style.display = 'none';
+    if (statsEl) {
+      const haveInfo = !!(PLATFORM_INFO && PLATFORM_INFO.title);
+      const title = haveInfo ? PLATFORM_INFO.title : 'No GPU';
+      const body  = haveInfo ? PLATFORM_INFO.body  : 'No GPU detected';
+      const stamp = haveInfo ? 'platform' : 'fallback';
+      if (statsEl.dataset.emptyStamp !== stamp) {
+        statsEl.innerHTML =
+          `<div class="gpu-empty">` +
+            `<div class="title">${title}</div>` +
+            `<div class="body">${body}</div>` +
+          `</div>`;
+        statsEl.dataset.emptyStamp = stamp;
+      }
+    }
+    return;
+  }
+  if(!GPUS.length) return;
   const g=S.gpu;
 
   let util, vramPct, vramLabel, temp, tempMax, power, powerPct, hist;
@@ -1871,7 +1908,7 @@ function showToast(msg){
 <!-- About overlay -->
 <div class="help-overlay" id="about-overlay">
   <div class="help-box" style="text-align:center;min-width:280px;">
-    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v1.1</span></div>
+    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v1.2</span></div>
     <div style="font-size:13px;color:var(--dim);margin-bottom:14px;">Terminal / GUI, AI-aware system monitor</div>
     <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
       <a href="https://dofek.dev" target="_blank" class="about-link" style="font-size:11px;">dofek.dev</a>

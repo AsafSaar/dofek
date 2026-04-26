@@ -11,9 +11,9 @@ use crate::ui::theme;
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let gpu = app.primary_gpu();
 
-    let title_detail = gpu.map(|g| {
-        format!("{} · {:.0} MB", g.name, g.vram_total_mb)
-    }).unwrap_or_else(|| "No GPU detected".to_string());
+    let title_detail = gpu
+        .map(|g| format!("{} · {:.0} MB", g.name, g.vram_total_mb))
+        .unwrap_or_else(|| dofek::gpu_empty_state().title.clone());
 
     let block = Block::default()
         .title(Line::from(vec![
@@ -37,9 +37,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
     let Some(gpu) = gpu else {
         let msg = if app.data.nvml_available {
-            "No GPU data available"
+            "No GPU data available".to_string()
         } else {
-            "No NVIDIA GPU detected"
+            dofek::gpu_empty_state().body.clone()
         };
         f.render_widget(
             Paragraph::new(msg).style(Style::default().fg(theme::TEXT_DIM)),

@@ -1,4 +1,4 @@
-dofek v1.1 — Installation Notes
+dofek v1.2 — Installation Notes
 ================================
 
 Thanks for installing dofek.
@@ -17,6 +17,15 @@ Linux
             extract from the .AppImage if needed)
   - Manual: open "manual.html" from /usr/share/dofek/ or this folder
 
+macOS (Apple Silicon)
+  - GUI:    Launchpad → "dofek", or "open /Applications/dofek.app"
+            First launch is blocked by Gatekeeper — right-click the app
+            → Open → Open, or run once:
+              xattr -dr com.apple.quarantine /Applications/dofek.app
+  - TUI:    "dofek-tui" from Terminal.app or iTerm2 (chmod +x first if
+            you downloaded the standalone binary)
+  - Manual: open "manual.html" from inside dofek.app/Contents/Resources/
+
 Press "?" inside either interface for the keybinding overlay.
 
 Configuration
@@ -27,6 +36,7 @@ dofek looks for a config file in this order:
   3. user config directory:
        Windows: %APPDATA%\dofek\dofek.toml
        Linux:   ~/.config/dofek/dofek.toml
+       macOS:   ~/Library/Application Support/dofek/dofek.toml
 
 See manual.html for the full option reference, or dofek.toml.example in the
 source repo.

@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**dofek** (דּוֹפֶק — Hebrew for "pulse") is a dual-interface, AI-aware system monitor for Windows and Linux, built with Rust. The TUI uses Ratatui + crossterm, the GUI uses Tauri 2 (WebView2 on Windows, WebKitGTK on Linux). Both share a common core library for data collection. It uses the `sysinfo` crate for CPU/memory/process/network/hostname data, NVML for NVIDIA GPU metrics and per-process VRAM, and a plugin system for extensibility via JSON-over-stdio.
+**dofek** (דּוֹפֶק — Hebrew for "pulse") is a dual-interface, AI-aware system monitor for Windows, Linux, and macOS (Apple Silicon), built with Rust. The TUI uses Ratatui + crossterm, the GUI uses Tauri 2 (WebView2 on Windows, WebKitGTK on Linux, WKWebView on macOS). Both share a common core library for data collection. It uses the `sysinfo` crate for CPU/memory/process/network/hostname data, NVML for NVIDIA GPU metrics and per-process VRAM, and a plugin system for extensibility via JSON-over-stdio.
 
-Targets: Windows 11 (Windows 10 build 19041+), Linux x86_64 (Ubuntu 24.04, Fedora 40, Arch). Single binary per interface, no runtime dependencies.
+Targets: Windows 11 (Windows 10 build 19041+), Linux x86_64 (Ubuntu 24.04, Fedora 40, Arch), macOS 12+ on Apple Silicon (`aarch64-apple-darwin` only — Intel Macs are not supported). Single binary per interface, no runtime dependencies.
 
 ## Build & Run
 
@@ -29,6 +29,7 @@ cargo build-gui                    # → target/release/dofek-gui[.exe] + native
 **Prerequisites:** Rust toolchain (stable, edition 2024), Tauri CLI (`cargo install tauri-cli --version "^2"`) for GUI builds, plus per-OS:
 - **Windows:** Visual Studio Build Tools with C++ workload.
 - **Linux (apt):** `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev` — and `rpm` if you want `.rpm` bundles.
+- **macOS:** Xcode Command Line Tools (`xcode-select --install`). Apple Silicon only — Intel Macs are not supported.
 
 **Optional for enhanced functionality:**
 - NVIDIA GPU + drivers for GPU metrics and per-process VRAM (NVML — `nvml.dll` on Windows, `libnvidia-ml.so` on Linux). Gracefully degrades without it.
@@ -76,7 +77,7 @@ cargo build-gui                    # → target/release/dofek-gui[.exe] + native
   - `gpu.rs` — NVML wrapper: multi-GPU device metrics + per-process VRAM
   - `lhm.rs` — LHM HTTP client (optional GPU fallback, multi-GPU aware)
   - `process.rs` — `ProcessInfo`, `AiState`, `ProcessCategory` definitions
-  - `network.rs` — Per-interface rx/tx bytes with delta-based rate computation. Windows uses `GetIfTable2`, Linux uses `sysinfo::Networks`. Both share the `NetworkTracker` state struct.
+  - `network.rs` — Per-interface rx/tx bytes with delta-based rate computation. Windows uses `GetIfTable2`; Linux and macOS share the `sysinfo::Networks` path. The macOS branch additionally filters Apple-internal pseudo-interfaces (`awdl0`, `llw0`, `gif0`, `stf0`, `anpi0`/`1`, `ap1`). All three platforms share the `NetworkTracker` state struct.
   - `ai_detect.rs` — AI workload + category classification (AI/DEV/WATCH)
 - `src/plugin/` — Plugin system:
   - `mod.rs` — `PluginManager`: spawn, poll, restart, shutdown
@@ -144,7 +145,7 @@ See `dofek.toml.example` for all options. Key settings:
 - `lhm.url` (default `http://localhost:8085`) — LHM web server address (only used as GPU fallback)
 - `[[plugins]]` — plugin definitions (name, command, args, enabled, timeout_ms)
 
-## Current Status (v1.1)
+## Current Status (v1.2)
 
 Trading-terminal layout with dual interface (TUI + Tauri GUI), candlestick CPU chart, area/horizon charts for GPU/MEM/NET, multi-GPU support, process categories (AI/DEV/WATCH), top ticker bar, compact bottom strip, plugin system with JSON-over-stdio protocol. Custom chart widgets use Buffer manipulation with half-block characters for 2x vertical resolution.
 
@@ -155,4 +156,5 @@ Keybindings (TUI): q/tab/p/c/g/m/n/h/1-4/esc/?/+/-/s/a/[/].
 - No disk I/O stats yet
 - **Windows:** CPU temperature/power not available without LHM (sysinfo doesn't provide these on Windows without elevation)
 - **Linux:** CPU temperature works via sysinfo::Components (reads /sys/class/hwmon). CPU power is not yet implemented — RAPL (`/sys/class/powercap/intel-rapl/...`) is a future addition.
-- macOS and ARM64 builds are not part of v1.1 — tracked for future releases.
+- **macOS:** GPU/VRAM and CPU temperature/power are not implemented in v1.2 — those panels show N/A. NVML is NVIDIA-only, and Apple Silicon SMC sensor coverage in `sysinfo` is not yet sufficient. CPU, memory, network, processes, and process kill all work.
+- macOS support is Apple Silicon only — Intel Macs and universal binaries are not part of this release. Linux ARM64 is also tracked for the future.

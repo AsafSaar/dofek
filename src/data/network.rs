@@ -123,7 +123,16 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
         // Skip loopback. We keep virtual interfaces (docker0, veth*, etc.) — the sort
         // by traffic below pushes idle ones to the bottom, and users on container
         // hosts often want them visible.
-        if name == "lo" {
+        if name == "lo" || name == "lo0" {
+            continue;
+        }
+        // Apple-internal pseudo-interfaces carry no user-visible traffic; surfacing them
+        // just clutters the panel. VPN tunnels (utun*) and Wi-Fi/ethernet are kept.
+        #[cfg(target_os = "macos")]
+        if matches!(
+            name.as_str(),
+            "gif0" | "stf0" | "awdl0" | "llw0" | "anpi0" | "anpi1" | "ap1"
+        ) {
             continue;
         }
 

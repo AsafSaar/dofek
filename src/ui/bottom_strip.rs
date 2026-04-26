@@ -2,7 +2,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Sparkline, Widget};
+use ratatui::widgets::{Block, Borders, Paragraph, Sparkline, Widget, Wrap};
 use ratatui::Frame;
 
 use crate::app::App;
@@ -146,7 +146,9 @@ fn render_cpu_compact(f: &mut Frame, area: Rect, app: &App) {
 
 fn render_gpu_compact(f: &mut Frame, area: Rect, app: &App) {
     let gpu = app.primary_gpu();
-    let title_detail = gpu.map(|g| g.name.clone()).unwrap_or_else(|| "No GPU".to_string());
+    let title_detail = gpu
+        .map(|g| g.name.clone())
+        .unwrap_or_else(|| dofek::gpu_empty_state().title.clone());
 
     let block = Block::default()
         .title(Line::from(vec![
@@ -165,7 +167,9 @@ fn render_gpu_compact(f: &mut Frame, area: Rect, app: &App) {
 
     let Some(gpu) = gpu else {
         f.render_widget(
-            Paragraph::new("No GPU detected").style(Style::default().fg(theme::TEXT_DIM)),
+            Paragraph::new(dofek::gpu_empty_state().body.as_str())
+                .style(Style::default().fg(theme::TEXT_DIM))
+                .wrap(Wrap { trim: true }),
             inner,
         );
         return;

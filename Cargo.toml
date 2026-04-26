@@ -3,9 +3,9 @@ members = ["gui", "plugins/dofek-ollama", "plugins/dofek-docker"]
 
 [package]
 name = "dofek"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2024"
-description = "Terminal-native system monitor for Windows and Linux — AI-aware, visually stunning"
+description = "Terminal-native system monitor for Windows, Linux, and macOS (Apple Silicon) — AI-aware, visually stunning"
 
 [[bin]]
 name = "dofek-tui"

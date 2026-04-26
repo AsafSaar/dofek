@@ -1,9 +1,9 @@
 # dofek
 
-**GUI and Terminal-native, AI-aware system monitor for Windows and Linux.**
+**GUI and Terminal-native, AI-aware system monitor for Windows, Linux, and macOS.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Platform: Windows | Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-0078d4)](https://github.com/AsafSaar/dofek/releases)
+[![Platform: Windows | Linux | macOS](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078d4)](https://github.com/AsafSaar/dofek/releases)
 [![Release](https://img.shields.io/github/v/release/AsafSaar/dofek)](https://github.com/AsafSaar/dofek/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/AsafSaar/dofek/release.yml)](https://github.com/AsafSaar/dofek/actions)
 
@@ -33,7 +33,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 <summary>ASCII layout reference</summary>
 
 ```
-dofek v1.1  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+dofek v1.2  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
@@ -82,12 +82,22 @@ Pre-built binaries are published on the [Releases page](https://github.com/AsafS
 | `dofek_*.AppImage` | Universal portable binary (`chmod +x` and run) |
 | `dofek-tui` | Standalone TUI binary, no installer |
 
+**macOS (Apple Silicon, aarch64):**
+
+| Asset | Description |
+| --- | --- |
+| `dofek-gui-aarch64-apple-darwin.app.zip` | Unsigned `.app` — unzip, drag to Applications |
+| `dofek-tui` | Standalone TUI binary (`chmod +x` and run) |
+
+Intel Macs are not supported in this release.
+
 `SHA256SUMS.txt` has checksums for every artifact.
 
-> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running.
+> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper will block first launch — right-click the .app → **Open** → **Open**, or run `xattr -dr com.apple.quarantine /Applications/dofek.app` once.
 
-Verify (Windows): `Get-FileHash .\dofek_1.1.0_x64_en-US.msi -Algorithm SHA256`
+Verify (Windows): `Get-FileHash .\dofek_1.2.0_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
+Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 
 ## Features
 
@@ -110,11 +120,13 @@ Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 
 **OS:**
 - **Windows 10** (build 19041+) or **Windows 11**, *or*
-- **Linux** (x86_64) — tested on Ubuntu 24.04, Fedora 40, and Arch. CPU temperature reads from `/sys/class/hwmon` via sysinfo (works out-of-the-box on most distros).
+- **Linux** (x86_64) — tested on Ubuntu 24.04, Fedora 40, and Arch. CPU temperature reads from `/sys/class/hwmon` via sysinfo (works out-of-the-box on most distros), *or*
+- **macOS 12 Monterey or newer** on Apple Silicon (M-series). Intel Macs are not supported.
 
 **Optional:**
 - **NVIDIA GPU + drivers** — for GPU metrics and per-process VRAM via NVML (`libnvidia-ml.so` on Linux, `nvml.dll` on Windows). Gracefully degrades without it.
 - **[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)** *(Windows only)* — for CPU temp/power and non-NVIDIA GPU fallback. Download the latest release ZIP, extract, run as administrator, then enable the web server: **Options > Remote Web Server > Run** (default port 8085). Linux gets CPU temps natively from hwmon and does not need LHM.
+- **macOS** — GPU/VRAM and CPU temperature/power panels are not yet implemented and will display N/A. Tracked for a future release.
 
 ## Install
 
@@ -154,9 +166,14 @@ cargo build-gui                    # → target/release/dofek-gui.exe + MSI inst
 .\build-all.ps1                    # → target\release\bundle\msi\dofek_*.msi
 ```
 
-```bash
+```bash 
 # Linux (Ubuntu, Fedora, etc.)
 ./build-all.sh                     # → target/release/bundle/{deb,rpm,appimage}/dofek_*
+```
+
+```bash
+# macOS (Apple Silicon)
+./build-all.sh                     # → target/release/bundle/macos/dofek.app
 ```
 
 These commands are cargo aliases defined in `.cargo/config.toml`. The bundle build requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
@@ -185,6 +202,14 @@ sudo apt install rpm
 
 Equivalent on Fedora: `sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel gtk3-devel rpm-build`.
 
+**macOS (Apple Silicon):**
+
+```bash
+xcode-select --install
+```
+
+That installs the Command Line Tools, which provide `cc`, `git`, and the system frameworks Tauri needs (WebKit comes with the OS — no extra packages). Apple Silicon Macs only; Intel Macs are not supported in v1.
+
 ## Usage
 
 ```bash
@@ -206,6 +231,8 @@ The TUI is best viewed at font size **9-10pt**. If your terminal is too small, d
 This creates a profile with JetBrains Mono at 9pt. After running, select "dofek" from the Windows Terminal dropdown to launch with the right settings.
 
 On Linux, set your terminal's font to a monospace nerd-font-style face at 9–10pt (JetBrains Mono, Fira Code, and Cascadia Code all render the half-block charts correctly).
+
+On macOS, set Terminal.app or iTerm2 to a monospace nerd-font face at 10–11pt (JetBrains Mono, Fira Code, MesloLGS NF, and Cascadia Code all render the half-block charts correctly).
 
 ## Keybindings (TUI)
 
@@ -245,10 +272,11 @@ dofek loads its config from the first file found, in this order:
 3. User config directory:
    - **Windows:** `%APPDATA%\dofek\dofek.toml`
    - **Linux:** `~/.config/dofek/dofek.toml`
+   - **macOS:** `~/Library/Application Support/dofek/dofek.toml`
 
 **Recommended:** Place your config in the user config directory — this works reliably for both the TUI and GUI regardless of working directory. The GUI doesn't support `--config`, so it always checks `./dofek.toml` then the user config directory.
 
-To find the path: `echo %APPDATA%` (Windows; typically `C:\Users\<you>\AppData\Roaming`) or `echo "$XDG_CONFIG_HOME${XDG_CONFIG_HOME:+/}${XDG_CONFIG_HOME:-$HOME/.config}"` (Linux).
+To find the path: `echo %APPDATA%` (Windows; typically `C:\Users\<you>\AppData\Roaming`), `echo "$XDG_CONFIG_HOME${XDG_CONFIG_HOME:+/}${XDG_CONFIG_HOME:-$HOME/.config}"` (Linux), or `echo "$HOME/Library/Application Support"` (macOS).
 
 A `dofek.toml.example` is included in the repository with all available options.
 
@@ -311,7 +339,7 @@ dofek includes opt-in anonymous telemetry to help improve the app during beta. *
 
 ### How it works
 
-- A random anonymous UUID is generated on first run and stored in the user config directory (`%APPDATA%\dofek\settings.toml` on Windows, `~/.config/dofek/settings.toml` on Linux)
+- A random anonymous UUID is generated on first run and stored in the user config directory (`%APPDATA%\dofek\settings.toml` on Windows, `~/.config/dofek/settings.toml` on Linux, `~/Library/Application Support/dofek/settings.toml` on macOS)
 - Events are batched in memory and flushed via HTTPS every 60 seconds
 - If the endpoint is unreachable, batches are silently dropped (no disk queue, no retries)
 - To disable: remove or set `enabled = false` in the `[telemetry]` section of `dofek.toml`
@@ -510,7 +538,7 @@ LHM fallback ──> GPU sensors (if NVML unavailable) ────────�
 | Anonymous ID | uuid | 1 |
 | GUI framework | tauri | 2 |
 
-**Rust edition**: 2024 | **Targets**: `x86_64-pc-windows-msvc`, `x86_64-unknown-linux-gnu` (also builds on `aarch64-*` variants of both)
+**Rust edition**: 2024 | **Targets**: `x86_64-pc-windows-msvc`, `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`
 
 Release build: LTO enabled, symbols stripped, opt-level 3.
 
@@ -524,8 +552,9 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v0.7** — Process tree/grouped view, expanded LHM integration, GUI process management
 - **v0.8** — Centered loading state, ollama plugin, GUI icon, Windows Terminal profile icon
 - **v1.0** — Public GA: MSI installer, dofek.dev downloads, hardened plugin protocol, GitHub Actions release pipeline
-- **v1.1** (current) — Linux support: TUI + GUI on x86_64, native `.deb` / `.rpm` / `.AppImage` bundles, dual Windows/Linux CI and release pipeline
-- **v1.2+** — GUI tray companion with live sparkline in taskbar, code signing for binaries, AMD GPU VRAM, CPU power on Linux (RAPL), disk I/O metrics, ARM64 builds
+- **v1.1** — Linux support: TUI + GUI on x86_64, native `.deb` / `.rpm` / `.AppImage` bundles, dual Windows/Linux CI and release pipeline
+- **v1.2** (current) — macOS (Apple Silicon) support: TUI + unsigned `.app` bundle, `sw_vers`-based OS reporting, macOS-specific network filter, three-platform CI and release pipeline
+- **v1.3+** — GUI tray companion with live sparkline in taskbar, code signing for binaries, AMD GPU VRAM, CPU power on Linux (RAPL), GPU/VRAM/CPU-temp on macOS, disk I/O metrics, Intel-Mac and Linux-aarch64 builds
 
 ## License
 

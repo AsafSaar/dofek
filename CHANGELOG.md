@@ -2,6 +2,28 @@
 
 All notable changes to dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-26
+
+macOS support — dofek now runs natively on Apple Silicon Macs (`aarch64-apple-darwin`).
+
+### Added
+- **macOS (Apple Silicon) support** for both the TUI (`dofek-tui`) and the Tauri GUI (`dofek-gui`).
+- Unsigned `.app` bundle for the GUI and standalone TUI binary, distributed via the Releases page (the `.app` is zipped to preserve its directory structure on download).
+- macOS arm of `os_version_string()` parses `sw_vers` to produce strings like `macOS 14.6 (Sonoma)`, with codename mapping for Big Sur through Sequoia.
+- macOS-specific synthetic-interface filter in the network module (skips `awdl0`, `llw0`, `gif0`, `stf0`, `anpi0`/`1`, `ap1`); `lo0` is now also treated as loopback alongside `lo`.
+- `check-macos` job in CI on `macos-latest`, alongside the existing Windows and Linux matrices.
+- `build-macos` job in the release pipeline, producing `dofek-tui` and `dofek-gui-aarch64-apple-darwin.app.zip` with `shasum` checksums; the combined release `SHA256SUMS.txt` now spans all three platforms.
+
+### Changed
+- Workspace version bumped to 1.2.0 across `dofek`, `dofek-gui`, and `gui/tauri.conf.json`.
+- README, CLAUDE.md, and release notes updated for the three-platform story; config-directory docs now include `~/Library/Application Support/dofek/` for macOS.
+
+### Notes
+- **macOS limitations (v1.2):** GPU/VRAM and CPU temperature/power are not implemented; those panels show N/A. NVML is NVIDIA-only, and Apple Silicon SMC sensor coverage in `sysinfo` is not yet sufficient. Tracked for a future release.
+- **Apple Silicon only.** Intel Macs are not supported; no universal binary in v1.
+- macOS binaries are unsigned. Gatekeeper will block first launch — right-click → **Open**, or run `xattr -dr com.apple.quarantine /Applications/dofek.app` once.
+- AMD GPU VRAM, CPU power on Linux (RAPL), and Linux ARM64 remain on the roadmap.
+
 ## [1.1.0] - 2026-04-25
 
 Linux support — dofek is now a first-class Linux application alongside Windows.

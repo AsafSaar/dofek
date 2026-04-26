@@ -10,7 +10,7 @@ Please do **not** open a public issue, PR, or Discussion for security reports.
 
 - Description of the issue and its impact
 - Steps to reproduce (proof of concept if possible)
-- dofek version and Windows build
+- dofek version and OS / build (Windows build, Linux distro+kernel, or macOS version)
 - Any relevant logs, screenshots, or crash dumps
 
 ### What to expect
@@ -43,7 +43,7 @@ dofek is a local system monitor with read access to processes, GPUs, network cou
 - Issues requiring local admin access on the target machine. dofek runs at user level by default.
 - Vulnerabilities in third-party plugins. See [Plugin security](#plugin-security) below.
 - Missing code signing on binaries. Tracked separately; not a vulnerability.
-- Bugs in Windows, WebView2, GPU drivers, or other external components. Report those upstream.
+- Bugs in Windows / Linux / macOS, WebView2 / WebKitGTK / WKWebView, GPU drivers, or other external components. Report those upstream.
 - Social engineering or physical access attacks.
 
 ## Plugin security

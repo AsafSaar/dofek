@@ -1,6 +1,7 @@
 # dofek.toml — copy this file to one of:
 #   Windows: %APPDATA%\dofek\dofek.toml
 #   Linux:   ~/.config/dofek/dofek.toml
+#   macOS:   ~/Library/Application Support/dofek/dofek.toml
 # or pass --config <path> on the dofek-tui command line.
 
 [general]
@@ -24,6 +25,8 @@ watch_processes = ["ffmpeg", "obs"]
 # LHM is a Windows-only sensor source (CPU temp/power, AMD GPU fallback).
 # On Linux this section is harmless — dofek reads CPU temperature directly from
 # /sys/class/hwmon via sysinfo and ignores LHM connection failures.
+# On macOS this section is also harmless — CPU temperature/power and GPU/VRAM
+# panels show N/A in v1.2 (Apple Silicon SMC integration is on the roadmap).
 [lhm]
 url = "http://localhost:8085"
 

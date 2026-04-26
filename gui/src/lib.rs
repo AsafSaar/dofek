@@ -5,6 +5,7 @@ use dofek::config::Config;
 use dofek::data::DataSnapshot;
 use dofek::settings::UserSettings;
 use dofek::telemetry::{self, TelemetryEvent, TelemetryHandle};
+use dofek::GpuEmptyState;
 
 /// Shared state: the latest data snapshot from the collector thread.
 pub struct AppState {
@@ -34,6 +35,14 @@ fn get_gpu_info(state: tauri::State<'_, AppState>) -> Vec<GpuDef> {
 pub struct GpuDef {
     pub name: String,
     pub vram_total_mb: f32,
+}
+
+/// Tauri command: returns platform-appropriate labels for the no-GPU empty state.
+/// Apple Silicon Macs aren't "no GPU" — they have an integrated GPU sharing
+/// system memory, so we surface the chip name instead.
+#[tauri::command]
+fn get_platform_info() -> GpuEmptyState {
+    dofek::gpu_empty_state().clone()
 }
 
 /// Tauri command: opens the bundled offline manual.html in the user's default browser.
@@ -195,7 +204,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_settings, save_settings, track_event, get_telemetry_prompted, set_telemetry_choice, kill_process, kill_processes, open_manual])
+        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_platform_info, get_settings, save_settings, track_event, get_telemetry_prompted, set_telemetry_choice, kill_process, kill_processes, open_manual])
         .build(tauri::generate_context!())
         .expect("error building dofek GUI")
         .run(move |_app, event| {

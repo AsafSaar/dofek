@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>dofek v1.0 — User Manual</title>
+<title>dofek v1.2 — User Manual</title>
 <style>
 :root {
   --bg:     #060810;
@@ -193,7 +193,7 @@ kbd {
 <body>
 
 <nav>
-  <div class="nav-logo">dofek <em>v1.0 manual</em></div>
+  <div class="nav-logo">dofek <em>v1.2 manual</em></div>
   <div class="nav-links">
     <a href="https://dofek.dev" target="_blank">dofek.dev</a>
     <a href="https://github.com/AsafSaar/dofek" target="_blank">GitHub</a>
@@ -202,9 +202,9 @@ kbd {
 
 <div class="wrap">
 
-<div class="hero-tag">USER MANUAL · v1.0</div>
-<h1>dofek<span class="v">the AI-era system monitor for Windows</span></h1>
-<p class="lede">This manual covers everything you need to run, configure, and extend dofek — both the terminal (TUI) and desktop (GUI) interfaces. It ships alongside the binaries in <code>C:\Program Files\dofek\</code> and works entirely offline.</p>
+<div class="hero-tag">USER MANUAL · v1.2</div>
+<h1>dofek<span class="v">the AI-era system monitor for Windows, Linux & macOS</span></h1>
+<p class="lede">This manual covers everything you need to run, configure, and extend dofek — both the terminal (TUI) and desktop (GUI) interfaces. It ships alongside the binaries (Windows: <code>C:\Program Files\dofek\</code>, Linux: package-managed under <code>/usr/share/dofek/</code> or beside the AppImage, macOS: inside the <code>dofek.app</code> bundle) and works entirely offline.</p>
 
 <div class="toc">
   <div class="toc-title">Contents</div>
@@ -226,11 +226,11 @@ kbd {
 
 <!-- ─────────────────── 1 ─────────────────── -->
 <h2 id="intro">1. What is dofek?</h2>
-<p><em>dofek</em> (Hebrew: דּוֹפֶק — "pulse" or "heartbeat") is a Windows-native system monitor built for developers running local AI workloads. It tracks per-process VRAM, flags Ollama and other inference workloads automatically, and renders CPU history as candlestick charts so you see real variance — not smoothed averages.</p>
+<p><em>dofek</em> (Hebrew: דּוֹפֶק — "pulse" or "heartbeat") is a cross-platform system monitor built for developers running local AI workloads. It tracks per-process VRAM, flags Ollama and other inference workloads automatically, and renders CPU history as candlestick charts so you see real variance — not smoothed averages. Supported platforms: Windows 10/11, Linux x86_64, and macOS 12+ on Apple Silicon (aarch64).</p>
 <p>It ships as two interfaces driven by the same Rust core:</p>
 <ul>
-  <li><strong>dofek-tui</strong> — terminal UI (Ratatui). Lives happily inside Windows Terminal, Tabby, or any VT-capable console.</li>
-  <li><strong>dofek-gui</strong> — desktop app (Tauri + WebView2). Same data, same plugins, graphical charts.</li>
+  <li><strong>dofek-tui</strong> — terminal UI (Ratatui). Lives happily inside Windows Terminal, Tabby, GNOME Terminal, Konsole, Terminal.app, iTerm2, or any VT-capable console.</li>
+  <li><strong>dofek-gui</strong> — desktop app (Tauri 2). WebView2 on Windows, WebKitGTK on Linux, WKWebView on macOS. Same data, same plugins, graphical charts.</li>
 </ul>
 
 <div class="shot">
@@ -247,7 +247,13 @@ kbd {
 
 <h3>GUI (desktop app)</h3>
 <ol>
-  <li>Launch <strong>dofek</strong> from the Start Menu, or run <code>dofek.exe</code> from <code>C:\Program Files\dofek\</code>.</li>
+  <li>Launch <strong>dofek</strong>:
+    <ul>
+      <li><strong>Windows:</strong> Start Menu, or <code>dofek.exe</code> from <code>C:\Program Files\dofek\</code>.</li>
+      <li><strong>Linux:</strong> application launcher, or run the <code>.AppImage</code>, or <code>dofek-gui</code> after installing the <code>.deb</code>/<code>.rpm</code>.</li>
+      <li><strong>macOS:</strong> Launchpad / Applications, or <code>open /Applications/dofek.app</code>. First launch is blocked by Gatekeeper — right-click the .app → <strong>Open</strong> → <strong>Open</strong>, or run <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> once.</li>
+    </ul>
+  </li>
   <li>The dashboard opens with live CPU, GPU, memory, and network charts. The process watchlist on the right shows the top VRAM/CPU/MEM consumers.</li>
   <li>Click <strong>AI / DEV / WATCH</strong> tabs to filter the watchlist.</li>
   <li>Press <kbd>?</kbd> for the keybinding overlay, or click the <strong>Manual</strong> link inside the help overlay to reopen this document.</li>
@@ -255,16 +261,23 @@ kbd {
 
 <h3>TUI (terminal)</h3>
 <ol>
-  <li>Open Windows Terminal (or PowerShell), then run:
+  <li>Open your terminal of choice, then run:
     <pre><code>dofek-tui</code></pre>
   </li>
   <li>With a custom config:
-    <pre><code>dofek-tui --config "%APPDATA%\dofek\dofek.toml"</code></pre>
+    <pre><code># Windows (PowerShell)
+dofek-tui --config "$env:APPDATA\dofek\dofek.toml"
+
+# Linux
+dofek-tui --config ~/.config/dofek/dofek.toml
+
+# macOS
+dofek-tui --config ~/Library/Application\ Support/dofek/dofek.toml</code></pre>
   </li>
   <li>Press <kbd>?</kbd> for help, <kbd>q</kbd> to quit. See <a href="#keybindings">the full keybinding table</a>.</li>
 </ol>
 
-<div class="tip"><b>Font size tip:</b> the TUI is designed for <strong>9–10pt</strong> monospace. JetBrains Mono works well. Run <code>install-wt-profile.ps1</code> (ships with the source) to add a pre-configured "dofek" profile to Windows Terminal.</div>
+<div class="tip"><b>Font size tip:</b> the TUI is designed for <strong>9–11pt</strong> monospace. JetBrains Mono, Fira Code, MesloLGS NF, and Cascadia Code all render the half-block charts correctly. On Windows, run <code>install-wt-profile.ps1</code> (ships with the source) to add a pre-configured "dofek" profile to Windows Terminal. On Linux/macOS, set the font in your terminal's preferences.</div>
 
 <!-- ─────────────────── 3 ─────────────────── -->
 <h2 id="interfaces">3. TUI vs. GUI</h2>
@@ -311,7 +324,13 @@ kbd {
 <ol>
   <li><code>--config &lt;path&gt;</code> command-line flag (TUI only)</li>
   <li><code>./dofek.toml</code> in the current working directory</li>
-  <li><code>%APPDATA%\dofek\dofek.toml</code> — <strong>recommended location</strong></li>
+  <li>User config directory — <strong>recommended location</strong>:
+    <ul>
+      <li><strong>Windows:</strong> <code>%APPDATA%\dofek\dofek.toml</code></li>
+      <li><strong>Linux:</strong> <code>~/.config/dofek/dofek.toml</code></li>
+      <li><strong>macOS:</strong> <code>~/Library/Application Support/dofek/dofek.toml</code></li>
+    </ul>
+  </li>
 </ol>
 <p>All sections are optional. Missing values fall back to sensible defaults.</p>
 
@@ -396,11 +415,13 @@ timeout_ms = 2000
 <h2 id="gpu">8. GPU support & LibreHardwareMonitor</h2>
 <p>dofek talks to two data sources for GPU metrics:</p>
 <ol>
-  <li><strong>NVML</strong> (primary) — NVIDIA driver API. Provides utilization, VRAM, temperature, power, <em>and</em> per-process VRAM. No extra install required beyond the NVIDIA driver.</li>
-  <li><strong>LibreHardwareMonitor HTTP</strong> (fallback) — for non-NVIDIA GPUs or when NVML isn't available.</li>
+  <li><strong>NVML</strong> (primary, all platforms) — NVIDIA driver API. Provides utilization, VRAM, temperature, power, <em>and</em> per-process VRAM. No extra install required beyond the NVIDIA driver.</li>
+  <li><strong>LibreHardwareMonitor HTTP</strong> (Windows-only fallback) — for non-NVIDIA GPUs or when NVML isn't available on Windows.</li>
 </ol>
 
-<h3>Setting up LibreHardwareMonitor</h3>
+<div class="note"><b>Per-platform reality:</b> LHM is Windows-only — Linux and macOS users can skip the LHM section below entirely. On Linux without an NVIDIA GPU, dofek shows GPU info as N/A (AMD GPU support is on the roadmap). On macOS Apple Silicon, the GPU is integrated and shares system memory; the GPU tile shows your chip name and points you at the MEM panel — Apple Silicon GPU/VRAM and SMC sensor integration are tracked for a future release.</div>
+
+<h3>Setting up LibreHardwareMonitor (Windows only)</h3>
 <ol>
   <li>Download <a href="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases" target="_blank">LibreHardwareMonitor</a> and extract.</li>
   <li>Run <code>LibreHardwareMonitor.exe</code> <strong>as administrator</strong>.</li>
@@ -456,50 +477,65 @@ timeout_ms = 2000
   <li>Config file contents or custom process lists</li>
 </ul>
 
-<p>A random anonymous UUID is generated on first run and stored at <code>%APPDATA%\dofek\settings.toml</code>. Events batch locally and flush via HTTPS every 60 seconds. If the endpoint is unreachable, batches are silently dropped.</p>
+<p>A random anonymous UUID is generated on first run and stored alongside <code>dofek.toml</code> in the user config directory: <code>%APPDATA%\dofek\settings.toml</code> on Windows, <code>~/.config/dofek/settings.toml</code> on Linux, <code>~/Library/Application Support/dofek/settings.toml</code> on macOS. Events batch locally and flush via HTTPS every 60 seconds. If the endpoint is unreachable, batches are silently dropped.</p>
 
 <p>To disable: toggle the switch in the GUI help overlay, or set <code>telemetry.enabled = false</code> in <code>dofek.toml</code>.</p>
 
 <!-- ─────────────────── 11 ─────────────────── -->
 <h2 id="troubleshooting">11. Troubleshooting</h2>
 
-<h3>SmartScreen warning on install or first run</h3>
-<p>The v1.0 binaries are unsigned. Code signing is on the post-1.0 roadmap. Workaround:</p>
-<ol>
-  <li>Right-click the installer or executable → <strong>Properties</strong>.</li>
-  <li>Check <strong>Unblock</strong> at the bottom of the General tab.</li>
-  <li>Click OK, then run as normal.</li>
-</ol>
+<h3>OS warning on first run (unsigned binary)</h3>
+<p>Binaries are currently unsigned. Code signing is on the roadmap. Workarounds per OS:</p>
+<ul>
+  <li><strong>Windows (SmartScreen):</strong> right-click the installer or executable → <strong>Properties</strong> → check <strong>Unblock</strong> at the bottom of the General tab → OK.</li>
+  <li><strong>Linux (AppImage):</strong> <code>chmod +x dofek_*.AppImage</code> before running. <code>.deb</code>/<code>.rpm</code> packages install normally via <code>apt</code>/<code>dnf</code>.</li>
+  <li><strong>macOS (Gatekeeper):</strong> right-click <code>dofek.app</code> → <strong>Open</strong> → <strong>Open</strong> in the warning dialog, or run <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> once.</li>
+</ul>
 <p>Verify the download first by comparing against <code>SHA256SUMS.txt</code> from the GitHub release:</p>
-<pre><code>Get-FileHash .\dofek_1.0.0_x64_en-US.msi -Algorithm SHA256</code></pre>
+<pre><code># Windows (PowerShell)
+Get-FileHash .\dofek_1.2.0_x64_en-US.msi -Algorithm SHA256
 
-<h3>GPU panel shows "no devices"</h3>
+# Linux
+sha256sum -c SHA256SUMS.txt
+
+# macOS
+shasum -a 256 -c SHA256SUMS.txt</code></pre>
+
+<h3>GPU panel shows "no devices" (or your chip name on Apple Silicon)</h3>
 <ul>
   <li><strong>NVIDIA GPU?</strong> Make sure drivers are current. <code>nvidia-smi</code> should work from a terminal.</li>
-  <li><strong>AMD / Intel GPU?</strong> NVML won't work — set up <a href="#gpu">LibreHardwareMonitor</a> as the fallback.</li>
+  <li><strong>AMD / Intel GPU?</strong> NVML won't work — on Windows, set up <a href="#gpu">LibreHardwareMonitor</a> as the fallback. Linux non-NVIDIA support is on the roadmap.</li>
   <li><strong>WSL / VM?</strong> NVML isn't available inside WSL2 without <code>--runtime=nvidia</code>. Run dofek on the Windows host instead.</li>
+  <li><strong>Apple Silicon (M-series)?</strong> Expected. The GPU tile shows your chip name (e.g. "Apple M4 GPU") with a unified-memory hint pointing to the MEM panel — Apple Silicon GPU/VRAM and CPU temperature integration are tracked for a future release. Apple's GPU shares system memory, so VRAM usage shows up as memory pressure rather than a separate number.</li>
 </ul>
 
 <h3>Ollama plugin not showing models</h3>
 <ul>
   <li>Verify Ollama is running: <code>curl http://localhost:11434/api/tags</code></li>
   <li>Check the plugin dock — is it green (<span style="color:var(--mem)">●</span>) or red (<span style="color:var(--crit)">●</span>)?</li>
-  <li>If red, the plugin likely crashed. Run <code>dofek-ollama.exe</code> directly from <code>C:\Program Files\dofek\</code> to see its stderr output.</li>
+  <li>If red, the plugin likely crashed. Run the plugin binary directly to see its stderr output: <code>dofek-ollama.exe</code> from <code>C:\Program Files\dofek\</code> on Windows, <code>dofek-ollama</code> from <code>/usr/bin/</code> or the AppImage on Linux, or <code>dofek-ollama</code> from inside <code>dofek.app/Contents/MacOS/</code> on macOS.</li>
   <li>Confirm the plugin is enabled in <code>dofek.toml</code> under <code>[[plugins]]</code>.</li>
 </ul>
 
 <h3>TUI looks cramped or wraps awkwardly</h3>
 <ul>
-  <li>Set terminal font size to <strong>9–10pt</strong> (JetBrains Mono, Cascadia Code, or Consolas all work).</li>
+  <li>Set terminal font size to <strong>9–11pt</strong> (JetBrains Mono, Fira Code, MesloLGS NF, Cascadia Code, or Consolas all work).</li>
   <li>Minimum terminal width ~110 columns, height ~30 rows. Below that, dofek shows a size hint.</li>
-  <li>In Windows Terminal, run <code>install-wt-profile.ps1</code> (from the source repo) for a pre-configured profile.</li>
+  <li>In Windows Terminal, run <code>install-wt-profile.ps1</code> (from the source repo) for a pre-configured profile. On Linux/macOS, set the font in your terminal preferences.</li>
 </ul>
 
 <h3>CPU temperature always shows as "—"</h3>
-<p>On Windows, CPU temperature sensors aren't exposed to user-space processes without elevation. Enable LibreHardwareMonitor (see above) to get temperatures via its HTTP fallback.</p>
+<ul>
+  <li><strong>Windows:</strong> CPU temperature sensors aren't exposed to user-space processes without elevation. Enable LibreHardwareMonitor (see above) to get temperatures via its HTTP fallback.</li>
+  <li><strong>Linux:</strong> dofek reads <code>/sys/class/hwmon</code> via <code>sysinfo::Components</code>. If your kernel doesn't expose package-level temps, only per-core sensors will appear; ensure the relevant <code>coretemp</code>/<code>k10temp</code>/<code>amdgpu</code> module is loaded.</li>
+  <li><strong>macOS:</strong> CPU temperature/power and GPU/VRAM are not implemented in v1.2 — Apple Silicon SMC integration is tracked for a future release.</li>
+</ul>
 
-<h3>Process kill fails with "Access is denied"</h3>
-<p>Some processes (system services, antivirus components, protected processes) can only be killed as admin. Launch dofek from an elevated prompt if you need that capability. Running dofek elevated is <em>not</em> generally recommended.</p>
+<h3>Process kill fails with permission errors</h3>
+<ul>
+  <li><strong>Windows ("Access is denied"):</strong> system services, antivirus components, and protected processes can only be killed as admin. Launch dofek from an elevated prompt if needed; running it elevated isn't generally recommended.</li>
+  <li><strong>Linux/macOS ("Operation not permitted"):</strong> SIGTERM is sent to the target PID. Root-owned processes need <code>sudo dofek-tui</code>. SIP-protected macOS system processes can't be killed at all.</li>
+</ul>
 
 <!-- ─────────────────── 12 ─────────────────── -->
 <h2 id="links">12. Links & support</h2>
@@ -512,7 +548,7 @@ timeout_ms = 2000
 </table>
 
 <footer>
-  dofek v1.0 — <a href="https://dofek.dev" target="_blank">dofek.dev</a> · MIT Licensed · Built by <a href="https://linkedin.com/in/asafsaar" target="_blank">Asaf Saar</a>
+  dofek v1.2 — <a href="https://dofek.dev" target="_blank">dofek.dev</a> · MIT Licensed · Built by <a href="https://linkedin.com/in/asafsaar" target="_blank">Asaf Saar</a>
 </footer>
 
 </div>
