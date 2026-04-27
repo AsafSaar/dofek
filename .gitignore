@@ -3,5 +3,7 @@
 !.claude/skills/
 dofek.toml
 website/node_modules/
+# macOS Finder metadata
+.DS_Store
 # Tauri-generated dev schema files (regenerated on every `cargo gui` run)
 /gui/gen/

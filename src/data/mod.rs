@@ -1,13 +1,17 @@
 pub mod ai_detect;
+pub mod disk;
 pub mod gpu;
 pub mod lhm;
 pub mod network;
 pub mod process;
+#[cfg(target_os = "linux")]
+pub mod rapl;
 pub mod sysinfo_source;
 
 use crate::config::Config;
 use crate::plugin::{PluginManager, PluginStatus};
 use crate::plugin::protocol::ProcessContext;
+use disk::{DiskStats, DiskTracker};
 use lhm::{CpuSensors, GpuSensors, MemorySensors};
 use network::{NetworkStats, NetworkTracker};
 use process::ProcessInfo;
@@ -25,6 +29,7 @@ pub struct DataSnapshot {
     pub memory: MemorySensors,
     pub gpus: Vec<GpuSensors>,
     pub network: NetworkStats,
+    pub disk: DiskStats,
     pub processes: Vec<ProcessInfo>,
     pub nvml_available: bool,
     pub lhm_connected: bool,
@@ -42,6 +47,7 @@ impl Default for DataSnapshot {
             memory: MemorySensors::default(),
             gpus: Vec::new(),
             network: NetworkStats::default(),
+            disk: DiskStats::default(),
             processes: Vec::new(),
             nvml_available: false,
             lhm_connected: false,
@@ -58,6 +64,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
 
     thread::spawn(move || {
         let mut net_tracker = NetworkTracker::default();
+        let mut disk_tracker = DiskTracker::default();
         let nvml = NvmlState::init();
         let mut prev_vram: HashMap<u32, u64> = HashMap::new();
         let mut lhm_failed = false; // stop retrying LHM after first failure
@@ -71,6 +78,9 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
         // Components is platform-specific in sysinfo 0.33 — only useful on Linux/macOS.
         #[cfg(target_os = "linux")]
         let mut components = sysinfo::Components::new_with_refreshed_list();
+
+        #[cfg(target_os = "linux")]
+        let mut rapl = rapl::RaplTracker::default();
 
         loop {
             // Refresh sysinfo data
@@ -88,6 +98,11 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 components.refresh(true);
                 if cpu.temperature.is_none() {
                     cpu.temperature = sysinfo_source::pick_cpu_temp(&components);
+                }
+                if cpu.power.is_none() {
+                    if let Some(w) = rapl.read_watts() {
+                        cpu.power = Some(w);
+                    }
                 }
             }
 
@@ -134,6 +149,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
             }
 
             let network = network::query_network_stats(&mut net_tracker);
+            let disk = disk::query_disk_stats(&mut disk_tracker);
 
             // Processes from sysinfo (includes CPU%)
             let mut processes = sysinfo_source::enumerate_processes(
@@ -201,6 +217,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 memory,
                 gpus: gpu_sensors,
                 network,
+                disk,
                 processes,
                 nvml_available: nvml.is_available(),
                 lhm_connected: lhm_connected_now,

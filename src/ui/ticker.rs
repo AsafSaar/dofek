@@ -19,7 +19,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
     // Logo
     spans.push(Span::styled(" dofek", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)));
-    spans.push(Span::styled(" v1.2", Style::default().fg(theme::TEXT_DIM)));
+    spans.push(Span::styled(concat!(" v", env!("CARGO_PKG_VERSION")), Style::default().fg(theme::TEXT_DIM)));
     spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
 
     // CPU pill
@@ -58,6 +58,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         spans.push(Span::styled(" ", Style::default()));
         spans.push(Span::styled(
             format!("↑{}", format_rate(iface.tx_bytes_per_sec)),
+            Style::default().fg(theme::NET_TX_COLOR),
+        ));
+        spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
+    }
+
+    // DISK pill — gated on real activity (>1 KB/s aggregate) so it stays out of the way on idle systems.
+    let disk_total = app.data.disk.total_read_bytes_per_sec + app.data.disk.total_write_bytes_per_sec;
+    if disk_total > 1024.0 {
+        spans.push(Span::styled("DISK ", Style::default().fg(theme::TEXT_DIM)));
+        spans.push(Span::styled(
+            format!("↓{}", format_rate(app.data.disk.total_read_bytes_per_sec)),
+            Style::default().fg(theme::DISK_COLOR),
+        ));
+        spans.push(Span::styled(" ", Style::default()));
+        spans.push(Span::styled(
+            format!("↑{}", format_rate(app.data.disk.total_write_bytes_per_sec)),
             Style::default().fg(theme::NET_TX_COLOR),
         ));
         spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));

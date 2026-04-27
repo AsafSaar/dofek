@@ -66,6 +66,7 @@ fn render_tabs(f: &mut Frame, area: Rect, app: &App) {
         (ChartTab::Gpu, "GPU", theme::GPU_COLOR),
         (ChartTab::Mem, "MEM", theme::MEM_COLOR),
         (ChartTab::Net, "NET", theme::NET_TX_COLOR),
+        (ChartTab::Disk, "DISK", theme::DISK_COLOR),
     ];
 
     let mut spans: Vec<Span> = Vec::new();
@@ -145,6 +146,20 @@ fn render_meta(f: &mut Frame, area: Rect, app: &App) {
                     .map(|i| i.name.clone())
                     .unwrap_or_else(|| "No interface".to_string()),
                 theme::NET_TX_COLOR,
+            )
+        }
+        ChartTab::Disk => {
+            let read = app.data.disk.total_read_bytes_per_sec;
+            let write = app.data.disk.total_write_bytes_per_sec;
+            let label = if app.data.disk.devices.is_empty() {
+                "No disks".to_string()
+            } else {
+                format!("{} dev · ↑{}", app.data.disk.devices.len(), format_rate(write))
+            };
+            (
+                format!("↓{}", format_rate(read)),
+                label,
+                theme::DISK_COLOR,
             )
         }
     };
@@ -249,6 +264,15 @@ fn render_chart_body(f: &mut Frame, area: Rect, app: &App) {
                 .secondary(tx_data, theme::NET_TX_COLOR);
             f.render_widget(chart, area);
         }
+        ChartTab::Disk => {
+            let read_data = app.history.disk_read.as_slice();
+            let write_data = app.history.disk_write.as_slice();
+            let max_val = read_data.iter().chain(write_data.iter()).copied().max().unwrap_or(1).max(1);
+            let chart = AreaChart::new(read_data, theme::DISK_COLOR)
+                .max_value(max_val)
+                .secondary(write_data, theme::NET_TX_COLOR);
+            f.render_widget(chart, area);
+        }
     }
 }
 
@@ -287,6 +311,16 @@ fn render_horizon(f: &mut Frame, area: Rect, app: &App) {
             let max_val = rx_data.iter().chain(tx_data.iter()).copied().max().unwrap_or(1).max(1);
             if rx_data.len() >= 2 {
                 let chart = HorizonChart::new(rx_data, theme::NET_RX_COLOR)
+                    .max_value(max_val);
+                f.render_widget(chart, area);
+            }
+        }
+        ChartTab::Disk => {
+            let read_data = app.history.disk_read.as_slice();
+            let write_data = app.history.disk_write.as_slice();
+            let max_val = read_data.iter().chain(write_data.iter()).copied().max().unwrap_or(1).max(1);
+            if read_data.len() >= 2 {
+                let chart = HorizonChart::new(read_data, theme::DISK_COLOR)
                     .max_value(max_val);
                 f.render_widget(chart, area);
             }

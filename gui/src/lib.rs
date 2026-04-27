@@ -7,6 +7,8 @@ use dofek::settings::UserSettings;
 use dofek::telemetry::{self, TelemetryEvent, TelemetryHandle};
 use dofek::GpuEmptyState;
 
+mod tray;
+
 /// Shared state: the latest data snapshot from the collector thread.
 pub struct AppState {
     pub snapshot: Arc<Mutex<DataSnapshot>>,
@@ -103,6 +105,35 @@ fn set_telemetry_choice(state: tauri::State<'_, AppState>, enabled: bool) -> Res
     s.save().map_err(|e| e.to_string())
 }
 
+/// Tauri command: toggle main window visibility (used by tray menu / IPC).
+#[tauri::command]
+fn toggle_window_visibility(app: tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("main") {
+        match w.is_visible().unwrap_or(false) {
+            true => { let _ = w.hide(); }
+            false => { let _ = w.show(); let _ = w.set_focus(); }
+        }
+    }
+}
+
+/// Tauri command: show + focus the main window.
+#[tauri::command]
+fn show_window(app: tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
+/// Tauri command: quit the app cleanly (used by tray menu).
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 /// Tauri command: kill a single process by PID.
 #[tauri::command]
 fn kill_process(state: tauri::State<'_, AppState>, pid: u32) -> Result<String, String> {
@@ -176,35 +207,123 @@ pub fn run() {
     let session_start = Instant::now();
     let shutdown_telemetry = telemetry.clone();
 
-    // Spawn the data collector thread (reuses the exact same code as TUI)
+    // Spawn the data collector thread (reuses the exact same code as TUI).
+    // The relay thread that fans snapshots into shared state + the tray icon
+    // is spawned later inside `.setup(...)` because it needs an AppHandle.
     let data_rx = dofek::data::spawn_collector(config.clone());
 
     // Shared snapshot for Tauri commands
     let snapshot = Arc::new(Mutex::new(DataSnapshot::default()));
-    let snapshot_writer = Arc::clone(&snapshot);
-
-    // Background thread: receives snapshots from collector, stores latest
-    std::thread::spawn(move || {
-        for snap in data_rx {
-            let mut locked = snapshot_writer.lock().unwrap();
-            *locked = snap;
-        }
-    });
 
     let settings = Arc::new(Mutex::new(settings));
 
     let state = AppState {
-        snapshot,
+        snapshot: Arc::clone(&snapshot),
         config,
-        settings,
-        telemetry,
+        settings: Arc::clone(&settings),
+        telemetry: telemetry.clone(),
     };
 
-    tauri::Builder::default()
+    let snapshot_for_setup = Arc::clone(&snapshot);
+    let settings_for_setup = Arc::clone(&settings);
+    let telemetry_for_setup = telemetry.clone();
+
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default();
+
+    // Single-instance dedup on Windows + Linux (macOS handled by LaunchServices).
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            use tauri::Manager;
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }));
+    }
+
+    let close_settings = Arc::clone(&settings);
+    let close_telemetry = telemetry.clone();
+
+    let data_rx = Mutex::new(Some(data_rx));
+
+    builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![get_snapshot, get_gpu_info, get_platform_info, get_settings, save_settings, track_event, get_telemetry_prompted, set_telemetry_choice, kill_process, kill_processes, open_manual])
+        .invoke_handler(tauri::generate_handler![
+            get_snapshot,
+            get_gpu_info,
+            get_platform_info,
+            get_settings,
+            save_settings,
+            track_event,
+            get_telemetry_prompted,
+            set_telemetry_choice,
+            kill_process,
+            kill_processes,
+            open_manual,
+            toggle_window_visibility,
+            show_window,
+            quit_app,
+        ])
+        .on_window_event(move |window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() != "main" {
+                    return;
+                }
+                let s = close_settings.lock().unwrap();
+                if s.enable_tray && s.close_to_tray {
+                    let _ = window.hide();
+                    api.prevent_close();
+                    close_telemetry.track(TelemetryEvent::WindowClosedToTray);
+                }
+            }
+        })
+        .setup(move |app| {
+            use tauri::Manager;
+
+            // Install the tray companion. Failures are logged and tolerated —
+            // a missing tray shouldn't crash the app.
+            let s = settings_for_setup.lock().unwrap().clone();
+            if let Err(e) = tray::install(app, &s, telemetry_for_setup.clone()) {
+                log::warn!("Failed to install tray icon: {e}");
+            }
+
+            // Honor start-in-tray.
+            if s.enable_tray
+                && s.start_in_tray
+                && let Some(w) = app.get_webview_window("main")
+            {
+                let _ = w.hide();
+            }
+
+            // Move the data-relay loop here so it can update the tray.
+            let app_handle = app.handle().clone();
+            let snapshot_writer = Arc::clone(&snapshot_for_setup);
+            let settings_for_relay = Arc::clone(&settings_for_setup);
+            let rx = data_rx
+                .lock()
+                .unwrap()
+                .take()
+                .expect("data_rx claimed twice");
+            std::thread::spawn(move || {
+                for snap in rx {
+                    {
+                        let mut locked = snapshot_writer.lock().unwrap();
+                        *locked = snap.clone();
+                    }
+                    let s = settings_for_relay.lock().unwrap().clone();
+                    if s.enable_tray {
+                        tray::update(&app_handle, &snap, &s);
+                    }
+                }
+            });
+
+            Ok(())
+        })
         .build(tauri::generate_context!())
         .expect("error building dofek GUI")
         .run(move |_app, event| {

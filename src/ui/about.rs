@@ -28,7 +28,7 @@ pub fn render(f: &mut Frame) {
         Line::from(""),
         Line::from(vec![
             Span::styled("dofek ", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)),
-            Span::styled("v1.2", Style::default().fg(theme::TEXT_PRIMARY).add_modifier(Modifier::BOLD)),
+            Span::styled(concat!("v", env!("CARGO_PKG_VERSION")), Style::default().fg(theme::TEXT_PRIMARY).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(Span::styled(

@@ -1,4 +1,4 @@
-dofek v1.2 — Installation Notes
+dofek v1.3 — Installation Notes
 ================================
 
 Thanks for installing dofek.

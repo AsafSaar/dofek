@@ -48,6 +48,7 @@ pub enum ChartTab {
     Gpu,
     Mem,
     Net,
+    Disk,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -111,6 +112,8 @@ pub struct HistoryBuffers {
     pub gpu_util_per_device: Vec<SparklineBuf>,
     pub net_rx: SparklineBuf,
     pub net_tx: SparklineBuf,
+    pub disk_read: SparklineBuf,
+    pub disk_write: SparklineBuf,
 }
 
 impl HistoryBuffers {
@@ -126,6 +129,8 @@ impl HistoryBuffers {
             gpu_util_per_device: Vec::new(),
             net_rx: SparklineBuf::new(capacity),
             net_tx: SparklineBuf::new(capacity),
+            disk_read: SparklineBuf::new(capacity),
+            disk_write: SparklineBuf::new(capacity),
         }
     }
 }
@@ -240,6 +245,10 @@ impl App {
             self.history.net_rx.push_raw((iface.rx_bytes_per_sec / 1024.0) as u64);
             self.history.net_tx.push_raw((iface.tx_bytes_per_sec / 1024.0) as u64);
         }
+
+        // Disk: push aggregate bytes/sec scaled to KB/s
+        self.history.disk_read.push_raw((snapshot.disk.total_read_bytes_per_sec / 1024.0) as u64);
+        self.history.disk_write.push_raw((snapshot.disk.total_write_bytes_per_sec / 1024.0) as u64);
 
         self.data = snapshot;
 
@@ -438,6 +447,10 @@ impl App {
             KeyCode::Char('n') => {
                 self.chart_tab = ChartTab::Net;
                 self.telemetry.track(TelemetryEvent::TabSwitch { tab: "net".into() });
+            }
+            KeyCode::Char('d') => {
+                self.chart_tab = ChartTab::Disk;
+                self.telemetry.track(TelemetryEvent::TabSwitch { tab: "disk".into() });
             }
             // Full-screen process view
             KeyCode::Char('p') => {
@@ -756,6 +769,7 @@ impl App {
             "gpu" => ChartTab::Gpu,
             "mem" => ChartTab::Mem,
             "net" => ChartTab::Net,
+            "disk" => ChartTab::Disk,
             _ => ChartTab::Cpu,
         };
         self.chart_mode = match s.chart_mode.as_str() {
@@ -788,6 +802,7 @@ impl App {
                 ChartTab::Gpu => "gpu",
                 ChartTab::Mem => "mem",
                 ChartTab::Net => "net",
+                ChartTab::Disk => "disk",
             }.to_string(),
             chart_mode: match self.chart_mode {
                 ChartMode::Default => "default",
@@ -812,6 +827,10 @@ impl App {
             anonymous_id: prev.anonymous_id.clone(),
             telemetry_prompted: prev.telemetry_prompted,
             telemetry_enabled: self.telemetry_enabled,
+            enable_tray: prev.enable_tray,
+            close_to_tray: prev.close_to_tray,
+            start_in_tray: prev.start_in_tray,
+            tray_show_text: prev.tray_show_text,
         }
     }
 

@@ -108,6 +108,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 .tab.on[data-m="gpu"]{color:var(--gpu);border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.07);}
 .tab.on[data-m="mem"]{color:var(--mem);border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.07);}
 .tab.on[data-m="net"]{color:var(--net-up);border-color:rgba(251,146,60,.3);background:rgba(251,146,60,.07);}
+.tab.on[data-m="disk"]{color:#eab308;border-color:rgba(234,179,8,.3);background:rgba(234,179,8,.07);}
 .chart-mode-badge{font-size:9px;color:var(--muted);border:1px solid var(--bdr2);padding:1px 6px;border-radius:2px;letter-spacing:.08em;}
 .chart-mode-badge.candle{color:var(--cpu);border-color:rgba(56,189,248,.25);background:rgba(56,189,248,.05);}
 .chart-mode-badge.horizon{color:var(--warn);border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.05);}
@@ -306,7 +307,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="logo">dofek <em>v1.2</em></div>
+  <div class="logo">dofek <em>v1.3</em></div>
   <div class="pills">
     <div class="pill cpu"><span class="lbl">CPU</span><span class="val" id="t-cpu">—</span></div>
     <div class="pill gpu"><span class="lbl">GPU</span><span class="val" id="t-gpu">—</span></div>
@@ -334,6 +335,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
         <button class="tab" data-m="gpu">GPU</button>
         <button class="tab" data-m="mem">MEM</button>
         <button class="tab" data-m="net">NET</button>
+        <button class="tab" data-m="disk">DISK</button>
       </div>
       <span class="chart-mode-badge candle" id="chart-mode">CANDLE</span>
       <div class="chart-meta">
@@ -556,6 +558,7 @@ const S = {
   gpus: [],
   mem: { hist:[], usedGB:0, totalGB:1, swapPct:0 },
   net: { dh:[], uh:[], down:0, up:0 },
+  disk: { rh:[], wh:[], read:0, write:0 },
 };
 
 function push(arr,v) { arr.push(v); if(arr.length>LEN) arr.shift(); }
@@ -685,6 +688,13 @@ async function tick() {
   else if(snap.network.interfaces.length) S.net.ifName = snap.network.interfaces[0].name;
   push(S.net.dh, S.net.down);
   push(S.net.uh, S.net.up);
+
+  /* Disk */
+  const disk = snap.disk || {total_read_bytes_per_sec:0, total_write_bytes_per_sec:0};
+  S.disk.read  = disk.total_read_bytes_per_sec || 0;
+  S.disk.write = disk.total_write_bytes_per_sec || 0;
+  push(S.disk.rh, S.disk.read);
+  push(S.disk.wh, S.disk.write);
 
   /* Processes */
   PROCS = snap.processes.map(p => ({
@@ -1039,7 +1049,7 @@ function upMainChart() {
       drawArea(mc,S.mem.hist,'#34d399',0,100,80,90);
     }
     legend.style.display='flex';
-  } else {
+  } else if(m==='net'){
     const maxN=Math.max(1e4,...S.net.dh,...S.net.uh)*1.1;
     valStr=fmtB(S.net.down);
     document.getElementById('c-delta').textContent='↑ '+fmtB(S.net.up);
@@ -1052,6 +1062,21 @@ function upMainChart() {
       badge.textContent='AREA'; badge.className='chart-mode-badge';
       const sec=S.net.uh.slice(); sec.col='#fb923c';
       drawArea(mc,S.net.dh,'#38bdf8',0,maxN,null,null,sec);
+    }
+    legend.style.display='none';
+  } else { // disk
+    const maxD=Math.max(1e4,...S.disk.rh,...S.disk.wh)*1.1;
+    valStr='↓'+fmtB(S.disk.read);
+    document.getElementById('c-delta').textContent='↑ '+fmtB(S.disk.write);
+    document.getElementById('c-delta').className='c-delta flat';
+    hw='Disk I/O';
+    if(horizon){
+      badge.textContent='HORIZON'; badge.className='chart-mode-badge horizon';
+      drawHorizon(mc,S.disk.rh,'#eab308',0,maxD,null,null);
+    } else {
+      badge.textContent='AREA'; badge.className='chart-mode-badge';
+      const sec=S.disk.wh.slice(); sec.col='#fb923c';
+      drawArea(mc,S.disk.rh,'#eab308',0,maxD,null,null,sec);
     }
     legend.style.display='none';
   }
@@ -1663,7 +1688,7 @@ document.addEventListener('keydown', e => {
   }
 
   // Chart tab switching: c/g/m/n
-  const chartKeys = {c:'cpu', g:'gpu', m:'mem', n:'net'};
+  const chartKeys = {c:'cpu', g:'gpu', m:'mem', n:'net', d:'disk'};
   if (chartKeys[k]) {
     S.metric = chartKeys[k];
     document.querySelectorAll('.tab').forEach(b => {
@@ -1728,6 +1753,9 @@ document.addEventListener('keydown', e => {
     if (becoming_visible && invoke) {
       invoke('get_settings').then(s => {
         document.getElementById('telem-toggle-cb').checked = s.telemetry_enabled || false;
+        document.getElementById('tray-enable-cb').checked = s.enable_tray !== false;
+        document.getElementById('tray-close-cb').checked = s.close_to_tray !== false;
+        document.getElementById('tray-text-cb').checked = s.tray_show_text !== false;
       }).catch(() => {});
     }
     return;
@@ -1880,6 +1908,7 @@ function showToast(msg){
     <table class="help-table">
       <tr><td class="hk">tab</td><td class="hd">Cycle sort column</td></tr>
       <tr><td class="hk">c / g / m / n</td><td class="hd">CPU / GPU / MEM / NET chart</td></tr>
+      <tr><td class="hk">d</td><td class="hd">Disk I/O chart</td></tr>
       <tr><td class="hk">h</td><td class="hd">Toggle horizon chart</td></tr>
       <tr><td class="hk">1-4</td><td class="hd">Filter ALL / AI / DEV / WATCH</td></tr>
       <tr><td class="hk">/</td><td class="hd">Search processes</td></tr>
@@ -1901,6 +1930,20 @@ function showToast(msg){
         <span class="toggle-slider"></span>
       </label>
     </div>
+    <div class="tray-settings" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2);display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <span style="font-size:11px;color:var(--dim);">Show tray icon</span>
+        <label class="toggle-switch"><input type="checkbox" id="tray-enable-cb"><span class="toggle-slider"></span></label>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <span style="font-size:11px;color:var(--dim);">Close to tray</span>
+        <label class="toggle-switch"><input type="checkbox" id="tray-close-cb"><span class="toggle-slider"></span></label>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <span style="font-size:11px;color:var(--dim);">Menu-bar text (macOS)</span>
+        <label class="toggle-switch"><input type="checkbox" id="tray-text-cb"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
     <div class="help-footer">press any key to close</div>
   </div>
 </div>
@@ -1908,7 +1951,7 @@ function showToast(msg){
 <!-- About overlay -->
 <div class="help-overlay" id="about-overlay">
   <div class="help-box" style="text-align:center;min-width:280px;">
-    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v1.2</span></div>
+    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v1.3</span></div>
     <div style="font-size:13px;color:var(--dim);margin-bottom:14px;">Terminal / GUI, AI-aware system monitor</div>
     <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
       <a href="https://dofek.dev" target="_blank" class="about-link" style="font-size:11px;">dofek.dev</a>
@@ -1952,6 +1995,17 @@ document.getElementById('telem-toggle-cb').addEventListener('change', async (e) 
     setTimeout(()=>t.classList.remove('show'),2000);
   } catch(err) { console.error('Failed to save telemetry choice:', err); }
 });
+
+async function patchSettings(patch) {
+  if (!invoke) return;
+  try {
+    const cur = await invoke('get_settings');
+    await invoke('save_settings', { settings: Object.assign({}, cur, patch) });
+  } catch(err) { console.error('Failed to save tray setting:', err); }
+}
+document.getElementById('tray-enable-cb').addEventListener('change', e => patchSettings({ enable_tray: e.target.checked }));
+document.getElementById('tray-close-cb').addEventListener('change', e => patchSettings({ close_to_tray: e.target.checked }));
+document.getElementById('tray-text-cb').addEventListener('change', e => patchSettings({ tray_show_text: e.target.checked }));
 </script>
 
 <style>

@@ -23,10 +23,26 @@ pub struct UserSettings {
     /// User's telemetry choice (overrides config file when `telemetry_prompted` is true).
     #[serde(default)]
     pub telemetry_enabled: bool,
+    /// Show a system-tray / menu-bar icon with a live CPU sparkline.
+    #[serde(default = "default_true")]
+    pub enable_tray: bool,
+    /// Pressing the window close button hides to tray instead of quitting.
+    #[serde(default = "default_true")]
+    pub close_to_tray: bool,
+    /// Launch with the main window hidden (tray-only).
+    #[serde(default)]
+    pub start_in_tray: bool,
+    /// On macOS, render `CPU NN GPU NN` text next to the menu-bar icon.
+    #[serde(default = "default_true")]
+    pub tray_show_text: bool,
 }
 
 fn generate_anonymous_id() -> String {
     Uuid::new_v4().to_string()
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for UserSettings {
@@ -42,6 +58,10 @@ impl Default for UserSettings {
             anonymous_id: generate_anonymous_id(),
             telemetry_prompted: false,
             telemetry_enabled: false,
+            enable_tray: true,
+            close_to_tray: true,
+            start_in_tray: false,
+            tray_show_text: true,
         }
     }
 }

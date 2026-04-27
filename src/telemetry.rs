@@ -53,6 +53,11 @@ pub enum TelemetryEvent {
     ProcessKill {
         success: bool,
     },
+    TrayIconClicked,
+    TrayMenuItemSelected {
+        item: String,
+    },
+    WindowClosedToTray,
     /// Internal sentinel — triggers flush and thread exit. Never serialized over the wire.
     #[serde(skip)]
     Shutdown,

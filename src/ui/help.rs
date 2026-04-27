@@ -10,8 +10,8 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
     let area = f.area();
 
     let width = 46.min(area.width.saturating_sub(4));
-    // 19 help lines + telemetry + footer + spacing + 2 for border
-    let height = 25u16.min(area.height.saturating_sub(4));
+    // 20 help lines + telemetry + footer + spacing + 2 for border
+    let height = 26u16.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(width)) / 2;
     let y = (area.height.saturating_sub(height)) / 2;
     let popup = Rect::new(x, y, width, height);
@@ -40,6 +40,7 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
         help_line("t", "Toggle tree/flat view"),
         help_line("→/←", "Expand/collapse group"),
         help_line("c/g/m/n", "CPU / GPU / MEM / NET"),
+        help_line("d", "Disk I/O chart"),
         help_line("1-4", "Filter ALL/AI/DEV/WATCH"),
         help_line("esc", "Return to dashboard"),
         help_line("+/-", "Adjust refresh rate"),

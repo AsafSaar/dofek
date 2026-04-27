@@ -248,8 +248,11 @@ jobs:
         run: |
           mkdir -p artifacts
 
+          # macOS TUI is renamed with the target triple to disambiguate from the
+          # Linux dofek-tui in the publish job's flatten step. Mirrors the .app
+          # naming below.
           if [ -f target/release/dofek-tui ]; then
-            cp target/release/dofek-tui artifacts/
+            cp target/release/dofek-tui artifacts/dofek-tui-aarch64-apple-darwin
           else
             echo "::warning::TUI binary not found at target/release/dofek-tui"
           fi
@@ -385,7 +388,7 @@ jobs:
             | Artifact | Description |
             | --- | --- |
             | `dofek-gui-aarch64-apple-darwin.app.zip` | Unsigned `.app` bundle — unzip and drag to Applications |
-            | `dofek-tui` | Standalone TUI binary (`chmod +x` and run) |
+            | `dofek-tui-aarch64-apple-darwin` | Standalone TUI binary (`chmod +x` and run) |
 
             Intel Macs are not supported in this release.
 

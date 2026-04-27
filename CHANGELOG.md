@@ -2,6 +2,33 @@
 
 All notable changes to dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-27
+
+System-tray companion is here — dofek's OS chrome itself is now a system monitor — alongside Linux CPU power via RAPL and cross-platform disk I/O metrics.
+
+### Added
+- **System-tray / menu-bar companion** (Windows, Linux, macOS). Live-rendered 32×32 RGBA icon with a CPU sparkline that ramps sky-blue → emerald → amber → red as load climbs. Right-click menu (Show / Hide / Settings… / About / Quit). Left-click toggles the main window.
+- **Close-to-tray default**: pressing the window close button now hides to the tray instead of quitting; quit only via tray menu, `Cmd+Q`, or `Alt+F4`. Configurable in the help/settings overlay.
+- **Start-in-tray** option: launches with the main window hidden; useful for autostart.
+- **macOS menu-bar text** (`CPU NN GPU NN`) next to the tray icon when `tray_show_text=true`. Toggleable.
+- **Linux CPU power via RAPL** — reads `/sys/class/powercap/intel-rapl:0/energy_uj` and exposes watts in the `cpu.power` field. Self-disables silently on permission denied or non-Intel hosts.
+- **Disk I/O metrics** — new cross-platform tracker (`sysinfo::Disks`) producing aggregate read/write rates plus a per-device list. New `DISK` chart tab (TUI key `d`, GUI tab) with stacked area chart for read/write. New ticker pill (gated to appear only when aggregate I/O > 1 KB/s).
+- **`dofek-tui` ticker self-syncs to `Cargo.toml`** — the version literal is now `concat!(" v", env!("CARGO_PKG_VERSION"))` so future bumps need one fewer manual edit. Same change applied to the TUI About overlay.
+- **Tauri single-instance plugin** on Windows/Linux — second invocations now just focus the existing window instead of opening a duplicate (and a duplicate tray icon).
+- **Three new telemetry events**: `tray_icon_clicked`, `tray_menu_item_selected { item }`, `window_closed_to_tray`.
+- **Four new persisted settings**: `enable_tray`, `close_to_tray`, `start_in_tray`, `tray_show_text`. Old `settings.toml` files load through unchanged via `#[serde(default)]`.
+
+### Changed
+- Workspace version bumped to 1.3.0 across `dofek`, `dofek-gui`, `gui/tauri.conf.json`, README, install notes, manual, and website.
+- Snapshot relay thread now lives inside the Tauri `setup` closure so the tray can be re-rendered from the same loop that updates shared state — no second collector, no duplicate IPC.
+- Disk theme color reassigned to amber (`#EAB308`) to distinguish from CPU sky-blue and NET orange in the new chart.
+
+### Notes
+- **GNOME tray:** GNOME removed legacy tray support. The tray icon needs the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/); without it the tray won't appear (other features unaffected). Documented; not worked around.
+- **AMD CPU power on Linux:** `intel-rapl` covers Intel and some AMD parts (via `intel_rapl_common`). Pure `amd_energy` paths and `CAP_SYS_RAWIO` workarounds are tracked for v1.4.
+- **macOS:** GPU/VRAM and CPU temp/power are still N/A — Apple Silicon SMC integration tracked for a future release.
+- **Downgrading:** a v1.3 user with `chart_tab = "disk"` opening on v1.2 silently resets to `cpu`. No data loss, no crash.
+
 ## [1.2.0] - 2026-04-26
 
 macOS support — dofek now runs natively on Apple Silicon Macs (`aarch64-apple-darwin`).
