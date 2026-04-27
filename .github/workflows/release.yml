@@ -375,7 +375,12 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.value }}
           name: dofek ${{ steps.tag.outputs.value }}
-          draft: true
+          # Auto-publish, do not regress to draft. The original draft:true was
+          # there so we could review artifacts before going public — useful when
+          # the pipeline was new, painful now that every retag silently un-
+          # publishes the live release. The trigger is already restricted to
+          # tag pushes (`v*.*.*`), so accidental publishes are unlikely.
+          draft: false
           prerelease: ${{ steps.prerelease.outputs.value }}
           generate_release_notes: true
           files: artifacts/*
