@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata so Ubuntu App Center / GNOME Software / KDE Discover
+  can render dofek with publisher, license, screenshots, and per-release
+  notes instead of "Unknown publisher" placeholders. Ships at
+  /usr/share/metainfo/com.dofek.app.metainfo.xml in the .deb and .rpm.
+
+  Spec: https://www.freedesktop.org/software/appstream/docs/
+-->
+<component type="desktop-application">
+  <id>com.dofek.app</id>
+  <launchable type="desktop-id">dofek.desktop</launchable>
+
+  <name>dofek</name>
+  <summary>AI-aware system monitor with a trading-terminal interface</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <developer id="com.dofek">
+    <name>Asaf Saar</name>
+  </developer>
+
+  <description>
+    <p>
+      dofek is a system monitor for developers who run AI workloads on their
+      workstation. A single Rust codebase produces both a terminal TUI and a
+      Tauri-based desktop GUI; they share the same data layer.
+    </p>
+    <p>What it shows:</p>
+    <ul>
+      <li>CPU load, per-core, temperature, and (Intel/RAPL) power.</li>
+      <li>GPU utilization, VRAM, temperature, and power — NVIDIA via NVML, with a LibreHardwareMonitor fallback on Windows for non-NVIDIA cards.</li>
+      <li>Per-process VRAM accounting, plus AI-workload detection (Loading / Inferring / Idle states).</li>
+      <li>Memory, swap, network rates, and disk I/O (cross-platform).</li>
+    </ul>
+    <p>v1.3 highlights:</p>
+    <ul>
+      <li>System-tray companion with a live CPU sparkline icon, close-to-tray, and macOS menu-bar text.</li>
+      <li>Linux CPU power via RAPL (closes a long-standing N/A on Linux).</li>
+      <li>Cross-platform disk I/O chart and ticker pill.</li>
+    </ul>
+    <p>
+      Extensible via a JSON-over-stdio plugin protocol; ships with Ollama and
+      Docker plugins that pin matching processes in the watchlist.
+    </p>
+  </description>
+
+  <url type="homepage">https://dofek.dev</url>
+  <url type="bugtracker">https://github.com/AsafSaar/dofek/issues</url>
+  <url type="vcs-browser">https://github.com/AsafSaar/dofek</url>
+  <url type="help">https://github.com/AsafSaar/dofek#readme</url>
+
+  <categories>
+    <category>System</category>
+    <category>Monitor</category>
+    <category>Development</category>
+  </categories>
+
+  <keywords>
+    <keyword>system</keyword>
+    <keyword>monitor</keyword>
+    <keyword>cpu</keyword>
+    <keyword>gpu</keyword>
+    <keyword>vram</keyword>
+    <keyword>ai</keyword>
+    <keyword>nvml</keyword>
+    <keyword>tui</keyword>
+    <keyword>tauri</keyword>
+    <keyword>terminal</keyword>
+  </keywords>
+
+  <icon type="stock">dofek-gui</icon>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Trading-terminal GUI: CPU candlestick, GPU utilization, watchlist with AI-workload badges</caption>
+      <image>https://raw.githubusercontent.com/AsafSaar/dofek/main/docs/assets/gui-screenshot.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Terminal TUI: same data, half-block charts, keyboard-driven</caption>
+      <image>https://raw.githubusercontent.com/AsafSaar/dofek/main/docs/assets/tui-screenshot.png</image>
+    </screenshot>
+  </screenshots>
+
+  <provides>
+    <binary>dofek-gui</binary>
+    <binary>dofek-tui</binary>
+  </provides>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="1.3.0" date="2026-04-27">
+      <description>
+        <p>System-tray companion (live CPU sparkline icon, close-to-tray default, right-click Show/Hide/Settings/Quit, macOS menu-bar text). Linux CPU power via RAPL. Cross-platform disk I/O metrics with new DISK chart tab and ticker pill. macOS Apple Silicon now ships as a .dmg in addition to .app.zip.</p>
+      </description>
+    </release>
+    <release version="1.2.0" date="2026-04-26">
+      <description>
+        <p>macOS (Apple Silicon) support — TUI and GUI on aarch64-apple-darwin, three-platform release pipeline.</p>
+      </description>
+    </release>
+    <release version="1.1.0" date="2026-04-25">
+      <description>
+        <p>Linux x86_64 support — TUI and GUI, native .deb / .rpm / .AppImage bundles.</p>
+      </description>
+    </release>
+    <release version="1.0.0" date="2026-04-23">
+      <description>
+        <p>First public release: MSI installer, dofek.dev, plugin protocol stabilized, GitHub Actions release pipeline.</p>
+      </description>
+    </release>
+  </releases>
+</component>

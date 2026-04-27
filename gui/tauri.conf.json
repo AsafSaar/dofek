@@ -38,7 +38,15 @@
         "depends": [
           "libwebkit2gtk-4.1-0",
           "libgtk-3-0"
-        ]
+        ],
+        "files": {
+          "/usr/share/metainfo/com.dofek.app.metainfo.xml": "com.dofek.app.metainfo.xml"
+        }
+      },
+      "rpm": {
+        "files": {
+          "/usr/share/metainfo/com.dofek.app.metainfo.xml": "com.dofek.app.metainfo.xml"
+        }
       }
     },
     "windows": {
