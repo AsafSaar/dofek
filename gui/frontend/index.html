@@ -527,6 +527,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 <script>
 /* ═══ TAURI IPC ══════════════════════════════════════════ */
 var invoke;
+var tauriListen;
 // Tauri 2: try @tauri-apps/api path first, then raw internals
 try {
   if (window.__TAURI__ && window.__TAURI__.core) {
@@ -534,8 +535,33 @@ try {
   } else if (window.__TAURI_INTERNALS__) {
     invoke = window.__TAURI_INTERNALS__.invoke;
   }
+  if (window.__TAURI__ && window.__TAURI__.event) {
+    tauriListen = window.__TAURI__.event.listen;
+  }
 } catch(e) {
   console.error('Tauri IPC init failed:', e);
+}
+
+/* Open the help/settings overlay and hydrate the toggles from current settings.
+   Used by the `?` key and by the "Settings" tray menu item (which emits
+   `dofek://open-settings` from the Rust side). */
+function openSettingsOverlay() {
+  const helpEl = document.getElementById('help-overlay');
+  if (!helpEl.classList.contains('visible')) helpEl.classList.add('visible');
+  if (invoke) {
+    invoke('get_settings').then(s => {
+      document.getElementById('telem-toggle-cb').checked = s.telemetry_enabled || false;
+      document.getElementById('tray-enable-cb').checked = s.enable_tray !== false;
+      document.getElementById('tray-close-cb').checked = s.close_to_tray !== false;
+      document.getElementById('tray-text-cb').checked = s.tray_show_text !== false;
+    }).catch(() => {});
+  }
+}
+
+if (tauriListen) {
+  tauriListen('dofek://open-settings', () => openSettingsOverlay()).catch(err => {
+    console.warn('Failed to register tray-settings listener:', err);
+  });
 }
 const LEN = 60;
 let dashOffset = 0; // animated threshold dash offset
@@ -1748,15 +1774,10 @@ document.addEventListener('keydown', e => {
   // Toggle help: ?
   if (k === '?' || (e.shiftKey && e.key === '?')) {
     const helpEl = document.getElementById('help-overlay');
-    const becoming_visible = !helpEl.classList.contains('visible');
-    helpEl.classList.toggle('visible');
-    if (becoming_visible && invoke) {
-      invoke('get_settings').then(s => {
-        document.getElementById('telem-toggle-cb').checked = s.telemetry_enabled || false;
-        document.getElementById('tray-enable-cb').checked = s.enable_tray !== false;
-        document.getElementById('tray-close-cb').checked = s.close_to_tray !== false;
-        document.getElementById('tray-text-cb').checked = s.tray_show_text !== false;
-      }).catch(() => {});
+    if (helpEl.classList.contains('visible')) {
+      helpEl.classList.remove('visible');
+    } else {
+      openSettingsOverlay();
     }
     return;
   }
