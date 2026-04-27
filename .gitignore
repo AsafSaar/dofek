@@ -7,3 +7,16 @@ website/node_modules/
 .DS_Store
 # Tauri-generated dev schema files (regenerated on every `cargo gui` run)
 /gui/gen/
+
+# Empty stub created when npm runs at the repo root by mistake. The real
+# package-lock.json lives in /website/ and IS tracked — anchor with a leading
+# slash so this rule only matches the root.
+/package-lock.json
+
+# Mobile / Windows-Store icon variants emitted by `cargo tauri icon`. dofek
+# only ships desktop, so these are noise that gets regenerated each time the
+# command runs.
+/gui/icons/android/
+/gui/icons/ios/
+/gui/icons/Square*Logo.png
+/gui/icons/StoreLogo.png
