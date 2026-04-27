@@ -99,10 +99,10 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 if cpu.temperature.is_none() {
                     cpu.temperature = sysinfo_source::pick_cpu_temp(&components);
                 }
-                if cpu.power.is_none() {
-                    if let Some(w) = rapl.read_watts() {
-                        cpu.power = Some(w);
-                    }
+                if cpu.power.is_none()
+                    && let Some(w) = rapl.read_watts()
+                {
+                    cpu.power = Some(w);
                 }
             }
 
