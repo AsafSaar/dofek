@@ -21,7 +21,7 @@ ratatui = "0.29"
 crossterm = "0.28"
 
 # HTTP client (blocking, no TLS needed — LHM is localhost only)
-ureq = { version = "2", features = ["native-tls"] }
+ureq = { version = "3", features = ["native-tls"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
