@@ -238,11 +238,13 @@ jobs:
       - name: Install tauri-cli
         run: cargo install tauri-cli --version '^2.0' --locked
 
-      # Unsigned DMGs are useless to end users (Gatekeeper rejects on first open),
-      # so we ship only the .app bundle (zipped) plus the standalone TUI.
-      - name: Build GUI (Tauri, .app only)
+      # Ship both bundles: .dmg gives the canonical drag-to-Applications install
+      # flow most macOS users expect; .app.zip is the lighter download for users
+      # who already know the right-click → Open dance for unsigned apps. Both
+      # need the same Gatekeeper override, so this is a UX choice, not security.
+      - name: Build GUI (Tauri, .app + .dmg)
         working-directory: gui
-        run: cargo tauri build --bundles app
+        run: cargo tauri build --bundles app dmg
 
       - name: Collect artifacts
         run: |
@@ -264,6 +266,16 @@ jobs:
               zip -ry "$GITHUB_WORKSPACE/artifacts/dofek-gui-aarch64-apple-darwin.app.zip" "$(basename "$app_path")" )
           else
             echo "::warning::No .app bundle found under target/release/bundle/macos"
+          fi
+
+          # The .dmg ships under target/release/bundle/dmg with Tauri's default
+          # name (e.g. dofek_1.3.0_aarch64.dmg). Copy as-is — the version+arch
+          # already disambiguate from any other platform's artifacts.
+          dmg_path=$(find target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -type f 2>/dev/null | head -n1)
+          if [ -n "$dmg_path" ]; then
+            cp "$dmg_path" "artifacts/"
+          else
+            echo "::warning::No .dmg bundle found under target/release/bundle/dmg"
           fi
 
           echo
@@ -387,7 +399,8 @@ jobs:
             ### macOS (Apple Silicon — aarch64)
             | Artifact | Description |
             | --- | --- |
-            | `dofek-gui-aarch64-apple-darwin.app.zip` | Unsigned `.app` bundle — unzip and drag to Applications |
+            | `dofek_*_aarch64.dmg` | Disk image — open and drag to Applications (recommended) |
+            | `dofek-gui-aarch64-apple-darwin.app.zip` | Lighter download — unzip and move the `.app` yourself |
             | `dofek-tui-aarch64-apple-darwin` | Standalone TUI binary (`chmod +x` and run) |
 
             Intel Macs are not supported in this release.
