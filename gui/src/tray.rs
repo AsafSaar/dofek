@@ -16,7 +16,7 @@ use dofek::data::DataSnapshot;
 use dofek::settings::UserSettings;
 use dofek::telemetry::{TelemetryEvent, TelemetryHandle};
 use tauri::image::Image;
-use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
+use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
 use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
@@ -47,19 +47,18 @@ pub fn install(
         return Ok(());
     }
 
-    let show = MenuItemBuilder::with_id("tray.show", "Show").build(app)?;
-    let hide = MenuItemBuilder::with_id("tray.hide", "Hide").build(app)?;
-    let settings_item = MenuItemBuilder::with_id("tray.settings", "Settings…").build(app)?;
-    let quit = MenuItemBuilder::with_id("tray.quit", "Quit dofek").build(app)?;
+    // Use MenuBuilder's text() chain instead of MenuItemBuilder + .item(&...).
+    // The latter renders blank labels under libayatana-appindicator on Ubuntu
+    // (Yaru / GNOME with the AppIndicator extension). Plain ASCII labels only —
+    // skipping "Settings…" with U+2026 because some appindicator backends
+    // truncate non-ASCII through the dbus path.
     let menu = MenuBuilder::new(app)
-        .item(&show)
-        .item(&hide)
+        .text("tray.show", "Show window")
+        .text("tray.hide", "Hide window")
         .separator()
-        .item(&settings_item)
+        .text("tray.settings", "Settings")
         .separator()
-        .item(&PredefinedMenuItem::about(app, Some("dofek"), None)?)
-        .separator()
-        .item(&quit)
+        .text("tray.quit", "Quit dofek")
         .build()?;
 
     let initial_icon = render_sparkline_icon(&[]);
