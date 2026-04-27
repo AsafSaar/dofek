@@ -9,8 +9,18 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Asaf Saar",
+    "homepage": "https://dofek.dev",
+    "copyright": "Copyright (c) 2026 Asaf Saar",
+    "license": "MIT",
+    "category": "DeveloperTool",
+    "shortDescription": "AI-aware system monitor for Windows, Linux, and macOS",
+    "longDescription": "dofek is a trading-terminal-styled system monitor with a TUI and a desktop GUI sharing one Rust codebase. It surfaces CPU, GPU, VRAM, memory, network, and disk in real time, with per-process VRAM accounting and AI-workload detection. NVIDIA GPUs are supported via NVML; LibreHardwareMonitor provides a fallback on Windows for CPU temperatures and non-NVIDIA GPUs. A JSON-over-stdio plugin system extends the watchlist (Ollama, Docker, etc.). v1.3 adds a system-tray companion with a live CPU sparkline icon, Linux CPU power via RAPL, and cross-platform disk I/O metrics.",
     "icon": [
-      "icons/icon.png",
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
       "icons/icon.ico"
     ],
     "externalBin": [
@@ -21,6 +31,15 @@
       "../docs/assets/tui-screenshot.png": "assets/tui-screenshot.png",
       "../docs/assets/gui-screenshot.png": "assets/gui-screenshot.png",
       "../README-install.txt": "README.txt"
+    },
+    "linux": {
+      "deb": {
+        "section": "utils",
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0"
+        ]
+      }
     },
     "windows": {
       "wix": {
