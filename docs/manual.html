@@ -229,7 +229,7 @@ kbd {
 <p><em>dofek</em> (Hebrew: דּוֹפֶק — "pulse" or "heartbeat") is a cross-platform system monitor built for developers running local AI workloads. It tracks per-process VRAM, flags Ollama and other inference workloads automatically, and renders CPU history as candlestick charts so you see real variance — not smoothed averages. Supported platforms: Windows 10/11, Linux x86_64, and macOS 12+ on Apple Silicon (aarch64).</p>
 <p>It ships as two interfaces driven by the same Rust core:</p>
 <ul>
-  <li><strong>dofek-tui</strong> — terminal UI (Ratatui). Lives happily inside Windows Terminal, Tabby, GNOME Terminal, Konsole, Terminal.app, iTerm2, or any VT-capable console.</li>
+  <li><strong>dofek-tui</strong> — terminal UI (Ratatui). Needs a <strong>truecolor (24-bit RGB)</strong> terminal: Windows Terminal, Tabby, GNOME Terminal, Konsole, iTerm2, WezTerm, Ghostty, Alacritty, Kitty. Apple's Terminal.app does <em>not</em> support truecolor — panel backgrounds will render as miscolored blocks. dofek-tui detects non-truecolor terminals at startup and prints a warning before continuing.</li>
   <li><strong>dofek-gui</strong> — desktop app (Tauri 2). WebView2 on Windows, WebKitGTK on Linux, WKWebView on macOS. Same data, same plugins, graphical charts.</li>
 </ul>
 

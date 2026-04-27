@@ -23,11 +23,50 @@ use app::App;
 use config::{Cli, Config};
 use event::AppEvent;
 
+/// Returns true if the terminal advertises 24-bit RGB color support.
+///
+/// We trust `COLORTERM=truecolor` / `COLORTERM=24bit` because every modern
+/// truecolor terminal sets one of those (it's the de-facto convention) and
+/// the few legacy terminals that mishandle truecolor SGR (Apple Terminal,
+/// older xterm, basic SSH-as-vt100 sessions) don't.
+///
+/// `NO_COLOR` is also respected — if set, we treat the terminal as
+/// non-truecolor so the user gets the warning and can choose to abort.
+fn truecolor_supported() -> bool {
+    if std::env::var_os("NO_COLOR").is_some() {
+        return false;
+    }
+    matches!(
+        std::env::var("COLORTERM").as_deref(),
+        Ok("truecolor") | Ok("24bit")
+    )
+}
+
 fn main() -> Result<()> {
     env_logger::init();
 
     let cli = Cli::parse();
     let config = Config::load(&cli)?;
+
+    // Pre-flight terminal capability check. dofek's trading-terminal palette is
+    // built on 24-bit RGB; terminals without truecolor support (notably Apple
+    // Terminal.app — known broken since at least 2014) misparse the
+    // `ESC[38;2;R;G;Bm` SGR sequences and render the whole UI in neon magenta
+    // and red. Catch this *before* we take over the screen so the user has
+    // somewhere readable to land after Ctrl+C, and so the warning isn't
+    // overwritten by alt-screen takeover.
+    if !truecolor_supported() {
+        let term = std::env::var("TERM_PROGRAM").unwrap_or_else(|_| "unknown".into());
+        eprintln!();
+        eprintln!("\x1b[33m! dofek: terminal '{term}' does not advertise truecolor (COLORTERM unset).\x1b[0m");
+        eprintln!("\x1b[33m  The trading-terminal palette uses 24-bit RGB; without it, panel");
+        eprintln!("  backgrounds will render as miscolored blocks (Apple Terminal.app is the");
+        eprintln!("  most common case). For correct rendering, run dofek-tui in iTerm2,");
+        eprintln!("  WezTerm, Ghostty, Alacritty, or Kitty.\x1b[0m");
+        eprintln!();
+        eprintln!("  Starting anyway in 3 seconds — press Ctrl+C to abort.");
+        std::thread::sleep(Duration::from_secs(3));
+    }
 
     // Spawn data collector thread
     let data_rx = data::spawn_collector(config.clone());

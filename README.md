@@ -86,10 +86,13 @@ Pre-built binaries are published on the [Releases page](https://github.com/AsafS
 
 | Asset | Description |
 | --- | --- |
-| `dofek-gui-aarch64-apple-darwin.app.zip` | Unsigned `.app` — unzip, drag to Applications |
-| `dofek-tui` | Standalone TUI binary (`chmod +x` and run) |
+| `dofek_*_aarch64.dmg` | Disk image — open and drag to Applications (recommended) |
+| `dofek-gui-aarch64-apple-darwin.app.zip` | Lighter download — unzip and move the `.app` yourself |
+| `dofek-tui-aarch64-apple-darwin` | Standalone TUI binary (`chmod +x` and run) |
 
 Intel Macs are not supported in this release.
+
+> ℹ️ **TUI requires a truecolor terminal.** dofek-tui's trading-terminal palette uses 24-bit RGB. Apple's Terminal.app misparses these escape sequences and renders panels as bright magenta/red — use [iTerm2](https://iterm2.com), [WezTerm](https://wezterm.org), [Ghostty](https://ghostty.org), [Alacritty](https://alacritty.org), or [Kitty](https://sw.kovidgoyal.net/kitty/) instead. The same applies on Linux for any terminal that doesn't set `COLORTERM=truecolor`. dofek-tui prints a warning at startup if it detects a non-truecolor terminal.
 
 `SHA256SUMS.txt` has checksums for every artifact.
 
