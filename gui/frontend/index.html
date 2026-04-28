@@ -31,10 +31,14 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:11px;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
 
-/* Scanline overlay — subtle CRT texture */
+/* Scanline overlay — subtle CRT texture.
+   `mix-blend-mode: multiply` over a fullscreen ::after pseudo-element forced
+   WebKitGTK to recomposite the entire viewport on every layer paint
+   (canvases, CSS animations, even cursor movement). Dropping the blend mode
+   keeps the visual effect by using a plain low-alpha overlay; the CRT look
+   is preserved without the per-paint global recomposite. */
 body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:9999;
-  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);
-  mix-blend-mode:multiply;}
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.05) 2px,rgba(0,0,0,.05) 4px);}
 
 /* Loading state */
 .loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;transition:opacity .4s;pointer-events:none;}
@@ -83,10 +87,19 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 .pill.net .up{color:var(--net-up);font-weight:600;}
 .pill.net .sep{color:var(--muted);}
 .pill.ai{background:rgba(192,132,252,.07);border-color:rgba(192,132,252,.25);color:var(--ai);font-size:10px;}
-.pill.ai .dot{animation:blink 1.6s ease-in-out infinite;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
-.flash{animation:numflash .35s ease;}
-@keyframes numflash{0%{color:#fff}100%{}}
+/* `step-end` instead of `ease-in-out`: WebKitGTK repaints the element on
+   every animation frame for ease-* curves (60×/sec per animated node) but
+   only on each step boundary for step-end (2×/sec here). With one AI dot in
+   the topbar plus N "inferring" badges in the process table, the smooth
+   blink was driving the compositor continuously. */
+.pill.ai .dot{animation:blink 1.6s step-end infinite;}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:.25}}
+/* `.flash` was applied to every changed metric via setText, kicking off a
+   0.35s CSS animation per pill per tick. With 10+ pills updating each
+   snapshot, WebKitGTK's compositor was repainting at ~60Hz continuously.
+   Class is still toggled in JS (no callsite change) but the animation is a
+   no-op — the value updates remain perfectly readable without it. */
+.flash{}
 .topbar-right{display:flex;align-items:center;gap:14px;padding-left:14px;border-left:1px solid var(--bdr2);margin-left:10px;flex-shrink:0;}
 .hostname{color:var(--dim);font-size:10px;letter-spacing:.12em;}
 .clock{font-weight:600;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text);}
@@ -113,7 +126,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 .chart-mode-badge.candle{color:var(--cpu);border-color:rgba(56,189,248,.25);background:rgba(56,189,248,.05);}
 .chart-mode-badge.horizon{color:var(--warn);border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.05);}
 .chart-meta{display:flex;align-items:baseline;gap:10px;flex:1;padding-left:10px;}
-.c-val{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .3s;line-height:1;letter-spacing:-.02em;}
+.c-val{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.02em;}
 .c-val.cpu{color:var(--cpu)} .c-val.gpu{color:var(--gpu)} .c-val.mem{color:var(--mem)} .c-val.net{color:var(--net-up)}
 .c-hw{color:var(--muted);font-size:10px;}
 .c-delta{font-size:10px;font-weight:500;padding:2px 6px;border-radius:2px;}
@@ -230,7 +243,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 .pvram{color:var(--gpu);} .pvram.none{color:var(--muted);}
 .badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 5px;border-radius:2px;white-space:nowrap;font-weight:500;}
 .badge.inf{color:var(--ai);background:rgba(192,132,252,.13);border:1px solid rgba(192,132,252,.28);}
-.badge.inf .bd{animation:blink 1.6s ease-in-out infinite;}
+.badge.inf .bd{animation:blink 1.6s step-end infinite;}
 .badge.ild{color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--bdr);}
 
 /* PLUGIN DOCK */
@@ -264,16 +277,23 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 .core{display:flex;flex-direction:column;gap:2px;}
 .core-lbl{font-size:8px;color:var(--muted);}
 .core-track{height:5px;background:rgba(255,255,255,.05);border-radius:1px;overflow:hidden;width:100%;}
-.core-fill{height:100%;border-radius:1px;background:var(--cpu);transition:width .5s ease;position:relative;}
-.core-fill::after{content:'';position:absolute;top:-1px;right:0;bottom:-1px;width:4px;border-radius:0 1px 1px 0;filter:blur(2px);background:inherit;opacity:.6;}
+/* No transition + no blur on per-core fills.
+   With ~16-32 cores updating every snapshot, `transition: width .5s` produced
+   ~30 frames of compositor interpolation per core per tick (24 cores × 30fr =
+   720 paints/sec just for the cores grid), and `filter: blur` on each pseudo
+   element is software-rendered on WebKitGTK — together the dominant cost in
+   the WebKitWebProcess. The bars now snap to the new value (still readable
+   at 1 Hz) and use a static highlight stripe instead of a blur. */
+.core-fill{height:100%;border-radius:1px;background:var(--cpu);position:relative;}
+.core-fill::after{content:'';position:absolute;top:0;right:0;bottom:0;width:2px;border-radius:0 1px 1px 0;background:rgba(255,255,255,.4);}
 .core-pct{font-size:9px;color:var(--dim);font-variant-numeric:tabular-nums;}
 
 /* stat rows */
 .srow{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
 .skey{width:34px;font-size:9px;color:var(--muted);flex-shrink:0;letter-spacing:.04em;}
 .strack{flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:1px;overflow:hidden;position:relative;}
-.sfill{height:100%;border-radius:1px;transition:width .5s ease;position:relative;}
-.sfill::after{content:'';position:absolute;top:-1px;right:0;bottom:-1px;width:6px;border-radius:0 1px 1px 0;filter:blur(3px);background:inherit;opacity:.7;}
+.sfill{height:100%;border-radius:1px;position:relative;}
+.sfill::after{content:'';position:absolute;top:0;right:0;bottom:0;width:2px;border-radius:0 1px 1px 0;background:rgba(255,255,255,.45);}
 .sfill.util{background:var(--gpu);}
 .sfill.vram{background:linear-gradient(90deg,var(--gpu),#db2777);}
 .sfill.temp{background:var(--warn);}
@@ -284,8 +304,8 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 
 /* dual VRAM bar (ALL gpu view) */
 .vram-dual{display:flex;height:5px;border-radius:1px;overflow:hidden;flex:1;}
-.vd0{background:var(--gpu);transition:width .5s;}
-.vd1{background:#db2777;opacity:.75;transition:width .5s;}
+.vd0{background:var(--gpu);}
+.vd1{background:#db2777;opacity:.75;}
 
 /* net */
 .nstream{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
@@ -307,7 +327,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="logo">dofek <em>v1.3</em></div>
+  <div class="logo">dofek <em id="app-version">v…</em></div>
   <div class="pills">
     <div class="pill cpu"><span class="lbl">CPU</span><span class="val" id="t-cpu">—</span></div>
     <div class="pill gpu"><span class="lbl">GPU</span><span class="val" id="t-gpu">—</span></div>
@@ -542,6 +562,18 @@ try {
   console.error('Tauri IPC init failed:', e);
 }
 
+// Stamp the version into the topbar logo and About overlay, so they track
+// Cargo.toml instead of being frozen at the literal we shipped with.
+if (invoke) {
+  invoke('get_app_version').then(v => {
+    const tag = 'v' + v;
+    const top = document.getElementById('app-version');
+    const about = document.getElementById('about-version');
+    if (top) top.textContent = tag;
+    if (about) about.textContent = tag;
+  }).catch(() => {});
+}
+
 /* Open the help/settings overlay and hydrate the toggles from current settings.
    Used by the `?` key and by the "Settings" tray menu item (which emits
    `dofek://open-settings` from the Rust side). */
@@ -623,21 +655,28 @@ function mapAiState(proc) {
 }
 
 /* ═══ DATA FETCH ════════════════════════════════════════ */
-async function tick() {
+/* tick() either uses the snapshot pushed in (fast path, via the
+   dofek://snapshot Tauri event) or pulls one via invoke('get_snapshot') for
+   the initial hydration before the event listener is wired. The push path
+   removes the per-tick IPC round-trip and full-snapshot JSON parse — the
+   dominant remaining WebKitGTK cost at 1 Hz. */
+async function tick(snap) {
   if (!invoke) {
     // Retry Tauri IPC init — try both API paths
     try {
       if (window.__TAURI__ && window.__TAURI__.core) invoke = window.__TAURI__.core.invoke;
       else if (window.__TAURI_INTERNALS__) invoke = window.__TAURI_INTERNALS__.invoke;
+      if (window.__TAURI__ && window.__TAURI__.event) tauriListen = window.__TAURI__.event.listen;
     } catch(e) { /* will retry next tick */ }
     if (!invoke) return;
   }
-  let snap;
-  try {
-    snap = await invoke('get_snapshot');
-  } catch(e) {
-    console.error('Failed to get snapshot:', e);
-    return;
+  if (!snap) {
+    try {
+      snap = await invoke('get_snapshot');
+    } catch(e) {
+      console.error('Failed to get snapshot:', e);
+      return;
+    }
   }
 
   if (!PLATFORM_INFO) {
@@ -735,12 +774,28 @@ async function tick() {
 }
 
 /* ═══ CANVAS HELPERS ═════════════════════════════════════ */
+/* Setting `canvas.width` reallocates the backing pixel buffer and resets all
+   ctx state — doing it on every frame for 4-7 canvases burns real WebKit CPU.
+   We cache the last applied (cssW, cssH, dpr) per canvas in a WeakMap and
+   skip the reset when nothing changed; otherwise we still do the resize +
+   ctx.scale(dpr) once. clearRect handles the per-frame wipe. */
+const _canvasSize = new WeakMap();
 function prep(c) {
-  const dpr=devicePixelRatio||1, r=c.getBoundingClientRect();
-  if(r.width<1||r.height<1) return null;
-  c.width=r.width*dpr; c.height=r.height*dpr;
-  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
-  return {ctx,W:r.width,H:r.height};
+  const dpr = devicePixelRatio || 1;
+  const r = c.getBoundingClientRect();
+  if (r.width < 1 || r.height < 1) return null;
+  const last = _canvasSize.get(c);
+  let ctx;
+  if (!last || last.cssW !== r.width || last.cssH !== r.height || last.dpr !== dpr) {
+    c.width = r.width * dpr;
+    c.height = r.height * dpr;
+    ctx = c.getContext('2d');
+    ctx.scale(dpr, dpr);
+    _canvasSize.set(c, { cssW: r.width, cssH: r.height, dpr });
+  } else {
+    ctx = c.getContext('2d');
+  }
+  return { ctx, W: r.width, H: r.height };
 }
 
 function bezier(ctx,pts,t=0.27) {
@@ -824,14 +879,22 @@ function drawCandle(c, candleData, color, lo=0, hi=100, warn=null, crit=null) {
   ctx.strokeStyle = color+'55'; ctx.lineWidth=1.5; ctx.stroke();
 }
 
-/* AREA chart for GPU/MEM/NET */
-function drawArea(c, hist, color, lo=0, hi=100, warn=null, crit=null, secondary=null) {
+/* AREA chart for GPU/MEM/NET.
+   `straight=true` swaps cubic-bezier smoothing for a polyline — used by the
+   four small sp-* sparklines, where bezier through ~LEN points is the
+   single biggest per-frame cost on WebKitGTK. The main chart still smooths. */
+function drawArea(c, hist, color, lo=0, hi=100, warn=null, crit=null, secondary=null, straight=false) {
   const s=prep(c); if(!s||hist.length<2) return;
   const {ctx,W,H}=s;
   const pl=4,pr=8,pt=12,pb=6;
   const dW=W-pl-pr, dH=H-pt-pb;
   ctx.clearRect(0,0,W,H);
   const toY=v=>pt+dH*(1-Math.max(0,Math.min(1,(v-lo)/(hi-lo))));
+
+  const trace=(pts)=>{
+    if (straight) { for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y); }
+    else { bezier(ctx, pts); }
+  };
 
   ctx.strokeStyle='rgba(255,255,255,.03)'; ctx.lineWidth=1;
   for(let i=1;i<=3;i++){const y=pt+dH/4*i;ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();}
@@ -847,16 +910,16 @@ function drawArea(c, hist, color, lo=0, hi=100, warn=null, crit=null, secondary=
 
   if(secondary){
     const pts2=secondary.map((v,i)=>({x:pl+(i/(LEN-1))*dW,y:toY(v)}));
-    ctx.globalAlpha=.55; ctx.beginPath(); ctx.moveTo(pts2[0].x,pts2[0].y); bezier(ctx,pts2);
+    ctx.globalAlpha=.55; ctx.beginPath(); ctx.moveTo(pts2[0].x,pts2[0].y); trace(pts2);
     ctx.strokeStyle=secondary.col||'#94a3b8'; ctx.lineWidth=1.2; ctx.stroke(); ctx.globalAlpha=1;
   }
 
   const pts=hist.map((v,i)=>({x:pl+(i/(LEN-1))*dW,y:toY(v)}));
   const g=ctx.createLinearGradient(0,pt,0,H);
   g.addColorStop(0,color+'40'); g.addColorStop(1,color+'00');
-  ctx.beginPath();ctx.moveTo(pts[0].x,H-pb);ctx.lineTo(pts[0].x,pts[0].y);bezier(ctx,pts);
+  ctx.beginPath();ctx.moveTo(pts[0].x,H-pb);ctx.lineTo(pts[0].x,pts[0].y);trace(pts);
   ctx.lineTo(pts[pts.length-1].x,H-pb);ctx.closePath();ctx.fillStyle=g;ctx.fill();
-  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);bezier(ctx,pts);
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);trace(pts);
   ctx.strokeStyle=color;ctx.lineWidth=1.8;ctx.stroke();
   const lp=pts[pts.length-1];
   ctx.beginPath();ctx.arc(lp.x,lp.y,3,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
@@ -868,14 +931,17 @@ function drawDual(c,h1,h2,c1,c2) {
   const {ctx,W,H}=s;
   const maxN=Math.max(1e4,...h1,...h2);
   ctx.clearRect(0,0,W,H);
+  // Polyline (no bezier) — drawDual is sparkline-only (sp-net).
   [[h1,c1],[h2,c2]].forEach(([h,col])=>{
     if(h.length<2) return;
     const pts=h.map((v,i)=>({x:(i/(LEN-1))*W,y:H-2-(Math.max(0,Math.min(1,v/maxN))*(H-4))}));
     const g=ctx.createLinearGradient(0,0,0,H);
     g.addColorStop(0,col+'28');g.addColorStop(1,col+'00');
-    ctx.beginPath();ctx.moveTo(pts[0].x,H);ctx.lineTo(pts[0].x,pts[0].y);bezier(ctx,pts);
+    ctx.beginPath();ctx.moveTo(pts[0].x,H);ctx.lineTo(pts[0].x,pts[0].y);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
     ctx.lineTo(pts[pts.length-1].x,H);ctx.closePath();ctx.fillStyle=g;ctx.fill();
-    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);bezier(ctx,pts);
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
     ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.stroke();
   });
 }
@@ -961,7 +1027,19 @@ function drawHorizon(c, hist, color, lo=0, hi=100, warn=null, crit=null, numBand
 /* ═══ FORMATTERS ══════════════════════════════════════════ */
 function fmtB(b){if(b<1e3)return b.toFixed(0)+' B/s';if(b<1e6)return (b/1e3).toFixed(1)+' KB/s';return (b/1e6).toFixed(1)+' MB/s';}
 function fmtMB(m){return m>=1024?(m/1024).toFixed(1)+' GB':m.toFixed(0)+' MB';}
-function setText(id,val){const el=document.getElementById(id);if(el&&el.textContent!==val){el.textContent=val;el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}}
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (!el || el.textContent === val) return;
+  el.textContent = val;
+  // Restart the .flash animation without forcing a synchronous layout. The
+  // previous `void el.offsetWidth` trick caused 7+ layout reflows per frame
+  // (every pill in the topbar uses setText). rAF lets the browser batch.
+  el.classList.remove('flash');
+  if (!el._flashScheduled) {
+    el._flashScheduled = true;
+    requestAnimationFrame(() => { el.classList.add('flash'); el._flashScheduled = false; });
+  }
+}
 
 /* ═══ RENDER ═════════════════════════════════════════════ */
 function upTopBar() {
@@ -1119,20 +1197,31 @@ function upDelta(cur,prev,unit){
 
 function upCores(){
   if(S.cpu.name) document.getElementById('cpu-sub').textContent=S.cpu.name;
-  const div=document.getElementById('cores');
-  /* Tauri CSP blocks inline styles in innerHTML — use DOM manipulation */
-  let html='';
-  S.cpu.cores.forEach((v,i)=>{
-    html+=`<div class="core"><div class="core-lbl">C${i}</div><div class="core-track"><div class="core-fill" data-idx="${i}"></div></div><div class="core-pct">${v.toFixed(1)}%</div></div>`;
-  });
-  div.innerHTML=html;
-  /* Apply widths and colors via DOM after insertion */
-  div.querySelectorAll('.core-fill').forEach(el=>{
-    const i=parseInt(el.dataset.idx);
-    const v=S.cpu.cores[i]||0;
-    el.style.width=Math.min(v,100)+'%';
-    el.style.background=v>90?'var(--crit)':v>75?'var(--warn)':'var(--cpu)';
-  });
+  const div = document.getElementById('cores');
+  /* Build the per-core rows once (keyed by index) and only mutate width/color/
+     pct text on subsequent frames. The previous innerHTML rebuild reparsed
+     ~16-32 nested divs every 500ms — small N but adds up to real WebKit work. */
+  const n = S.cpu.cores.length;
+  while (div.children.length < n) {
+    const i = div.children.length;
+    const row = document.createElement('div');
+    row.className = 'core';
+    row.innerHTML = `<div class="core-lbl">C${i}</div><div class="core-track"><div class="core-fill"></div></div><div class="core-pct">0%</div>`;
+    div.appendChild(row);
+  }
+  while (div.children.length > n) div.lastChild.remove();
+  for (let i = 0; i < n; i++) {
+    const v = S.cpu.cores[i] || 0;
+    const row = div.children[i];
+    const fill = row.children[1].firstChild;
+    const pct = row.children[2];
+    const wPct = Math.min(v, 100) + '%';
+    if (fill.style.width !== wPct) fill.style.width = wPct;
+    const bg = v > 90 ? 'var(--crit)' : v > 75 ? 'var(--warn)' : 'var(--cpu)';
+    if (fill.dataset.bg !== bg) { fill.style.background = bg; fill.dataset.bg = bg; }
+    const pctTxt = v.toFixed(1) + '%';
+    if (pct.textContent !== pctTxt) pct.textContent = pctTxt;
+  }
   /* CPU temp/power from LHM */
   const sensorsEl = document.getElementById('cpu-sensors');
   if (S.cpu.temp || S.cpu.power) {
@@ -1171,7 +1260,7 @@ function upCores(){
   } else {
     sensorsEl.style.display = 'none';
   }
-  drawArea(document.getElementById('sp-cpu'),S.cpu.hist.map(d=>d.mean),'#38bdf8',0,100);
+  drawArea(document.getElementById('sp-cpu'),S.cpu.hist.map(d=>d.mean),'#38bdf8',0,100,null,null,null,true);
 }
 
 function upGPU(){
@@ -1248,7 +1337,7 @@ function upGPU(){
   document.getElementById('g-powr-v').textContent=power.toFixed(0)+'W';
 
   const gpuMax=Math.max(1,...hist);
-  drawArea(document.getElementById('sp-gpu'),hist,'#a78bfa',0,gpuMax);
+  drawArea(document.getElementById('sp-gpu'),hist,'#a78bfa',0,gpuMax,null,null,null,true);
 }
 
 function upMEM(){
@@ -1258,7 +1347,7 @@ function upMEM(){
   document.getElementById('mem-sub').textContent=S.mem.usedGB.toFixed(1)+' / '+S.mem.totalGB+' GB';
   const swapRow=document.getElementById('swap-row');
   if(swapRow) swapRow.style.display=S.mem.swapPct>0.1?'':'none';
-  drawArea(document.getElementById('sp-mem'),S.mem.hist,'#34d399',0,100);
+  drawArea(document.getElementById('sp-mem'),S.mem.hist,'#34d399',0,100,null,null,null,true);
 }
 
 function upNET(){
@@ -1287,9 +1376,27 @@ function getFilteredProcs() {
     });
 }
 
+/* Process-row reconciliation cache.
+   Rebuilding the whole <tbody> via innerHTML='' twice a second was pegging
+   WebKitWebProcess at ~100% CPU on Linux. Instead we keep a stable cache
+   keyed by PID (or "g:<name>" for group headers) and only mutate the cells
+   that actually changed. Click handling moved to a single delegated listener
+   below. */
+const _rowCache = new Map(); // key -> { tr, sig, kind }
+const _rowDot = {ai:'●',dev:'■',watch:'★',null:'·'};
+const _rowDotCls = {ai:'ai',dev:'dev',watch:'watch',null:'none'};
+
+function _aiHtml(ai) {
+  if (ai === 'inf') return '<span class="badge inf"><span class="bd">●</span> infer</span>';
+  if (ai === 'ild') return '<span class="badge ild">○ idle</span>';
+  return '<span style="color:var(--muted)">—</span>';
+}
+function _vramHtml(v) {
+  return v ? `<span class="pvram">${fmtMB(v)}</span>` : '<span class="pvram none">—</span>';
+}
+function _cpuCls(cpu) { return cpu>20?'crit':cpu>12?'warn':''; }
+
 function upProcs(){
-  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
-  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
   const sorted = getFilteredProcs();
 
   // Update tree toggle button
@@ -1326,52 +1433,12 @@ function upProcs(){
     if (selectedPid) { selectedPid = null; }
   }
 
-  const tb=document.getElementById('proctbody'); tb.innerHTML='';
-
-  if (groupedView) {
-    renderGroupedRows(tb, sorted);
-  } else {
-    renderFlatRows(tb, sorted);
-  }
+  const tb = document.getElementById('proctbody');
+  const descriptors = groupedView ? buildGroupDescriptors(sorted) : sorted.map(p => ({key:'p:'+p.pid, kind:'proc', p, isChild:false}));
+  reconcileRows(tb, descriptors);
 }
 
-function renderFlatRows(tb, sorted) {
-  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
-  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
-  sorted.forEach(p => {
-    const cat=p.cat||'null';
-    const aiHtml=p.ai==='inf'
-      ?'<span class="badge inf"><span class="bd">●</span> infer</span>'
-      :p.ai==='ild'
-      ?'<span class="badge ild">○ idle</span>'
-      :'<span style="color:var(--muted)">—</span>';
-    const cpuCls=p.cpu>20?'crit':p.cpu>12?'warn':'';
-    const vramHtml=p.vram?`<span class="pvram">${fmtMB(p.vram)}</span>`:'<span class="pvram none">—</span>';
-    const tr=document.createElement('tr');
-    tr.className='proc-row '+(p.cat?'cat-'+p.cat:'default') + (p.pid===selectedPid?' selected':'');
-    tr.innerHTML=`
-      <td><span class="cat-dot ${DOTCLS[cat]}">${DOT[cat]}</span><span class="pname">${p.name}</span></td>
-      <td class="ppid">${p.pid}</td>
-      <td class="pcpu ${cpuCls}">${p.cpu.toFixed(1)}</td>
-      <td class="pmem">${fmtMB(p.mem)}</td>
-      <td>${vramHtml}</td>
-      <td>${aiHtml}<button class="row-kill" title="Kill process">✕</button></td>`;
-    tr.addEventListener('click', (e) => {
-      if (e.target.classList.contains('row-kill')) return;
-      selectedPid = (selectedPid === p.pid) ? null : p.pid;
-      document.getElementById('kill-selected-btn').style.display = '';
-      upProcs();
-    });
-    tr.querySelector('.row-kill').addEventListener('click', (e) => {
-      e.stopPropagation();
-      showKillConfirm('single', [{pid:p.pid, name:p.name}]);
-    });
-    tb.appendChild(tr);
-  });
-}
-
-function renderGroupedRows(tb, sorted) {
-  // Group by name, preserving sort order
+function buildGroupDescriptors(sorted) {
   const groups = [];
   const groupMap = {};
   sorted.forEach(p => {
@@ -1382,119 +1449,213 @@ function renderGroupedRows(tb, sorted) {
       groups.push({ name: p.name, procs: [p] });
     }
   });
-
-  // Sort groups by aggregate of the active sort column
   groups.sort((a, b) => {
     let cmp = 0;
     switch (S.sortBy) {
       case 'name': cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase()); break;
-      case 'pid': cmp = a.procs[0].pid - b.procs[0].pid; break;
-      case 'cpu': cmp = a.procs.reduce((s,p)=>s+p.cpu,0) - b.procs.reduce((s,p)=>s+p.cpu,0); break;
+      case 'pid':  cmp = a.procs[0].pid - b.procs[0].pid; break;
+      case 'cpu':  cmp = a.procs.reduce((s,p)=>s+p.cpu,0) - b.procs.reduce((s,p)=>s+p.cpu,0); break;
       case 'vram': cmp = a.procs.reduce((s,p)=>s+(p.vram||0),0) - b.procs.reduce((s,p)=>s+(p.vram||0),0); break;
-      default: cmp = a.procs.reduce((s,p)=>s+p.mem,0) - b.procs.reduce((s,p)=>s+p.mem,0);
+      default:     cmp = a.procs.reduce((s,p)=>s+p.mem,0) - b.procs.reduce((s,p)=>s+p.mem,0);
     }
     return S.sortAsc ? cmp : -cmp;
   });
-
-  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
-  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
-
+  const out = [];
+  const catPriority = {watch:0, ai:1, dev:2, null:3};
   groups.forEach(g => {
-    const count = g.procs.length;
-    const expanded = expandedGroups.has(g.name);
-
-    if (count === 1) {
-      // Singleton — render as flat row
-      const p = g.procs[0];
-      renderSingleRow(tb, p);
+    if (g.procs.length === 1) {
+      out.push({key:'p:'+g.procs[0].pid, kind:'proc', p:g.procs[0], isChild:false});
       return;
     }
-
-    // Group header row
     const cpuTotal = g.procs.reduce((s,p) => s+p.cpu, 0);
     const memTotal = g.procs.reduce((s,p) => s+p.mem, 0);
     const vramTotal = g.procs.reduce((s,p) => s+(p.vram||0), 0);
-    // Highest priority category in the group
-    const catPriority = {watch:0, ai:1, dev:2, null:3};
     const bestCat = g.procs.reduce((best, p) => {
       const pc = catPriority[p.cat||'null']||3;
       const bc = catPriority[best||'null']||3;
       return pc < bc ? p.cat : best;
     }, null);
-    const cat = bestCat || 'null';
-    const catCls = bestCat ? 'cat-'+bestCat : 'default';
-
-    const arrow = expanded ? '▾' : '▸';
-    const cpuCls = cpuTotal>20?'crit':cpuTotal>12?'warn':'';
-    const vramHtml = vramTotal > 0
-      ? `<span class="pvram">${fmtMB(vramTotal)}</span>`
-      : '<span class="pvram none">—</span>';
-
-    const tr = document.createElement('tr');
-    tr.className = `proc-row group-header ${catCls}`;
-    tr.innerHTML = `
-      <td><span class="group-arrow">${arrow}</span><span class="cat-dot ${DOTCLS[cat]}">${DOT[cat]}</span><span class="pname">${g.name}<span class="group-count">(${count})</span></span></td>
-      <td class="ppid"></td>
-      <td class="pcpu ${cpuCls}">${cpuTotal.toFixed(1)}</td>
-      <td class="pmem">${fmtMB(memTotal)}</td>
-      <td>${vramHtml}</td>
-      <td><button class="row-kill" title="Kill all ${g.name}">✕</button></td>`;
-
-    tr.addEventListener('click', (e) => {
-      if (e.target.classList.contains('row-kill')) return;
-      if (expanded) expandedGroups.delete(g.name);
-      else expandedGroups.add(g.name);
-      upProcs();
-    });
-    tr.querySelector('.row-kill').addEventListener('click', (e) => {
-      e.stopPropagation();
-      showKillConfirm('batch', g.procs.map(p => ({pid:p.pid, name:p.name})));
-    });
-    tb.appendChild(tr);
-
-    // Child rows if expanded
-    if (expanded) {
-      g.procs.forEach(p => {
-        renderSingleRow(tb, p, true);
-      });
+    out.push({key:'g:'+g.name, kind:'group', g, cpuTotal, memTotal, vramTotal, bestCat, expanded:expandedGroups.has(g.name)});
+    if (expandedGroups.has(g.name)) {
+      g.procs.forEach(p => out.push({key:'p:'+p.pid+':c', kind:'proc', p, isChild:true}));
     }
   });
+  return out;
 }
 
-function renderSingleRow(tb, p, isChild) {
-  const DOT={ai:'●',dev:'■',watch:'★',null:'·'};
-  const DOTCLS={ai:'ai',dev:'dev',watch:'watch',null:'none'};
-  const cat=p.cat||'null';
-  const aiHtml=p.ai==='inf'
-    ?'<span class="badge inf"><span class="bd">●</span> infer</span>'
-    :p.ai==='ild'
-    ?'<span class="badge ild">○ idle</span>'
-    :'<span style="color:var(--muted)">—</span>';
-  const cpuCls=p.cpu>20?'crit':p.cpu>12?'warn':'';
-  const vramHtml=p.vram?`<span class="pvram">${fmtMB(p.vram)}</span>`:'<span class="pvram none">—</span>';
-  const tr=document.createElement('tr');
-  const childCls = isChild ? ' group-child' : '';
-  tr.className='proc-row '+(p.cat?'cat-'+p.cat:'default') + (p.pid===selectedPid?' selected':'') + childCls;
-  const dotHtml = isChild ? '' : `<span class="cat-dot ${DOTCLS[cat]}">${DOT[cat]}</span>`;
-  tr.innerHTML=`
-    <td>${dotHtml}<span class="pname">${p.name}</span></td>
-    <td class="ppid">${p.pid}</td>
-    <td class="pcpu ${cpuCls}">${p.cpu.toFixed(1)}</td>
-    <td class="pmem">${fmtMB(p.mem)}</td>
-    <td>${vramHtml}</td>
-    <td>${aiHtml}<button class="row-kill" title="Kill process">✕</button></td>`;
-  tr.addEventListener('click', (e) => {
-    if (e.target.classList.contains('row-kill')) return;
-    selectedPid = (selectedPid === p.pid) ? null : p.pid;
-    document.getElementById('kill-selected-btn').style.display = '';
-    upProcs();
+function reconcileRows(tb, descriptors) {
+  const seen = new Set();
+  descriptors.forEach((d, idx) => {
+    seen.add(d.key);
+    let entry = _rowCache.get(d.key);
+    const sig = sigFor(d);
+    if (!entry || entry.kind !== d.kind) {
+      if (entry) entry.tr.remove();
+      entry = createRow(d);
+      _rowCache.set(d.key, entry);
+    } else if (entry.sig !== sig) {
+      updateRow(entry, d);
+      entry.sig = sig;
+    }
+    if (tb.children[idx] !== entry.tr) {
+      tb.insertBefore(entry.tr, tb.children[idx] || null);
+    }
   });
-  tr.querySelector('.row-kill').addEventListener('click', (e) => {
-    e.stopPropagation();
-    showKillConfirm('single', [{pid:p.pid, name:p.name}]);
-  });
-  tb.appendChild(tr);
+  for (const [key, entry] of _rowCache) {
+    if (!seen.has(key)) { entry.tr.remove(); _rowCache.delete(key); }
+  }
 }
+
+function sigFor(d) {
+  if (d.kind === 'group') {
+    return `g|${d.bestCat||''}|${d.expanded?1:0}|${d.cpuTotal.toFixed(1)}|${d.memTotal.toFixed(0)}|${d.vramTotal.toFixed(0)}|${d.g.procs.length}`;
+  }
+  const p = d.p;
+  return `p|${p.cat||''}|${p.ai||''}|${p.cpu.toFixed(1)}|${p.mem.toFixed(0)}|${p.vram||0}|${p.pid===selectedPid?1:0}|${d.isChild?1:0}|${p.name}`;
+}
+
+function createRow(d) {
+  if (d.kind === 'group') return createGroupRow(d);
+  return createProcRow(d);
+}
+
+function createProcRow(d) {
+  const p = d.p;
+  const cat = p.cat || 'null';
+  const tr = document.createElement('tr');
+  tr.dataset.key = d.key;
+  tr.dataset.pid = p.pid;
+  if (d.isChild) tr.dataset.child = '1';
+  tr.className = 'proc-row '+(p.cat?'cat-'+p.cat:'default') + (p.pid===selectedPid?' selected':'') + (d.isChild?' group-child':'');
+  const dotHtml = d.isChild ? '' : `<span class="cat-dot ${_rowDotCls[cat]}">${_rowDot[cat]}</span>`;
+  tr.innerHTML =
+    `<td>${dotHtml}<span class="pname">${p.name}</span></td>` +
+    `<td class="ppid">${p.pid}</td>` +
+    `<td class="pcpu ${_cpuCls(p.cpu)}">${p.cpu.toFixed(1)}</td>` +
+    `<td class="pmem">${fmtMB(p.mem)}</td>` +
+    `<td class="pvramcell">${_vramHtml(p.vram)}</td>` +
+    `<td class="paicell">${_aiHtml(p.ai)}<button class="row-kill" title="Kill process">✕</button></td>`;
+  return { tr, sig: sigFor(d), kind: 'proc' };
+}
+
+function updateProcRow(entry, d) {
+  const p = d.p;
+  const tr = entry.tr;
+  const cells = tr.children;
+  const prev = entry.prev || (entry.prev = {});
+  const wantCls = 'proc-row '+(p.cat?'cat-'+p.cat:'default') + (p.pid===selectedPid?' selected':'') + (d.isChild?' group-child':'');
+  if (prev.cls !== wantCls) { tr.className = wantCls; prev.cls = wantCls; }
+  // CPU% changes essentially every frame on a busy box — its cell does need
+  // to update each call. The other cells (mem, vram, ai badge) change far
+  // less often; gate them with `prev.*` to avoid blowing away DOM (and
+  // re-parsing innerHTML for ~500 rows) when the data is unchanged.
+  if (prev.cpu !== p.cpu) {
+    const wantCpuCls = 'pcpu ' + _cpuCls(p.cpu);
+    if (prev.cpuCls !== wantCpuCls) { cells[2].className = wantCpuCls; prev.cpuCls = wantCpuCls; }
+    cells[2].textContent = p.cpu.toFixed(1);
+    prev.cpu = p.cpu;
+  }
+  if (prev.mem !== p.mem) { cells[3].textContent = fmtMB(p.mem); prev.mem = p.mem; }
+  const vramKey = p.vram || 0;
+  if (prev.vram !== vramKey) { cells[4].innerHTML = _vramHtml(p.vram); prev.vram = vramKey; }
+  const aiKey = p.ai || '';
+  if (prev.ai !== aiKey) {
+    const aiCell = cells[5];
+    const killBtn = aiCell.querySelector('.row-kill');
+    aiCell.innerHTML = _aiHtml(p.ai);
+    if (killBtn) aiCell.appendChild(killBtn);
+    else aiCell.insertAdjacentHTML('beforeend', '<button class="row-kill" title="Kill process">✕</button>');
+    prev.ai = aiKey;
+  }
+}
+
+function createGroupRow(d) {
+  const g = d.g;
+  const cat = d.bestCat || 'null';
+  const catCls = d.bestCat ? 'cat-'+d.bestCat : 'default';
+  const arrow = d.expanded ? '▾' : '▸';
+  const tr = document.createElement('tr');
+  tr.dataset.key = d.key;
+  tr.dataset.group = g.name;
+  tr.className = `proc-row group-header ${catCls}`;
+  tr.innerHTML =
+    `<td><span class="group-arrow">${arrow}</span><span class="cat-dot ${_rowDotCls[cat]}">${_rowDot[cat]}</span><span class="pname">${g.name}<span class="group-count">(${g.procs.length})</span></span></td>` +
+    `<td class="ppid"></td>` +
+    `<td class="pcpu ${_cpuCls(d.cpuTotal)}">${d.cpuTotal.toFixed(1)}</td>` +
+    `<td class="pmem">${fmtMB(d.memTotal)}</td>` +
+    `<td class="pvramcell">${d.vramTotal>0?`<span class="pvram">${fmtMB(d.vramTotal)}</span>`:'<span class="pvram none">—</span>'}</td>` +
+    `<td class="paicell"><button class="row-kill" title="Kill all ${g.name}">✕</button></td>`;
+  return { tr, sig: sigFor(d), kind: 'group' };
+}
+
+function updateGroupRow(entry, d) {
+  const g = d.g;
+  const tr = entry.tr;
+  const cells = tr.children;
+  const prev = entry.prev || (entry.prev = {});
+  const catCls = d.bestCat ? 'cat-'+d.bestCat : 'default';
+  const wantCls = `proc-row group-header ${catCls}`;
+  if (prev.cls !== wantCls) { tr.className = wantCls; prev.cls = wantCls; }
+  if (prev.expanded !== d.expanded) {
+    const arrowEl = cells[0].querySelector('.group-arrow');
+    if (arrowEl) arrowEl.textContent = d.expanded ? '▾' : '▸';
+    prev.expanded = d.expanded;
+  }
+  if (prev.count !== g.procs.length) {
+    const countEl = cells[0].querySelector('.group-count');
+    if (countEl) countEl.textContent = `(${g.procs.length})`;
+    prev.count = g.procs.length;
+  }
+  if (prev.cpu !== d.cpuTotal) {
+    const wantCpuCls = 'pcpu ' + _cpuCls(d.cpuTotal);
+    if (prev.cpuCls !== wantCpuCls) { cells[2].className = wantCpuCls; prev.cpuCls = wantCpuCls; }
+    cells[2].textContent = d.cpuTotal.toFixed(1);
+    prev.cpu = d.cpuTotal;
+  }
+  if (prev.mem !== d.memTotal) { cells[3].textContent = fmtMB(d.memTotal); prev.mem = d.memTotal; }
+  if (prev.vram !== d.vramTotal) {
+    cells[4].innerHTML = d.vramTotal > 0 ? `<span class="pvram">${fmtMB(d.vramTotal)}</span>` : '<span class="pvram none">—</span>';
+    prev.vram = d.vramTotal;
+  }
+}
+
+function updateRow(entry, d) {
+  if (d.kind === 'group') updateGroupRow(entry, d);
+  else updateProcRow(entry, d);
+}
+
+/* Single delegated click listener for the whole table — replaces ~2N
+   per-row listeners that were re-bound on every render. */
+document.getElementById('proctbody').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr.proc-row');
+  if (!tr) return;
+  const isKill = e.target.classList.contains('row-kill');
+  if (tr.classList.contains('group-header')) {
+    const name = tr.dataset.group;
+    if (!name) return;
+    if (isKill) {
+      e.stopPropagation();
+      const procs = PROCS.filter(p => p.name === name);
+      showKillConfirm('batch', procs.map(p => ({pid:p.pid, name:p.name})));
+      return;
+    }
+    if (expandedGroups.has(name)) expandedGroups.delete(name);
+    else expandedGroups.add(name);
+    upProcs();
+    return;
+  }
+  const pid = parseInt(tr.dataset.pid);
+  if (!pid) return;
+  if (isKill) {
+    e.stopPropagation();
+    const proc = PROCS.find(p => p.pid === pid);
+    if (proc) showKillConfirm('single', [{pid:proc.pid, name:proc.name}]);
+    return;
+  }
+  selectedPid = (selectedPid === pid) ? null : pid;
+  document.getElementById('kill-selected-btn').style.display = '';
+  upProcs();
+});
 
 /* ═══ CONTROLS ═══════════════════════════════════════════ */
 document.querySelectorAll('.tab').forEach(btn=>{
@@ -1883,8 +2044,14 @@ async function loadSettings() {
 }
 
 /* ═══ MAIN LOOP ══════════════════════════════════════════ */
-async function frame(){
-  await tick();
+async function frame(snap){
+  // When the window is hidden (close-to-tray, minimised, fully covered)
+  // there's no point repainting Canvas/DOM — WebKitGTK still spends real CPU
+  // on those operations. The snapshot ring buffers in S keep getting pushed
+  // even while hidden (the sample arrives via tick before this gate would
+  // matter), but skipping the render dominates the savings.
+  if (document.visibilityState === 'hidden') return;
+  await tick(snap);
   dashOffset -= 0.6; // animate threshold dashes
   const t=new Date().toTimeString().slice(0,8).split(':');
   document.getElementById('clock').innerHTML=t[0]+'<span class="clock-sep">:</span>'+t[1]+'<span class="clock-sep">:</span>'+t[2];
@@ -1912,7 +2079,28 @@ async function checkTelemetryPrompt() {
     });
   } catch(e) { console.error('Telemetry prompt error:', e); }
 }
-loadSettings().then(() => checkTelemetryPrompt()).then(() => { frame(); setInterval(frame, 500); });
+// Backend pushes a snapshot via the `dofek://snapshot` Tauri event whenever
+// the collector produces one. We do one initial frame() (which falls through
+// to invoke('get_snapshot')) so the UI hydrates immediately, then hand control
+// to the listener — no polling, no duplicate JSON parses.
+function startSnapshotListener() {
+  if (!tauriListen) {
+    try { if (window.__TAURI__ && window.__TAURI__.event) tauriListen = window.__TAURI__.event.listen; } catch(_){}
+  }
+  if (!tauriListen) {
+    // Tauri event API not available yet — fall back to polling so the UI
+    // still updates. Retried only at startup; once the listener is wired
+    // there's no further polling.
+    console.warn('Tauri event API not available, falling back to setInterval polling');
+    setInterval(() => frame(), 1000);
+    return;
+  }
+  tauriListen('dofek://snapshot', e => { frame(e.payload); }).catch(err => {
+    console.error('listen(dofek://snapshot) failed, falling back to polling:', err);
+    setInterval(() => frame(), 1000);
+  });
+}
+loadSettings().then(() => checkTelemetryPrompt()).then(() => { frame(); startSnapshotListener(); });
 /* ═══ TOAST ══════════════════════════════════════════════ */
 function showToast(msg){
   const t=document.getElementById('toast');
@@ -1944,26 +2132,11 @@ function showToast(msg){
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;">
       <button id="open-manual-btn" class="manual-btn">📖 Open full manual</button>
     </div>
-    <div class="telem-toggle" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;gap:10px;">
-      <span style="font-size:11px;color:var(--dim);">Anonymous telemetry</span>
-      <label class="toggle-switch">
-        <input type="checkbox" id="telem-toggle-cb">
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-    <div class="tray-settings" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2);display:flex;flex-direction:column;gap:6px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <span style="font-size:11px;color:var(--dim);">Show tray icon</span>
-        <label class="toggle-switch"><input type="checkbox" id="tray-enable-cb"><span class="toggle-slider"></span></label>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <span style="font-size:11px;color:var(--dim);">Close to tray</span>
-        <label class="toggle-switch"><input type="checkbox" id="tray-close-cb"><span class="toggle-slider"></span></label>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <span style="font-size:11px;color:var(--dim);">Menu-bar text (macOS)</span>
-        <label class="toggle-switch"><input type="checkbox" id="tray-text-cb"><span class="toggle-slider"></span></label>
-      </div>
+    <div class="settings-list">
+      <div class="settings-row"><span>Anonymous telemetry</span><label class="toggle-switch"><input type="checkbox" id="telem-toggle-cb"><span class="toggle-slider"></span></label></div>
+      <div class="settings-row"><span>Show tray icon</span><label class="toggle-switch"><input type="checkbox" id="tray-enable-cb"><span class="toggle-slider"></span></label></div>
+      <div class="settings-row"><span>Close to tray</span><label class="toggle-switch"><input type="checkbox" id="tray-close-cb"><span class="toggle-slider"></span></label></div>
+      <div class="settings-row"><span>Menu-bar text (macOS)</span><label class="toggle-switch"><input type="checkbox" id="tray-text-cb"><span class="toggle-slider"></span></label></div>
     </div>
     <div class="help-footer">press any key to close</div>
   </div>
@@ -1972,7 +2145,7 @@ function showToast(msg){
 <!-- About overlay -->
 <div class="help-overlay" id="about-overlay">
   <div class="help-box" style="text-align:center;min-width:280px;">
-    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span style="font-size:14px;color:var(--text);font-weight:600;">v1.3</span></div>
+    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span id="about-version" style="font-size:14px;color:var(--text);font-weight:600;">v…</span></div>
     <div style="font-size:13px;color:var(--dim);margin-bottom:14px;">Terminal / GUI, AI-aware system monitor</div>
     <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
       <a href="https://dofek.dev" target="_blank" class="about-link" style="font-size:11px;">dofek.dev</a>
@@ -2038,6 +2211,9 @@ document.getElementById('tray-text-cb').addEventListener('change', e => patchSet
 .hk{color:var(--cpu);font-weight:600;padding:3px 12px 3px 0;white-space:nowrap;text-align:right;width:90px;font-size:11px;}
 .hd{color:var(--dim);padding:3px 0;font-size:11px;}
 .help-footer{color:var(--muted);font-size:10px;margin-top:14px;text-align:center;}
+.settings-list{margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2);}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:11px;color:var(--dim);}
+.settings-row + .settings-row{border-top:none;}
 .about-link{color:var(--cpu);text-decoration:none;font-size:11px;transition:color .15s;}
 .about-link:hover{color:var(--text);text-decoration:underline;}
 .manual-btn{background:rgba(56,189,248,.08);color:var(--cpu);border:1px solid rgba(56,189,248,.3);padding:6px 14px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.04em;border-radius:3px;cursor:pointer;transition:all .15s;}

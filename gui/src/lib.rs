@@ -47,6 +47,13 @@ fn get_platform_info() -> GpuEmptyState {
     dofek::gpu_empty_state().clone()
 }
 
+/// Tauri command: returns the GUI's compile-time package version so the
+/// frontend doesn't have to hardcode it (and drift away from Cargo.toml).
+#[tauri::command]
+fn get_app_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
 /// Tauri command: opens the bundled offline manual.html in the user's default browser.
 #[tauri::command]
 fn open_manual(app: tauri::AppHandle) -> Result<(), String> {
@@ -210,7 +217,21 @@ pub fn run() {
     // Spawn the data collector thread (reuses the exact same code as TUI).
     // The relay thread that fans snapshots into shared state + the tray icon
     // is spawned later inside `.setup(...)` because it needs an AppHandle.
-    let data_rx = dofek::data::spawn_collector(config.clone());
+    //
+    // Floor the GUI's poll interval at 1000 ms regardless of config. Each
+    // poll is a full `sysinfo::refresh_processes(All)` sweep (≥500 procs on a
+    // typical Linux box), then the snapshot is cloned into shared state and
+    // re-cloned per IPC call — at 500 ms cadence this put dofek-gui above
+    // 100% CPU on its own. 1 Hz keeps the visualisation responsive without
+    // burning a core to monitor the system. TUI keeps the configured rate.
+    let collector_config = {
+        let mut c = config.clone();
+        if c.general.refresh_ms < 1000 {
+            c.general.refresh_ms = 1000;
+        }
+        c
+    };
+    let data_rx = dofek::data::spawn_collector(collector_config);
 
     // Shared snapshot for Tauri commands
     let snapshot = Arc::new(Mutex::new(DataSnapshot::default()));
@@ -257,6 +278,7 @@ pub fn run() {
             get_snapshot,
             get_gpu_info,
             get_platform_info,
+            get_app_version,
             get_settings,
             save_settings,
             track_event,
@@ -310,11 +332,18 @@ pub fn run() {
                 .take()
                 .expect("data_rx claimed twice");
             std::thread::spawn(move || {
+                use tauri::Emitter;
                 for snap in rx {
                     {
                         let mut locked = snapshot_writer.lock().unwrap();
                         *locked = snap.clone();
                     }
+                    // Push the snapshot to the frontend instead of having it
+                    // poll get_snapshot every second. Removes one IPC round-trip
+                    // per tick plus the JSON serialize/parse — the dominant
+                    // remaining cost on WebKitGTK at 1 Hz. get_snapshot is kept
+                    // around so the frontend can still hydrate on first paint.
+                    let _ = app_handle.emit("dofek://snapshot", &snap);
                     let s = settings_for_relay.lock().unwrap().clone();
                     if s.enable_tray {
                         tray::update(&app_handle, &snap, &s);

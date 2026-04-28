@@ -11,6 +11,7 @@
 
 use std::collections::VecDeque;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use dofek::data::DataSnapshot;
 use dofek::settings::UserSettings;
@@ -23,8 +24,17 @@ use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 const ICON_SIZE: u32 = 32;
 const HISTORY: usize = 32;
+/// Cap tray repaints at ~1 Hz. The relay loop fires at the data-collector
+/// cadence (default 500 ms); each repaint encodes a PNG, writes it to /tmp,
+/// and dispatches a dbus NewIcon notification — pegging dofek-gui's CPU at
+/// 100%+ on Linux. 1 Hz is plenty for a sparkline meant to be read at a glance.
+const TRAY_PAINT_MIN_INTERVAL: Duration = Duration::from_millis(1000);
 
 static CPU_SAMPLES: Mutex<VecDeque<f32>> = Mutex::new(VecDeque::new());
+static LAST_TRAY_PAINT: Mutex<Option<Instant>> = Mutex::new(None);
+/// Last (rounded CPU%, rounded GPU%) pushed to tooltip/title. Skip dbus
+/// roundtrips when both numbers are unchanged.
+static LAST_TRAY_TEXT: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 
 /// Push a CPU% sample into the rolling history.
 pub fn record_cpu(sample: f32) {
@@ -47,28 +57,38 @@ pub fn install(
         return Ok(());
     }
 
-    // Use MenuBuilder's text() chain instead of MenuItemBuilder + .item(&...).
-    // The latter renders blank labels under libayatana-appindicator on Ubuntu
-    // (Yaru / GNOME with the AppIndicator extension). Plain ASCII labels only —
-    // skipping "Settings…" with U+2026 because some appindicator backends
-    // truncate non-ASCII through the dbus path.
-    let menu = MenuBuilder::new(app)
-        .text("tray.show", "Show window")
-        .text("tray.hide", "Hide window")
-        .separator()
-        .text("tray.settings", "Settings")
-        .separator()
-        .text("tray.quit", "Quit dofek")
-        .build()?;
+    // The menu event handler is registered at build time on every platform.
+    // It dispatches whichever menu is *currently attached* to the tray, so
+    // attaching the menu later (Linux path below) still routes clicks here.
+    let telemetry_for_clicks = telemetry.clone();
+    let menu_handler = move |app: &AppHandle, event: tauri::menu::MenuEvent| {
+        let id = event.id().as_ref();
+        telemetry.track(TelemetryEvent::TrayMenuItemSelected {
+            item: id.to_string(),
+        });
+        match id {
+            "tray.show" => show_window(app),
+            "tray.hide" => hide_window(app),
+            "tray.settings" => {
+                show_window(app);
+                let _ = app.emit("dofek://open-settings", ());
+            }
+            "tray.quit" => app.exit(0),
+            _ => {}
+        }
+    };
+
+    // Windows + macOS: build the menu eagerly and attach at construction.
+    // Linux: skip — we attach via set_menu after a delay (see below).
+    #[cfg(not(target_os = "linux"))]
+    let menu_at_build = build_tray_menu(app)?;
 
     let initial_icon = render_sparkline_icon(&[]);
 
-    let telemetry_for_clicks = telemetry.clone();
-
-    let _tray = TrayIconBuilder::with_id("main")
+    #[allow(unused_mut)] // .menu(...) is platform-gated below
+    let mut builder = TrayIconBuilder::with_id("main")
         .icon(initial_icon)
         .tooltip("dofek — system monitor")
-        .menu(&menu)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(move |tray, event| {
             if let TrayIconEvent::Click {
@@ -81,25 +101,61 @@ pub fn install(
                 toggle_window(tray.app_handle());
             }
         })
-        .on_menu_event(move |app, event| {
-            let id = event.id().as_ref();
-            telemetry.track(TelemetryEvent::TrayMenuItemSelected {
-                item: id.to_string(),
-            });
-            match id {
-                "tray.show" => show_window(app),
-                "tray.hide" => hide_window(app),
-                "tray.settings" => {
-                    show_window(app);
-                    let _ = app.emit("dofek://open-settings", ());
+        .on_menu_event(menu_handler);
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        builder = builder.menu(&menu_at_build);
+    }
+
+    let _tray = builder.build(app)?;
+
+    // Linux: defer the menu attach to dodge the libayatana-appindicator
+    // dbusmenu race. The GNOME AppIndicator extension reads
+    // /com/canonical/dbusmenu shortly after the indicator transitions to
+    // Active; if the menu is attached at construction the extension caches
+    // a blank model before child widgets are realised. Sleeping ~1.5 s
+    // before calling set_menu gives the dbus exporter time to settle, and
+    // the menu must be built on the gtk main thread (run_on_main_thread).
+    #[cfg(target_os = "linux")]
+    {
+        let app_handle = app.handle().clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(1500));
+            let app_for_main = app_handle.clone();
+            if let Err(e) = app_handle.run_on_main_thread(move || {
+                match build_tray_menu(&app_for_main) {
+                    Ok(menu) => {
+                        if let Some(tray) = app_for_main.tray_by_id("main") {
+                            if let Err(e) = tray.set_menu(Some(menu)) {
+                                log::warn!("delayed tray.set_menu failed: {e}");
+                            }
+                        }
+                    }
+                    Err(e) => log::warn!("delayed tray menu build failed: {e}"),
                 }
-                "tray.quit" => app.exit(0),
-                _ => {}
+            }) {
+                log::warn!("run_on_main_thread for tray menu failed: {e}");
             }
-        })
-        .build(app)?;
+        });
+    }
 
     Ok(())
+}
+
+/// Build the static tray menu. Same labels on every platform; ASCII-only
+/// since some appindicator dbus backends mishandle non-ASCII (e.g. U+2026).
+fn build_tray_menu<R: tauri::Runtime, M: tauri::Manager<R>>(
+    app: &M,
+) -> tauri::Result<tauri::menu::Menu<R>> {
+    MenuBuilder::new(app)
+        .text("tray.show", "Show window")
+        .text("tray.hide", "Hide window")
+        .separator()
+        .text("tray.settings", "Settings")
+        .separator()
+        .text("tray.quit", "Quit dofek")
+        .build()
 }
 
 /// Re-render the tray icon based on the latest snapshot, and (optionally) the
@@ -110,18 +166,46 @@ pub fn update(app: &AppHandle, snap: &DataSnapshot, settings: &UserSettings) {
     };
 
     record_cpu(snap.cpu.total_load);
-    let samples: Vec<f32> = CPU_SAMPLES.lock().unwrap().iter().copied().collect();
 
-    if let Err(e) = tray.set_icon(Some(render_sparkline_icon(&samples))) {
-        log::debug!("tray.set_icon failed: {e}");
+    // Throttle the icon repaint — see TRAY_PAINT_MIN_INTERVAL note above. The
+    // CPU sample is still recorded every snapshot so the sparkline ring buffer
+    // stays accurate; we just don't re-encode the PNG every time.
+    let now = Instant::now();
+    let should_paint = {
+        let mut last = LAST_TRAY_PAINT.lock().unwrap();
+        let due = last.is_none_or(|t| now.duration_since(t) >= TRAY_PAINT_MIN_INTERVAL);
+        if due {
+            *last = Some(now);
+        }
+        due
+    };
+    if should_paint {
+        let samples: Vec<f32> = CPU_SAMPLES.lock().unwrap().iter().copied().collect();
+        if let Err(e) = tray.set_icon(Some(render_sparkline_icon(&samples))) {
+            log::debug!("tray.set_icon failed: {e}");
+        }
     }
 
+    // Tooltip + title also go through dbus (`set_label` on Linux). Skip them
+    // unless the rounded values changed — keeps the dofek-gui process quiet
+    // when the system is idle.
     let cpu = snap.cpu.total_load.round() as i32;
     let gpu = snap
         .gpus
         .first()
         .map(|g| g.utilization.round() as i32)
         .unwrap_or(0);
+    let mut last = LAST_TRAY_TEXT.lock().unwrap();
+    let changed = match *last {
+        Some((c, g)) => c != cpu || g != gpu,
+        None => true,
+    };
+    if !changed {
+        return;
+    }
+    *last = Some((cpu, gpu));
+    drop(last);
+
     let tooltip = if snap.gpus.is_empty() {
         format!("dofek · CPU {cpu}%")
     } else {

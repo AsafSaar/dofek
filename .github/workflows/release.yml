@@ -375,12 +375,14 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.value }}
           name: dofek ${{ steps.tag.outputs.value }}
-          # Auto-publish, do not regress to draft. The original draft:true was
-          # there so we could review artifacts before going public — useful when
-          # the pipeline was new, painful now that every retag silently un-
-          # publishes the live release. The trigger is already restricted to
-          # tag pushes (`v*.*.*`), so accidental publishes are unlikely.
-          draft: false
+          # Releases land as drafts so the maintainer can download artifacts and
+          # smoke-test before clicking "Publish release" in the GitHub UI to
+          # promote to Latest. CAUTION: do NOT retag after publishing — this
+          # workflow would re-run and flip the live release back to draft. If
+          # you ship a bug, bump to the next patch version instead. (This trade
+          # restores the pre-c12f705 behaviour now that `/dofek-release` is the
+          # canonical release path.)
+          draft: true
           prerelease: ${{ steps.prerelease.outputs.value }}
           generate_release_notes: true
           files: artifacts/*

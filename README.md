@@ -98,7 +98,7 @@ Intel Macs are not supported in this release.
 
 > ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper will block first launch — right-click the .app → **Open** → **Open**, or run `xattr -dr com.apple.quarantine /Applications/dofek.app` once.
 
-Verify (Windows): `Get-FileHash .\dofek_1.3.1_x64_en-US.msi -Algorithm SHA256`
+Verify (Windows): `Get-FileHash .\dofek_1.3.3_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 
@@ -130,6 +130,7 @@ Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 - **NVIDIA GPU + drivers** — for GPU metrics and per-process VRAM via NVML (`libnvidia-ml.so` on Linux, `nvml.dll` on Windows). Gracefully degrades without it.
 - **[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)** *(Windows only)* — for CPU temp/power and non-NVIDIA GPU fallback. Download the latest release ZIP, extract, run as administrator, then enable the web server: **Options > Remote Web Server > Run** (default port 8085). Linux gets CPU temps natively from hwmon and does not need LHM.
 - **macOS** — GPU/VRAM and CPU temperature/power panels are not yet implemented and will display N/A. Tracked for a future release.
+- **Linux GUI** — the tray menu attaches ~1.5 s after launch (deferred to dodge a libayatana-appindicator dbusmenu race against the GNOME AppIndicator extension that otherwise renders the menu items blank). The icon and left-click toggle work immediately. Idle CPU on the WebKitGTK process sits in the low single-digit % range while the window is visible and drops near zero when minimised or closed-to-tray.
 
 ## Install
 
@@ -140,46 +141,61 @@ git clone https://github.com/AsafSaar/dofek.git
 cd dofek
 ```
 
-**Dev** (debug, fast compile):
+#### Command reference
+
+All `cargo <alias>` commands are defined in `.cargo/config.toml`. Run them from the repo root.
+
+**Development (debug, fast compile):**
 
 ```bash
-cargo tui                          # Run TUI
-cargo gui                          # Run GUI (launches with hot-reload)
+cargo tui                          # Run TUI (debug build, hot-path)
+cargo gui                          # Run GUI with hot-reload (Tauri dev mode)
 ```
 
-The Tauri GUI declares `dofek-tui` as an `externalBin`, suffixed with the host target triple. If you've never run a release build, `cargo gui` will fail with `resource path '../target/release/dofek-tui-<triple>' doesn't exist`. Run the helper once to build the TUI and stage the suffixed copy:
+> **First-time GUI setup:** `cargo gui` requires a release TUI binary to exist as `target/release/dofek-tui-<target-triple>` (Tauri's `externalBin`). Run the helper once to build and stage it:
+> ```bash
+> ./dev-gui.sh                     # builds TUI release, stages the triple-suffixed copy, then runs cargo gui
+> ```
+> After that, `cargo gui` works on its own as long as the staged binary stays in place.
+
+**Release builds (LTO + strip + opt-level 3):**
 
 ```bash
-./dev-gui.sh                       # builds dofek-tui release, stages it, runs cargo tauri dev
+cargo build-tui                    # → target/release/dofek-tui  (or .exe on Windows)
+cargo build-gui                    # → target/release/dofek-gui  + native bundle directory
 ```
 
-After that, `cargo gui` works on its own as long as the staged binary stays in place.
-
-**Release** (optimized, LTO + strip):
-
-```bash
-cargo build-tui                    # → target/release/dofek-tui.exe
-cargo build-gui                    # → target/release/dofek-gui.exe + MSI installer
-```
-
-**Native installers / packages** (bundles both TUI and GUI):
+**Native installers / packages (bundles both TUI and GUI):**
 
 ```powershell
 # Windows
 .\build-all.ps1                    # → target\release\bundle\msi\dofek_*.msi
 ```
 
-```bash 
+```bash
 # Linux (Ubuntu, Fedora, etc.)
 ./build-all.sh                     # → target/release/bundle/{deb,rpm,appimage}/dofek_*
+
+# macOS (Apple Silicon)
+./build-all.sh                     # → target/release/bundle/macos/dofek.app + dofek_*.dmg
 ```
+
+**Plugins:**
 
 ```bash
-# macOS (Apple Silicon)
-./build-all.sh                     # → target/release/bundle/macos/dofek.app
+cargo build --release -p dofek-ollama   # → target/release/dofek-ollama
+cargo build --release -p dofek-docker   # → target/release/dofek-docker
 ```
 
-These commands are cargo aliases defined in `.cargo/config.toml`. The bundle build requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
+**Maintenance:**
+
+```bash
+cargo clean                        # Delete all build artifacts (target/)
+cargo clippy                       # Lint all crates
+cargo test                         # Run unit tests
+```
+
+The bundle build requires [Tauri CLI](https://v2.tauri.app/start/prerequisites/) (`cargo install tauri-cli --version "^2"`).
 
 ### Prerequisites
 
@@ -557,7 +573,7 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v1.0** — Public GA: MSI installer, dofek.dev downloads, hardened plugin protocol, GitHub Actions release pipeline
 - **v1.1** — Linux support: TUI + GUI on x86_64, native `.deb` / `.rpm` / `.AppImage` bundles, dual Windows/Linux CI and release pipeline
 - **v1.2** — macOS (Apple Silicon) support: TUI + unsigned `.app` bundle, `sw_vers`-based OS reporting, macOS-specific network filter, three-platform CI and release pipeline
-- **v1.3** (current) — System-tray companion (live CPU sparkline icon, close-to-tray default, right-click Show/Hide/Settings/Quit, macOS menu-bar text); Linux CPU power via RAPL (`/sys/class/powercap/intel-rapl:0`); cross-platform disk I/O metrics with new `DISK` chart tab and ticker pill
+- **v1.3** (current) — System-tray companion (live CPU sparkline icon, close-to-tray default, right-click Show/Hide/Settings/Quit on Windows + macOS, icon-only on Linux, macOS menu-bar text); Linux CPU power via RAPL (`/sys/class/powercap/intel-rapl:0`); cross-platform disk I/O metrics with new `DISK` chart tab and ticker pill; backend → frontend snapshot push (Tauri events) replacing per-second IPC polling for lower WebKitGTK CPU on Linux
 - **v1.4+** — Code signing for binaries, AMD GPU VRAM, GPU/VRAM/CPU-temp on macOS, Intel-Mac and Linux-aarch64 builds, AMD CPU power (`amd_energy`)
 
 ## License
