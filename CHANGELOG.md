@@ -2,6 +2,20 @@
 
 All notable changes to dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-04-27
+
+Patch release — UX polish around the v1.3 tray companion and a long-overdue terminal-capability check on the TUI.
+
+### Added
+- **TUI startup truecolor check.** dofek-tui now detects whether the host terminal advertises 24-bit RGB (`COLORTERM=truecolor|24bit`) and prints a clear warning, with a 3-second pause, before entering the alternate screen if it doesn't. The warning lists known-good alternatives (iTerm2, WezTerm, Ghostty, Alacritty, Kitty). Apple's Terminal.app — which has misparsed the truecolor SGR sequences for ~a decade — was the original prompt; users no longer get a wall of magenta-on-red panels with no explanation. `NO_COLOR` is also respected.
+
+### Fixed
+- **Tray "Settings" menu item now opens the help overlay.** The Rust side emitted `dofek://open-settings` when Settings was clicked, but the frontend never listened — the menu item silently did nothing. Wired up a Tauri event listener on the frontend that opens the help overlay (where the tray toggles live) and hydrates the toggle state from `get_settings`.
+- **Release pipeline no longer un-publishes its own releases.** `release.yml` had `draft: true` hardcoded on the `softprops/action-gh-release@v3` step, which on every retag re-set an already-published release back to draft — silently 404-ing all asset downloads. Switched to `draft: false`. Trigger is already restricted to semver tag pushes; if a future release needs review, it can be marked draft via `gh release edit` after the fact.
+
+### Notes
+- Code-side palette is unchanged. A 256-color fallback (so the TUI renders correctly even without truecolor) remains tracked for v1.4.
+
 ## [1.3.0] - 2026-04-27
 
 System-tray companion is here — dofek's OS chrome itself is now a system monitor — alongside Linux CPU power via RAPL and cross-platform disk I/O metrics.
