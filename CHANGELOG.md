@@ -2,6 +2,24 @@
 
 All notable changes to dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-04-28
+
+Patch release — Linux WebKitGTK GUI no longer pegs CPU at idle, and the tray menu renders reliably on GNOME again. (1.3.2 skipped — the bump landed in the same commit as the fix.)
+
+### Fixed
+- **Linux WebKitGTK CPU pegged near 150% at idle.** Root cause was CSS compositor thrash, not JS frame work. The fullscreen scanline overlay's `mix-blend-mode`, per-core/per-stat `filter: blur` fills, `transition: width` on bars updating every tick, the `.flash` keyframe animation, and `ease-*` curves on infinite blinks (now `step-end`) all hammered the WebKitWebProcess compositor. Each was removed or swapped; idle GUI CPU drops from ~150% to single digits on Ubuntu 24.04 + WebKitGTK 4.1.
+- **Linux tray menu rendered with blank labels under the GNOME AppIndicator extension.** A race in libayatana-appindicator's dbusmenu attach meant menu items appeared but their text never populated. The `set_menu` call is now deferred by ~1.5s via `run_on_main_thread`, dodging the race. Stock `tray-icon` 0.21.3 is back from crates.io; the local patch is gone.
+
+### Changed
+- **Snapshot delivery moved from polling to push.** The frontend no longer calls `get_snapshot` on `setInterval`; the backend now emits `dofek://snapshot` Tauri events each tick and the frontend listens. Eliminates the per-tick IPC round-trip and the full-snapshot JSON serialize/parse on the JS side.
+- Bezier smoothing removed from the four small sparklines (still applied to the main chart) — cuts paint cost without visibly degrading them.
+- **Release workflow restored to `draft: true`**, reverting the v1.3.1 change. Maintainer review of built assets before publication is the desired workflow; retags flipping a published release back to draft is the lesser concern.
+- Help-overlay settings list collapsed into one section (was visually fragmented).
+
+### Notes
+- 1.3.2 was skipped — the version bump landed in the same commit as the WebKitGTK fix.
+- macOS GPU/VRAM and CPU temp/power remain N/A; tracked for a future release.
+
 ## [1.3.1] - 2026-04-27
 
 Patch release — UX polish around the v1.3 tray companion and a long-overdue terminal-capability check on the TUI.
