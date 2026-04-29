@@ -8,7 +8,7 @@ members = [
 
 [package]
 name = "dofek"
-version = "1.4.0"
+version = "1.5.0"
 edition = "2024"
 description = "Terminal-native system monitor for Windows, Linux, and macOS (Apple Silicon) — AI-aware, visually stunning"
 

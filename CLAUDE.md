@@ -145,9 +145,9 @@ See `dofek.toml.example` for all options. Key settings:
 - `lhm.url` (default `http://localhost:8085`) — LHM web server address (only used as GPU fallback)
 - `[[plugins]]` — plugin definitions (name, command, args, enabled, timeout_ms)
 
-## Current Status (v1.4)
+## Current Status (v1.5)
 
-Trading-terminal layout with dual interface (TUI + Tauri GUI), candlestick CPU chart, area/horizon charts for GPU/MEM/NET/DISK, multi-GPU support, process categories (AI/DEV/WATCH), top ticker bar, compact bottom strip, plugin system with JSON-over-stdio protocol, system-tray companion (live CPU sparkline icon, close-to-tray, macOS menu-bar text), Linux CPU power via RAPL, cross-platform disk I/O metrics. Custom chart widgets use Buffer manipulation with half-block characters for 2x vertical resolution.
+Trading-terminal layout with dual interface (TUI + Tauri GUI), candlestick CPU chart, area/horizon charts for GPU/MEM/NET/DISK, multi-GPU support, process categories (AI/DEV/WATCH), top ticker bar, compact bottom strip, plugin system with JSON-over-stdio protocol and a managed plugin store (install via GUI file picker or `dofek-tui plugins add`, hot-reloaded on `plugins.toml` change), system-tray companion (live CPU sparkline icon, close-to-tray, macOS menu-bar text), Linux CPU power via RAPL, cross-platform disk I/O metrics. Custom chart widgets use Buffer manipulation with half-block characters for 2x vertical resolution.
 
 Keybindings (TUI): q/tab/p/c/g/m/n/d/h/1-4/esc/?/+/-/s/a/[/].
 
@@ -155,6 +155,6 @@ Keybindings (TUI): q/tab/p/c/g/m/n/d/h/1-4/esc/?/+/-/s/a/[/].
 - AMD GPU VRAM not supported (NVML is NVIDIA-only; on Windows, the LHM fallback provides basic GPU data)
 - **Windows:** CPU temperature/power not available without LHM (sysinfo doesn't provide these on Windows without elevation)
 - **Linux:** CPU temperature works via sysinfo::Components (reads /sys/class/hwmon). CPU power available on Intel via RAPL (`/sys/class/powercap/intel-rapl:0/energy_uj`); falls back silently on AMD or hardened distros where the sysfs read is denied.
-- **macOS:** GPU/VRAM and CPU temperature/power are still not implemented in v1.4 — those panels show N/A. NVML is NVIDIA-only, and Apple Silicon SMC sensor coverage in `sysinfo` is not yet sufficient. CPU, memory, network, disk, processes, and process kill all work.
+- **macOS:** GPU/VRAM and CPU temperature/power are still not implemented in v1.5 — those panels show N/A. NVML is NVIDIA-only, and Apple Silicon SMC sensor coverage in `sysinfo` is not yet sufficient. CPU, memory, network, disk, processes, and process kill all work.
 - **Linux GNOME tray:** GNOME removed legacy tray support. The dofek tray icon needs the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/) installed; without it the tray won't appear (other features unaffected).
 - macOS support is Apple Silicon only — Intel Macs and universal binaries are not part of this release. Linux ARM64 is also tracked for the future.

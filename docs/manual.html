@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dofek v1.4 — User Manual</title>
+<title>Dofek v1.5 — User Manual</title>
 <style>
 :root {
   --bg:     #060810;
@@ -193,7 +193,7 @@ kbd {
 <body>
 
 <nav>
-  <div class="nav-logo">Dofek <em>v1.4 manual</em></div>
+  <div class="nav-logo">Dofek <em>v1.5 manual</em></div>
   <div class="nav-links">
     <a href="https://dofek.dev" target="_blank">dofek.dev</a>
     <a href="https://github.com/AsafSaar/dofek" target="_blank">GitHub</a>
@@ -202,7 +202,7 @@ kbd {
 
 <div class="wrap">
 
-<div class="hero-tag">USER MANUAL · v1.4</div>
+<div class="hero-tag">USER MANUAL · v1.5</div>
 <h1>Dofek<span class="v">the AI-era system monitor for Windows, Linux & macOS</span></h1>
 <p class="lede">This manual covers everything you need to run, configure, and extend Dofek — both the terminal (TUI) and desktop (GUI) interfaces. It ships alongside the binaries (Windows: <code>C:\Program Files\dofek\</code>, Linux: package-managed under <code>/usr/share/dofek/</code> or beside the AppImage, macOS: inside the <code>Dofek.app</code> bundle) and works entirely offline.</p>
 
@@ -438,14 +438,30 @@ timeout_ms = 2000
 
 <p>Plugins are external processes that Dofek spawns and polls via newline-delimited JSON over stdin/stdout. Each poll cycle, Dofek writes a request, reads a response, and renders any panels / process annotations / metrics the plugin returned.</p>
 
-<h3>Built-in plugins</h3>
+<h3>First-party plugins</h3>
 <table class="ref">
   <tr><th>Plugin</th><th>Purpose</th><th>Requires</th></tr>
   <tr><td><code>dofek-ollama</code></td><td>Shows loaded models + inference state, annotates Ollama processes</td><td>Ollama running locally</td></tr>
-  <tr><td><code>dofek-docker</code></td><td>Lists running containers, annotates Docker processes</td><td>Docker Desktop with TCP API enabled</td></tr>
+  <tr><td><code>dofek-docker</code></td><td>Lists running containers, annotates Docker processes</td><td>Docker daemon over TCP (or Docker Desktop with TCP API enabled)</td></tr>
 </table>
 
-<p>Enable a plugin by adding a <code>[[plugins]]</code> table to <code>dofek.toml</code>. See the example config above.</p>
+<h3>Installing a plugin</h3>
+<p>v1.5 introduced a managed plugin store, so you no longer need to copy binaries onto <code>PATH</code> or hand-edit <code>dofek.toml</code>. Pick whichever interface you prefer:</p>
+
+<p><strong>From the GUI:</strong> press <code>?</code> to open the Settings dialog → in the right pane, scroll to <strong>Plugins</strong> → click <strong>+ Add plugin</strong> → select the plugin binary in the native file picker. Dofek copies the binary into its managed plugin directory, makes it executable, clears the macOS quarantine xattr automatically, probes the plugin's manifest, and registers it. The plugin becomes active within one refresh cycle — no restart needed. Toggle the switch on a row to enable/disable; click the <code>✕</code> button to uninstall.</p>
+
+<p><strong>From the CLI:</strong></p>
+<pre><code>dofek-tui plugins list
+dofek-tui plugins add ./dofek-ollama -- --host http://localhost:11434
+dofek-tui plugins enable dofek-ollama
+dofek-tui plugins disable dofek-ollama
+dofek-tui plugins remove dofek-ollama</code></pre>
+
+<p>Both flows are equivalent — they share the same store. Installed binaries land in <code>%APPDATA%\dofek\plugins\</code> (Windows), <code>~/.config/dofek/plugins/</code> (Linux), or <code>~/Library/Application Support/dofek/plugins/</code> (macOS); managed entries are written to <code>plugins.toml</code> in that same directory.</p>
+
+<p>The data collector watches <code>plugins.toml</code> for changes each poll cycle and hot-reloads the plugin manager when you install, remove, or toggle a plugin — installs/removes take effect within one snapshot, no app restart needed.</p>
+
+<p>Hand-edited <code>[[plugins]]</code> entries in your own <code>dofek.toml</code> are still respected and merged with managed entries on load. The two layers compose, neither owns the other.</p>
 
 <h3>Plugin health dock</h3>
 <p>The plugin dock (inside the watchlist panel) shows one row per plugin:</p>
@@ -493,7 +509,7 @@ timeout_ms = 2000
 </ul>
 <p>Verify the download first by comparing against <code>SHA256SUMS.txt</code> from the GitHub release:</p>
 <pre><code># Windows (PowerShell)
-Get-FileHash .\Dofek_1.4.0_x64_en-US.msi -Algorithm SHA256
+Get-FileHash .\Dofek_1.5.0_x64_en-US.msi -Algorithm SHA256
 
 # Linux
 sha256sum -c SHA256SUMS.txt
@@ -514,7 +530,7 @@ shasum -a 256 -c SHA256SUMS.txt</code></pre>
   <li>Verify Ollama is running: <code>curl http://localhost:11434/api/tags</code></li>
   <li>Check the plugin dock — is it green (<span style="color:var(--mem)">●</span>) or red (<span style="color:var(--crit)">●</span>)?</li>
   <li>If red, the plugin likely crashed. Run the plugin binary directly to see its stderr output: <code>dofek-ollama.exe</code> from <code>C:\Program Files\dofek\</code> on Windows, <code>dofek-ollama</code> from <code>/usr/bin/</code> or the AppImage on Linux, or <code>dofek-ollama</code> from inside <code>Dofek.app/Contents/MacOS/</code> on macOS.</li>
-  <li>Confirm the plugin is enabled in <code>dofek.toml</code> under <code>[[plugins]]</code>.</li>
+  <li>Confirm the plugin is enabled: <code>dofek-tui plugins list</code> (or check the toggle in Settings → Plugins).</li>
 </ul>
 
 <h3>TUI looks cramped or wraps awkwardly</h3>
@@ -528,7 +544,7 @@ shasum -a 256 -c SHA256SUMS.txt</code></pre>
 <ul>
   <li><strong>Windows:</strong> CPU temperature sensors aren't exposed to user-space processes without elevation. Enable LibreHardwareMonitor (see above) to get temperatures via its HTTP fallback.</li>
   <li><strong>Linux:</strong> Dofek reads <code>/sys/class/hwmon</code> via <code>sysinfo::Components</code>. If your kernel doesn't expose package-level temps, only per-core sensors will appear; ensure the relevant <code>coretemp</code>/<code>k10temp</code>/<code>amdgpu</code> module is loaded.</li>
-  <li><strong>macOS:</strong> CPU temperature/power and GPU/VRAM are not implemented in v1.4 — Apple Silicon SMC integration is tracked for a future release.</li>
+  <li><strong>macOS:</strong> CPU temperature/power and GPU/VRAM are not implemented in v1.5 — Apple Silicon SMC integration is tracked for a future release.</li>
 </ul>
 
 <h3>Process kill fails with permission errors</h3>
@@ -548,7 +564,7 @@ shasum -a 256 -c SHA256SUMS.txt</code></pre>
 </table>
 
 <footer>
-  Dofek v1.4 — <a href="https://dofek.dev" target="_blank">dofek.dev</a> · MIT Licensed · Built by <a href="https://linkedin.com/in/asafsaar" target="_blank">Asaf Saar</a>
+  Dofek v1.5 — <a href="https://dofek.dev" target="_blank">dofek.dev</a> · MIT Licensed · Built by <a href="https://linkedin.com/in/asafsaar" target="_blank">Asaf Saar</a>
 </footer>
 
 </div>

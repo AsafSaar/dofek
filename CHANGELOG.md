@@ -2,6 +2,29 @@
 
 All notable changes to Dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-30
+
+Minor release — turns the plugin system from a hand-rolled "edit dofek.toml + put a binary on PATH" workflow into a managed install experience driven from the GUI or CLI, with hot reload.
+
+### Added
+- **Managed plugin store.** New `<config_dir>/dofek/plugins/` directory holds installed binaries; new managed `plugins.toml` (separate from the user-owned `dofek.toml`) tracks `[[plugins]]` entries. `PluginStore` (`src/plugin/store.rs`) handles install (copy → `chmod +x` → clear `com.apple.quarantine` xattr on macOS → probe `manifest` via a single poll → register), remove, and enable/disable.
+- **`dofek-tui plugins` CLI subcommand** (`src/plugin/cli.rs`) with `list`, `add <path> [-- <plugin args>]`, `remove`, `enable`, `disable`. The default `dofek-tui` invocation still launches the TUI; subcommands print to stdout and exit before the alt-screen takeover.
+- **GUI plugin manager.** Settings overlay (`?`) gains a Plugins section with a native file picker (via `tauri-plugin-dialog`), an enable/disable toggle, and an uninstall button per row. New Tauri commands `plugins_list`, `plugins_add`, `plugins_remove`, `plugins_set_enabled`, `plugins_pick_file` wrap `PluginStore` directly so install via GUI is byte-equivalent to install via CLI.
+- **Hot reload.** Data collector watches `plugins.toml` mtime each tick; on change, `PluginManager::replace()` shuts the old children down, kills stragglers after 200 ms, and rebuilds from the fresh config. Installs/removes/toggles take effect within one snapshot — no restart needed.
+- **Plugin path resolver.** `PluginProcess::spawn` now resolves bare command names against the managed plugin directory before falling back to `PATH`, so installed plugins work without any environment changes.
+- **`dofek-plugin-protocol` workspace crate** (`crates/dofek-plugin-protocol/`). Canonical serde types for the JSON-over-stdio protocol, with both `Serialize` and `Deserialize` so dofek and external plugin authors share definitions. Both first-party plugins now depend on it instead of redeclaring 50-line skeletons.
+- **Per-plugin READMEs** for `dofek-ollama` and `dofek-docker`: prerequisites, build/install per OS, copy-paste `dofek.toml` snippet, CLI flag table, troubleshooting, security note on the Docker TCP socket.
+- **Two-pane Settings dialog.** `?` overlay redesigned: Shortcuts on the left (with the Open full manual button anchored at the bottom), Settings + Plugins on the right (right pane scrolls independently). Falls back to single-column below 720px viewport. Status-bar label `? help` → `? settings` in both TUI and GUI.
+
+### Changed
+- **`Config::load` no longer merges managed plugins.** `Config::plugins` now contains only user-owned `dofek.toml` entries; the data collector composes `[user + managed]` at startup so it can re-merge cleanly when plugins.toml changes. User-edited `dofek.toml` is never round-tripped through serde.
+- **`build-all.sh` / `build-all.ps1`** now also build `dofek-ollama` and `dofek-docker` in release mode and stage their binaries next to the installer artefacts (still optional add-ons, not bundled into the MSI/deb/rpm yet).
+- **`dofek.toml.example`** plugin block now documents the managed-install path; first-party plugin entries remain commented-out templates.
+
+### Notes
+- Plugin trust model is unchanged: an installed plugin runs as a child process with the same privileges as Dofek. The macOS quarantine clear is the same `xattr -d com.apple.quarantine` users do manually today — automated only for files they explicitly chose to install.
+- A curated registry / Browse tab for one-click install of official plugins (Phase 2 from the v1.5 plan) is not in this release; tracked for v1.6+.
+
 ## [1.4.0] - 2026-04-29
 
 Minor release — adds a notify-only update checker, a 3-mode tray display selector, and capitalizes the brand name in user-facing surfaces.

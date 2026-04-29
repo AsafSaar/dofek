@@ -33,7 +33,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 <summary>ASCII layout reference</summary>
 
 ```
-Dofek v1.4  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+Dofek v1.5  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
@@ -97,7 +97,7 @@ Intel Macs are not supported in this release.
 > ```sh
 > xattr -dr com.apple.quarantine /Applications/Dofek.app
 > ```
-> On macOS 14 Sonoma and earlier you can also right-click the app → **Open** → **Open**. macOS 15 Sequoia removed that bypass, so the `xattr` command is the only fix there. Code signing + notarization is on the v1.4 roadmap.
+> On macOS 14 Sonoma and earlier you can also right-click the app → **Open** → **Open**. macOS 15 Sequoia removed that bypass, so the `xattr` command is the only fix there. Code signing + notarization is on the v1.6 roadmap.
 
 > ℹ️ **TUI requires a truecolor terminal.** dofek-tui's trading-terminal palette uses 24-bit RGB. Apple's Terminal.app misparses these escape sequences and renders panels as bright magenta/red — use [iTerm2](https://iterm2.com), [WezTerm](https://wezterm.org), [Ghostty](https://ghostty.org), [Alacritty](https://alacritty.org), or [Kitty](https://sw.kovidgoyal.net/kitty/) instead. The same applies on Linux for any terminal that doesn't set `COLORTERM=truecolor`. dofek-tui prints a warning at startup if it detects a non-truecolor terminal.
 
@@ -105,7 +105,7 @@ Intel Macs are not supported in this release.
 
 > ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "Dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
 
-Verify (Windows): `Get-FileHash .\Dofek_1.4.0_x64_en-US.msi -Algorithm SHA256`
+Verify (Windows): `Get-FileHash .\Dofek_1.5.0_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 
@@ -581,8 +581,9 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v1.1** — Linux support: TUI + GUI on x86_64, native `.deb` / `.rpm` / `.AppImage` bundles, dual Windows/Linux CI and release pipeline
 - **v1.2** — macOS (Apple Silicon) support: TUI + unsigned `.app` bundle, `sw_vers`-based OS reporting, macOS-specific network filter, three-platform CI and release pipeline
 - **v1.3** — System-tray companion (live CPU sparkline icon, close-to-tray default, right-click Show/Hide/Settings/Quit on Windows + macOS, icon-only on Linux, macOS menu-bar text); Linux CPU power via RAPL (`/sys/class/powercap/intel-rapl:0`); cross-platform disk I/O metrics with new `DISK` chart tab and ticker pill; backend → frontend snapshot push (Tauri events) replacing per-second IPC polling for lower WebKitGTK CPU on Linux
-- **v1.4** (current) — Notify-only "check for updates" across TUI (`u` key) and GUI (Check now button + topbar update pill), with opt-in startup probe; 3-mode tray display (chart only / chart + text / text only); rebrand of all user-facing display strings from "dofek" to "Dofek" while keeping every identifier (crate names, binaries, paths, URLs, bundle ID) untouched
-- **v1.5+** — Code signing for binaries, AMD GPU VRAM, GPU/VRAM/CPU-temp on macOS, Intel-Mac and Linux-aarch64 builds, AMD CPU power (`amd_energy`)
+- **v1.4** — Notify-only "check for updates" across TUI (`u` key) and GUI (Check now button + topbar update pill), with opt-in startup probe; 3-mode tray display (chart only / chart + text / text only); rebrand of all user-facing display strings from "dofek" to "Dofek" while keeping every identifier (crate names, binaries, paths, URLs, bundle ID) untouched
+- **v1.5** (current) — Managed plugin store: install plugins via the GUI's Settings → Plugins panel (native file picker) or `dofek-tui plugins {list,add,remove,enable,disable}`, with binaries copied into `<config_dir>/dofek/plugins/` and registered in a managed `plugins.toml`; manifest probed automatically; macOS quarantine xattr cleared on install; data collector watches `plugins.toml` mtime and hot-reloads the plugin manager so installs/removes take effect without restart; settings dialog redesigned into a two-pane Shortcuts / Settings layout; new `dofek-plugin-protocol` workspace crate so external plugin authors share canonical serde types; per-plugin READMEs for `dofek-ollama` + `dofek-docker`; build-all scripts now also build the plugin binaries
+- **v1.6+** — Curated plugin registry (one-click install of official plugins from dofek.dev), code signing for binaries, AMD GPU VRAM, GPU/VRAM/CPU-temp on macOS, Intel-Mac and Linux-aarch64 builds, AMD CPU power (`amd_energy`)
 
 ## License
 
