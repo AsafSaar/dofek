@@ -2,6 +2,20 @@
 
 All notable changes to dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-04-29
+
+Patch release — TUI refresh-rate config now actually controls the data-collection cadence, and the macOS Gatekeeper "damaged" workaround is documented prominently.
+
+### Fixed
+- **TUI `refresh_ms` from `dofek.toml` is now the source of truth.** Two layered bugs were stacking: the chart top-right legend hardcoded `"500ms"` regardless of the configured rate, and `apply_settings()` overwrote `App.refresh_ms` with `settings.toml`'s default (500), silently shadowing whatever the user set in `dofek.toml`. Both fixed; the legend now reflects the live cadence and `dofek.toml` wins for the persisted value.
+- **TUI `+`/`-` keys now actually change the data-collection cadence.** Previously `+`/`-` updated the displayed number but the collector thread had captured `config.general.refresh_ms` at spawn time and ignored runtime changes — the chart legend would show "5000ms" while the chart kept updating at the original rate. The poll interval is now an `Arc<AtomicU64>` shared between `App` and the collector; runtime changes propagate on the next sleep iteration without respawning the thread. GUI keeps its 1 Hz floor for performance.
+
+### Changed
+- **macOS install docs surface the "damaged" Gatekeeper error prominently.** A dedicated callout under the macOS download table in `README.md` quotes the exact `"dofek.app is damaged and can't be opened"` string so users searching for it land on the `xattr -dr com.apple.quarantine` fix. The right-click → Open trick has been demoted to a Sonoma-and-earlier qualifier — macOS 15 Sequoia removed that bypass, so `xattr` is now the only working fix on current macOS until the app is signed and notarized (tracked for v1.4). README-install.txt, `docs/manual.html`, and the website install step were updated to match.
+
+### Notes
+- macOS GPU/VRAM and CPU temp/power remain N/A; tracked for a future release.
+
 ## [1.3.3] - 2026-04-28
 
 Patch release — Linux WebKitGTK GUI no longer pegs CPU at idle, and the tray menu renders reliably on GNOME again. (1.3.2 skipped — the bump landed in the same commit as the fix.)

@@ -105,7 +105,7 @@ Intel Macs are not supported in this release.
 
 > ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
 
-Verify (Windows): `Get-FileHash .\dofek_1.3.3_x64_en-US.msi -Algorithm SHA256`
+Verify (Windows): `Get-FileHash .\dofek_1.3.4_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 
