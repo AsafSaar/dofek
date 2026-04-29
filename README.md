@@ -33,7 +33,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 <summary>ASCII layout reference</summary>
 
 ```
-Dofek v1.3  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+Dofek v1.4  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
@@ -105,7 +105,7 @@ Intel Macs are not supported in this release.
 
 > ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "Dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
 
-Verify (Windows): `Get-FileHash .\dofek_1.3.4_x64_en-US.msi -Algorithm SHA256`
+Verify (Windows): `Get-FileHash .\Dofek_1.4.0_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 
@@ -580,8 +580,9 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v1.0** — Public GA: MSI installer, dofek.dev downloads, hardened plugin protocol, GitHub Actions release pipeline
 - **v1.1** — Linux support: TUI + GUI on x86_64, native `.deb` / `.rpm` / `.AppImage` bundles, dual Windows/Linux CI and release pipeline
 - **v1.2** — macOS (Apple Silicon) support: TUI + unsigned `.app` bundle, `sw_vers`-based OS reporting, macOS-specific network filter, three-platform CI and release pipeline
-- **v1.3** (current) — System-tray companion (live CPU sparkline icon, close-to-tray default, right-click Show/Hide/Settings/Quit on Windows + macOS, icon-only on Linux, macOS menu-bar text); Linux CPU power via RAPL (`/sys/class/powercap/intel-rapl:0`); cross-platform disk I/O metrics with new `DISK` chart tab and ticker pill; backend → frontend snapshot push (Tauri events) replacing per-second IPC polling for lower WebKitGTK CPU on Linux
-- **v1.4+** — Code signing for binaries, AMD GPU VRAM, GPU/VRAM/CPU-temp on macOS, Intel-Mac and Linux-aarch64 builds, AMD CPU power (`amd_energy`)
+- **v1.3** — System-tray companion (live CPU sparkline icon, close-to-tray default, right-click Show/Hide/Settings/Quit on Windows + macOS, icon-only on Linux, macOS menu-bar text); Linux CPU power via RAPL (`/sys/class/powercap/intel-rapl:0`); cross-platform disk I/O metrics with new `DISK` chart tab and ticker pill; backend → frontend snapshot push (Tauri events) replacing per-second IPC polling for lower WebKitGTK CPU on Linux
+- **v1.4** (current) — Notify-only "check for updates" across TUI (`u` key) and GUI (Check now button + topbar update pill), with opt-in startup probe; 3-mode tray display (chart only / chart + text / text only); rebrand of all user-facing display strings from "dofek" to "Dofek" while keeping every identifier (crate names, binaries, paths, URLs, bundle ID) untouched
+- **v1.5+** — Code signing for binaries, AMD GPU VRAM, GPU/VRAM/CPU-temp on macOS, Intel-Mac and Linux-aarch64 builds, AMD CPU power (`amd_energy`)
 
 ## License
 

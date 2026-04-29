@@ -1,6 +1,23 @@
 # Changelog
 
-All notable changes to dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to Dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.4.0] - 2026-04-29
+
+Minor release — adds a notify-only update checker, a 3-mode tray display selector, and capitalizes the brand name in user-facing surfaces.
+
+### Added
+- **Check for updates** across both interfaces. New `src/update.rs` queries the GitHub Releases API and compares against the compiled-in version with an inline semver compare (no new crate, reuses existing `ureq`). TUI: `u` key opens an overlay (current vs latest, release URL, first lines of notes). GUI: "Check now" button in settings; topbar version pill turns into a clickable update link when a newer release exists. Notify-only — never downloads or installs anything. New `check_updates_on_startup` setting (default off) runs a silent probe at launch and surfaces the overlay/toast only when a newer release lands.
+- **Tray display selector** with three modes: chart only, chart + text, text only (macOS). Replaces the previous binary "Menu-bar text" toggle; legacy `tray_show_text` is kept as a fallback so 1.3.x users don't lose their previous choice. Mode changes apply immediately — `save_settings` calls `tray::update` synchronously instead of waiting for the next data-collector tick.
+
+### Changed
+- **Brand display name capitalized to "Dofek"** across all user-facing surfaces: TUI overlays/ticker/snapshot text/CLI warnings, GUI window title/logo/About/Help/tray menu/tooltips/toasts, Tauri `productName`, AppStream `<name>`, capabilities description, plugin-manifest `author`, README/SECURITY/CONTRIBUTING/manual prose, and the `dofek.dev` website. Every identifier (crate names, binary names, bundle ID `com.dofek.app`, desktop ID, repo URL, domain, config filename `dofek.toml`, config dirs, snapshot dir, Tauri event scheme `dofek://`) is intentionally unchanged so existing installs and `cargo install` flows are unaffected.
+- **Bundle artifact filenames change as a side effect of the `productName` flip.** Tauri 2 derives `.app`, `.dmg`, and `.msi` names from `productName`, so v1.4+ artifacts ship as `Dofek.app` / `Dofek_*.dmg` / `Dofek_*.msi` (was `dofek_*`). The v1.3.x release artifacts on GitHub keep their original names. README and bundled manual now reference the new `Dofek.app` Gatekeeper string and `xattr -dr com.apple.quarantine /Applications/Dofek.app` fix.
+- **Tray icon for text-only mode** uses `set_icon(None)` instead of a transparent 32×32 pixmap. The transparent-pixmap path left a phantom indent before the title on macOS NSStatusItem; passing `None` actually drops the image slot. Title clearing for chart-only mode now passes an empty string instead of `None` to `set_title` — Tauri's bridge does not reliably clear NSStatusItem titles when given `None`.
+
+### Notes
+- macOS GPU/VRAM and CPU temp/power remain N/A; tracked for a future release.
+- Code signing is still pending — Gatekeeper "damaged" workaround still required on first launch.
 
 ## [1.3.4] - 2026-04-29
 
