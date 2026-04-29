@@ -898,7 +898,7 @@ impl App {
         let _ = std::fs::create_dir_all(&dir);
         let filename = dir.join(format!("dofek-snapshot-{timestamp}.txt"));
         let content = format!(
-            "dofek snapshot — {timestamp}\n\
+            "Dofek snapshot — {timestamp}\n\
              \n\
              CPU: {} — {:.1}%\n\
              Memory: {:.1} / {:.1} GB ({:.1}%)\n\

@@ -54,7 +54,7 @@ fn get_app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-/// Tauri command: queries GitHub for the latest dofek release and returns
+/// Tauri command: queries GitHub for the latest Dofek release and returns
 /// version comparison + release URL. Notify-only — never downloads anything.
 /// The frontend decides how loud to be about the result.
 #[tauri::command]
@@ -397,7 +397,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error building dofek GUI")
+        .expect("error building Dofek GUI")
         .run(move |_app, event| {
             if let tauri::RunEvent::Exit = event {
                 shutdown_telemetry.track(TelemetryEvent::SessionEnd {

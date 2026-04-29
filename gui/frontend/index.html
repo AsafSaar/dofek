@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>dofek — system monitor</title>
+<title>Dofek — system monitor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -327,7 +327,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="logo">dofek <em id="app-version">v…</em></div>
+  <div class="logo">Dofek <em id="app-version">v…</em></div>
   <div class="pills">
     <div class="pill cpu"><span class="lbl">CPU</span><span class="val" id="t-cpu">—</span></div>
     <div class="pill gpu"><span class="lbl">GPU</span><span class="val" id="t-gpu">—</span></div>
@@ -496,8 +496,8 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
 <!-- TELEMETRY PROMPT -->
 <div class="telem-modal" id="telem-modal">
   <div class="telem-box">
-    <div class="telem-title">dofek</div>
-    <div class="telem-q">Help improve dofek by sharing anonymous usage data?</div>
+    <div class="telem-title">Dofek</div>
+    <div class="telem-q">Help improve Dofek by sharing anonymous usage data?</div>
     <div class="telem-detail"><b>Collected:</b> session duration, feature usage, GPU detection path</div>
     <div class="telem-detail"><b>Never collected:</b> process names, hostnames, IPs, or system metrics</div>
     <div class="telem-btns">
@@ -1926,7 +1926,7 @@ document.addEventListener('keydown', e => {
   if (k === 's' && invoke) {
     invoke('get_snapshot').then(snap => {
       const ts = new Date().toISOString().replace(/[:.]/g,'-');
-      const txt = `dofek snapshot — ${ts}\n\nCPU: ${snap.cpu.name} — ${snap.cpu.total_load.toFixed(1)}%\nMemory: ${snap.memory.used_gb.toFixed(1)} / ${snap.memory.total_gb.toFixed(1)} GB (${snap.memory.used_percent.toFixed(1)}%)\nGPU: ${snap.gpus.map(g=>g.name+' '+g.utilization.toFixed(1)+'%').join(', ')||'N/A'}\nProcesses: ${snap.processes.length}`;
+      const txt = `Dofek snapshot — ${ts}\n\nCPU: ${snap.cpu.name} — ${snap.cpu.total_load.toFixed(1)}%\nMemory: ${snap.memory.used_gb.toFixed(1)} / ${snap.memory.total_gb.toFixed(1)} GB (${snap.memory.used_percent.toFixed(1)}%)\nGPU: ${snap.gpus.map(g=>g.name+' '+g.utilization.toFixed(1)+'%').join(', ')||'N/A'}\nProcesses: ${snap.processes.length}`;
       const blob = new Blob([txt], {type:'text/plain'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -2119,7 +2119,7 @@ function showToast(msg){
 <!-- Help overlay -->
 <div class="help-overlay" id="help-overlay">
   <div class="help-box">
-    <div class="help-title">dofek — help</div>
+    <div class="help-title">Dofek — help</div>
     <table class="help-table">
       <tr><td class="hk">tab</td><td class="hd">Cycle sort column</td></tr>
       <tr><td class="hk">c / g / m / n</td><td class="hd">CPU / GPU / MEM / NET chart</td></tr>
@@ -2132,7 +2132,7 @@ function showToast(msg){
       <tr><td class="hk">t</td><td class="hd">Toggle tree / flat view</td></tr>
       <tr><td class="hk">[ ]</td><td class="hd">Resize chart / watchlist</td></tr>
       <tr><td class="hk">s</td><td class="hd">Save snapshot</td></tr>
-      <tr><td class="hk">a</td><td class="hd">About dofek</td></tr>
+      <tr><td class="hk">a</td><td class="hd">About Dofek</td></tr>
       <tr><td class="hk">?</td><td class="hd">Toggle this help</td></tr>
     </table>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;">
@@ -2153,7 +2153,7 @@ function showToast(msg){
 <!-- About overlay -->
 <div class="help-overlay" id="about-overlay">
   <div class="help-box" style="text-align:center;min-width:280px;">
-    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">dofek <span id="about-version" style="font-size:14px;color:var(--text);font-weight:600;">v…</span></div>
+    <div style="font-size:24px;font-weight:700;color:var(--cpu);letter-spacing:.08em;margin-bottom:6px;">Dofek <span id="about-version" style="font-size:14px;color:var(--text);font-weight:600;">v…</span></div>
     <div style="font-size:13px;color:var(--dim);margin-bottom:14px;">Terminal / GUI, AI-aware system monitor</div>
     <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
       <a href="https://dofek.dev" target="_blank" class="about-link" style="font-size:11px;">dofek.dev</a>
@@ -2239,14 +2239,14 @@ async function runUpdateCheck({silent=false} = {}) {
         top.textContent = `v${info.current} → v${info.latest} ↑`;
         top.style.color = 'var(--mem)';
         top.style.cursor = 'pointer';
-        top.title = `dofek v${info.latest} is available — click to view release`;
+        top.title = `Dofek v${info.latest} is available — click to view release`;
         top.onclick = () => invoke('open_url', { url: info.url }).catch(()=>{});
       }
       if (statusEl) {
         statusEl.innerHTML = `<span style="color:var(--mem);font-weight:600;">v${info.latest} available</span>`;
       }
-      if (!silent) showToast(`dofek v${info.latest} is available`);
-      else showToast(`Update available: dofek v${info.latest}`, 4000);
+      if (!silent) showToast(`Dofek v${info.latest} is available`);
+      else showToast(`Update available: Dofek v${info.latest}`, 4000);
     } else {
       if (statusEl) statusEl.textContent = `Up to date (v${info.current})`;
       if (!silent) showToast(`You're on the latest release (v${info.current})`);

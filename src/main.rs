@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let config = Config::load(&cli)?;
 
-    // Pre-flight terminal capability check. dofek's trading-terminal palette is
+    // Pre-flight terminal capability check. Dofek's trading-terminal palette is
     // built on 24-bit RGB; terminals without truecolor support (notably Apple
     // Terminal.app — known broken since at least 2014) misparse the
     // `ESC[38;2;R;G;Bm` SGR sequences and render the whole UI in neon magenta
@@ -60,7 +60,7 @@ fn main() -> Result<()> {
     if !truecolor_supported() {
         let term = std::env::var("TERM_PROGRAM").unwrap_or_else(|_| "unknown".into());
         eprintln!();
-        eprintln!("\x1b[33m! dofek: terminal '{term}' does not advertise truecolor (COLORTERM unset).\x1b[0m");
+        eprintln!("\x1b[33m! Dofek: terminal '{term}' does not advertise truecolor (COLORTERM unset).\x1b[0m");
         eprintln!("\x1b[33m  The trading-terminal palette uses 24-bit RGB; without it, panel");
         eprintln!("  backgrounds will render as miscolored blocks (Apple Terminal.app is the");
         eprintln!("  most common case). For correct rendering, run dofek-tui in iTerm2,");
@@ -105,7 +105,7 @@ fn main() -> Result<()> {
                     let msg = Paragraph::new(vec![
                         Line::from(""),
                         Line::from(Span::styled(
-                            "dofek",
+                            "Dofek",
                             Style::default().fg(Color::Rgb(56, 189, 248)).add_modifier(ratatui::style::Modifier::BOLD),
                         )),
                         Line::from(""),
@@ -157,7 +157,7 @@ fn main() -> Result<()> {
                     )),
                     Line::from(""),
                     Line::from(Span::styled(
-                        "Help improve dofek by sharing anonymous usage data?",
+                        "Help improve Dofek by sharing anonymous usage data?",
                         Style::default().fg(Color::White),
                     )),
                     Line::from(""),

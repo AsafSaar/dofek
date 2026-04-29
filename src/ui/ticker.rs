@@ -18,7 +18,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let mut spans: Vec<Span> = Vec::new();
 
     // Logo
-    spans.push(Span::styled(" dofek", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)));
+    spans.push(Span::styled(" Dofek", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)));
     spans.push(Span::styled(concat!(" v", env!("CARGO_PKG_VERSION")), Style::default().fg(theme::TEXT_DIM)));
     spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
 

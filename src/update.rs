@@ -1,4 +1,4 @@
-//! Update checker — queries the GitHub Releases API for the latest dofek
+//! Update checker — queries the GitHub Releases API for the latest Dofek
 //! release and compares it against the compiled-in `CARGO_PKG_VERSION`.
 //!
 //! Notify-only: this module never downloads or installs anything. It just

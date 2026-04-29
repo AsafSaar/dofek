@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   AppStream metadata so Ubuntu App Center / GNOME Software / KDE Discover
-  can render dofek with publisher, license, screenshots, and per-release
+  can render Dofek with publisher, license, screenshots, and per-release
   notes instead of "Unknown publisher" placeholders. Ships at
   /usr/share/metainfo/com.dofek.app.metainfo.xml in the .deb and .rpm.
 
@@ -11,7 +11,7 @@
   <id>com.dofek.app</id>
   <launchable type="desktop-id">dofek.desktop</launchable>
 
-  <name>dofek</name>
+  <name>Dofek</name>
   <summary>AI-aware system monitor with a trading-terminal interface</summary>
 
   <metadata_license>CC0-1.0</metadata_license>
@@ -23,7 +23,7 @@
 
   <description>
     <p>
-      dofek is a system monitor for developers who run AI workloads on their
+      Dofek is a system monitor for developers who run AI workloads on their
       workstation. A single Rust codebase produces both a terminal TUI and a
       Tauri-based desktop GUI; they share the same data layer.
     </p>

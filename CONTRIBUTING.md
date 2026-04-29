@@ -1,6 +1,6 @@
-# Contributing to dofek
+# Contributing to Dofek
 
-Thanks for considering a contribution. dofek is a small project and PRs, bug reports, and plugin ideas are all welcome.
+Thanks for considering a contribution. Dofek is a small project and PRs, bug reports, and plugin ideas are all welcome.
 
 ## Quick links
 
@@ -48,7 +48,7 @@ Cargo aliases live in `.cargo/config.toml`.
 
 Plugins are external executables that speak JSON over stdio. The protocol is documented in [`plugins/README.md`](./plugins/README.md). Plugins do not need to live in this repo — feel free to publish your own and link from Discussions.
 
-> ⚠️ The plugin API is experimental and may change before hitting a stable contract. Pin against a specific dofek version if stability matters.
+> ⚠️ The plugin API is experimental and may change before hitting a stable contract. Pin against a specific Dofek version if stability matters.
 
 ## License
 

@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-If you discover a security vulnerability in dofek, please report it privately via GitHub's [private security advisory](https://github.com/AsafSaar/dofek/security/advisories/new).
+If you discover a security vulnerability in Dofek, please report it privately via GitHub's [private security advisory](https://github.com/AsafSaar/dofek/security/advisories/new).
 
 Please do **not** open a public issue, PR, or Discussion for security reports.
 
@@ -10,7 +10,7 @@ Please do **not** open a public issue, PR, or Discussion for security reports.
 
 - Description of the issue and its impact
 - Steps to reproduce (proof of concept if possible)
-- dofek version and OS / build (Windows build, Linux distro+kernel, or macOS version)
+- Dofek version and OS / build (Windows build, Linux distro+kernel, or macOS version)
 - Any relevant logs, screenshots, or crash dumps
 
 ### What to expect
@@ -22,7 +22,7 @@ Please do **not** open a public issue, PR, or Discussion for security reports.
 
 ## Scope
 
-dofek is a local system monitor with read access to processes, GPUs, network counters, and other system state. Security-relevant surface area includes:
+Dofek is a local system monitor with read access to processes, GPUs, network counters, and other system state. Security-relevant surface area includes:
 
 - Process inspection (metadata, command lines, handles)
 - GPU queries via vendor APIs (NVIDIA via NVML, optional LibreHardwareMonitor HTTP fallback)
@@ -32,15 +32,15 @@ dofek is a local system monitor with read access to processes, GPUs, network cou
 
 ### In scope
 
-- Privilege escalation from a normal user account to admin via dofek
+- Privilege escalation from a normal user account to admin via Dofek
 - Arbitrary code execution via crafted config or plugin data
 - Information disclosure beyond what a user-level process can already read (e.g. leaking another user's credentials or process memory)
-- Denial of service against dofek itself via malformed input
-- Supply-chain issues in dofek's direct dependencies
+- Denial of service against Dofek itself via malformed input
+- Supply-chain issues in Dofek's direct dependencies
 
 ### Out of scope
 
-- Issues requiring local admin access on the target machine. dofek runs at user level by default.
+- Issues requiring local admin access on the target machine. Dofek runs at user level by default.
 - Vulnerabilities in third-party plugins. See [Plugin security](#plugin-security) below.
 - Missing code signing on binaries. Tracked separately; not a vulnerability.
 - Bugs in Windows / Linux / macOS, WebView2 / WebKitGTK / WKWebView, GPU drivers, or other external components. Report those upstream.
@@ -48,17 +48,17 @@ dofek is a local system monitor with read access to processes, GPUs, network cou
 
 ## Plugin security
 
-**Plugins are arbitrary executables. dofek does not sandbox them.** A malicious plugin runs with the same privileges as the user running dofek.
+**Plugins are arbitrary executables. Dofek does not sandbox them.** A malicious plugin runs with the same privileges as the user running Dofek.
 
 Treat every plugin the way you treat any other program you install: review the source, trust the author, or don't run it.
 
-dofek's own responsibility regarding plugins is limited to:
+Dofek's own responsibility regarding plugins is limited to:
 
-- Parsing plugin JSON output safely (no `eval`, no injection into dofek's UI)
+- Parsing plugin JSON output safely (no `eval`, no injection into Dofek's UI)
 - Enforcing output size and rate limits to prevent DoS of the host
-- Not leaking dofek internal state to plugins beyond what the documented schema specifies
+- Not leaking Dofek internal state to plugins beyond what the documented schema specifies
 
-If you find a way to break any of the guarantees above (for example, a malformed plugin response crashing dofek in an exploitable way, or dofek passing unexpected data to a plugin's stdin), that **is** in scope.
+If you find a way to break any of the guarantees above (for example, a malformed plugin response crashing Dofek in an exploitable way, or Dofek passing unexpected data to a plugin's stdin), that **is** in scope.
 
 ## Supported versions
 

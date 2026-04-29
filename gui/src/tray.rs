@@ -135,7 +135,7 @@ pub fn install(
     #[allow(unused_mut)] // .menu(...) is platform-gated below
     let mut builder = TrayIconBuilder::with_id("main")
         .icon(initial_icon)
-        .tooltip("dofek — system monitor")
+        .tooltip("Dofek — system monitor")
         .show_menu_on_left_click(false)
         .on_tray_icon_event(move |tray, event| {
             if let TrayIconEvent::Click {
@@ -201,7 +201,7 @@ fn build_tray_menu<R: tauri::Runtime, M: tauri::Manager<R>>(
         .separator()
         .text("tray.settings", "Settings")
         .separator()
-        .text("tray.quit", "Quit dofek")
+        .text("tray.quit", "Quit Dofek")
         .build()
 }
 
@@ -276,9 +276,9 @@ pub fn update(app: &AppHandle, snap: &DataSnapshot, settings: &UserSettings) {
     drop(last);
 
     let tooltip = if snap.gpus.is_empty() {
-        format!("dofek · CPU {cpu}%")
+        format!("Dofek · CPU {cpu}%")
     } else {
-        format!("dofek · CPU {cpu}% · GPU {gpu}%")
+        format!("Dofek · CPU {cpu}% · GPU {gpu}%")
     };
     let _ = tray.set_tooltip(Some(&tooltip));
 

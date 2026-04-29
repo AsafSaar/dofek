@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>dofek v1.3 — User Manual</title>
+<title>Dofek v1.3 — User Manual</title>
 <style>
 :root {
   --bg:     #060810;
@@ -193,7 +193,7 @@ kbd {
 <body>
 
 <nav>
-  <div class="nav-logo">dofek <em>v1.3 manual</em></div>
+  <div class="nav-logo">Dofek <em>v1.3 manual</em></div>
   <div class="nav-links">
     <a href="https://dofek.dev" target="_blank">dofek.dev</a>
     <a href="https://github.com/AsafSaar/dofek" target="_blank">GitHub</a>
@@ -203,13 +203,13 @@ kbd {
 <div class="wrap">
 
 <div class="hero-tag">USER MANUAL · v1.3</div>
-<h1>dofek<span class="v">the AI-era system monitor for Windows, Linux & macOS</span></h1>
-<p class="lede">This manual covers everything you need to run, configure, and extend dofek — both the terminal (TUI) and desktop (GUI) interfaces. It ships alongside the binaries (Windows: <code>C:\Program Files\dofek\</code>, Linux: package-managed under <code>/usr/share/dofek/</code> or beside the AppImage, macOS: inside the <code>dofek.app</code> bundle) and works entirely offline.</p>
+<h1>Dofek<span class="v">the AI-era system monitor for Windows, Linux & macOS</span></h1>
+<p class="lede">This manual covers everything you need to run, configure, and extend Dofek — both the terminal (TUI) and desktop (GUI) interfaces. It ships alongside the binaries (Windows: <code>C:\Program Files\dofek\</code>, Linux: package-managed under <code>/usr/share/dofek/</code> or beside the AppImage, macOS: inside the <code>Dofek.app</code> bundle) and works entirely offline.</p>
 
 <div class="toc">
   <div class="toc-title">Contents</div>
   <ol>
-    <li><a href="#intro">What is dofek?</a></li>
+    <li><a href="#intro">What is Dofek?</a></li>
     <li><a href="#quickstart">Quickstart</a></li>
     <li><a href="#interfaces">TUI vs. GUI</a></li>
     <li><a href="#keybindings">Keybindings reference (TUI)</a></li>
@@ -225,8 +225,8 @@ kbd {
 </div>
 
 <!-- ─────────────────── 1 ─────────────────── -->
-<h2 id="intro">1. What is dofek?</h2>
-<p><em>dofek</em> (Hebrew: דּוֹפֶק — "pulse" or "heartbeat") is a cross-platform system monitor built for developers running local AI workloads. It tracks per-process VRAM, flags Ollama and other inference workloads automatically, and renders CPU history as candlestick charts so you see real variance — not smoothed averages. Supported platforms: Windows 10/11, Linux x86_64, and macOS 12+ on Apple Silicon (aarch64).</p>
+<h2 id="intro">1. What is Dofek?</h2>
+<p><em>Dofek</em> (Hebrew: דּוֹפֶק — "pulse" or "heartbeat") is a cross-platform system monitor built for developers running local AI workloads. It tracks per-process VRAM, flags Ollama and other inference workloads automatically, and renders CPU history as candlestick charts so you see real variance — not smoothed averages. Supported platforms: Windows 10/11, Linux x86_64, and macOS 12+ on Apple Silicon (aarch64).</p>
 <p>It ships as two interfaces driven by the same Rust core:</p>
 <ul>
   <li><strong>dofek-tui</strong> — terminal UI (Ratatui). Needs a <strong>truecolor (24-bit RGB)</strong> terminal: Windows Terminal, Tabby, GNOME Terminal, Konsole, iTerm2, WezTerm, Ghostty, Alacritty, Kitty. Apple's Terminal.app does <em>not</em> support truecolor — panel backgrounds will render as miscolored blocks. dofek-tui detects non-truecolor terminals at startup and prints a warning before continuing.</li>
@@ -234,12 +234,12 @@ kbd {
 </ul>
 
 <div class="shot">
-  <img src="assets/gui-screenshot.png" alt="dofek GUI — main dashboard" />
-  <div class="shot-caption">dofek GUI — main dashboard</div>
+  <img src="assets/gui-screenshot.png" alt="Dofek GUI — main dashboard" />
+  <div class="shot-caption">Dofek GUI — main dashboard</div>
 </div>
 <div class="shot">
-  <img src="assets/tui-screenshot.png" alt="dofek TUI — terminal layout" />
-  <div class="shot-caption">dofek TUI — trading-terminal layout</div>
+  <img src="assets/tui-screenshot.png" alt="Dofek TUI — terminal layout" />
+  <div class="shot-caption">Dofek TUI — trading-terminal layout</div>
 </div>
 
 <!-- ─────────────────── 2 ─────────────────── -->
@@ -247,11 +247,11 @@ kbd {
 
 <h3>GUI (desktop app)</h3>
 <ol>
-  <li>Launch <strong>dofek</strong>:
+  <li>Launch <strong>Dofek</strong>:
     <ul>
       <li><strong>Windows:</strong> Start Menu, or <code>dofek.exe</code> from <code>C:\Program Files\dofek\</code>.</li>
       <li><strong>Linux:</strong> application launcher, or run the <code>.AppImage</code>, or <code>dofek-gui</code> after installing the <code>.deb</code>/<code>.rpm</code>.</li>
-      <li><strong>macOS:</strong> Launchpad / Applications, or <code>open /Applications/dofek.app</code>. First launch shows <em>"dofek.app is damaged and can't be opened"</em> — the app isn't damaged, it's unsigned and quarantined. Run <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> once and it launches normally. (On macOS 14 Sonoma and earlier, right-click → <strong>Open</strong> → <strong>Open</strong> also works; macOS 15 Sequoia removed that bypass.)</li>
+      <li><strong>macOS:</strong> Launchpad / Applications, or <code>open /Applications/Dofek.app</code>. First launch shows <em>"Dofek.app is damaged and can't be opened"</em> — the app isn't damaged, it's unsigned and quarantined. Run <code>xattr -dr com.apple.quarantine /Applications/Dofek.app</code> once and it launches normally. (On macOS 14 Sonoma and earlier, right-click → <strong>Open</strong> → <strong>Open</strong> also works; macOS 15 Sequoia removed that bypass.)</li>
     </ul>
   </li>
   <li>The dashboard opens with live CPU, GPU, memory, and network charts. The process watchlist on the right shows the top VRAM/CPU/MEM consumers.</li>
@@ -277,7 +277,7 @@ dofek-tui --config ~/Library/Application\ Support/dofek/dofek.toml</code></pre>
   <li>Press <kbd>?</kbd> for help, <kbd>q</kbd> to quit. See <a href="#keybindings">the full keybinding table</a>.</li>
 </ol>
 
-<div class="tip"><b>Font size tip:</b> the TUI is designed for <strong>9–11pt</strong> monospace. JetBrains Mono, Fira Code, MesloLGS NF, and Cascadia Code all render the half-block charts correctly. On Windows, run <code>install-wt-profile.ps1</code> (ships with the source) to add a pre-configured "dofek" profile to Windows Terminal. On Linux/macOS, set the font in your terminal's preferences.</div>
+<div class="tip"><b>Font size tip:</b> the TUI is designed for <strong>9–11pt</strong> monospace. JetBrains Mono, Fira Code, MesloLGS NF, and Cascadia Code all render the half-block charts correctly. On Windows, run <code>install-wt-profile.ps1</code> (ships with the source) to add a pre-configured "Dofek" profile to Windows Terminal. On Linux/macOS, set the font in your terminal's preferences.</div>
 
 <!-- ─────────────────── 3 ─────────────────── -->
 <h2 id="interfaces">3. TUI vs. GUI</h2>
@@ -312,7 +312,7 @@ dofek-tui --config ~/Library/Application\ Support/dofek/dofek.toml</code></pre>
   <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>Resize chart / watchlist split</td></tr>
   <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Increase / decrease refresh rate</td></tr>
   <tr><td><kbd>s</kbd></td><td>Save snapshot to <code>~/dofek-snapshots/</code></td></tr>
-  <tr><td><kbd>a</kbd></td><td>About dofek</td></tr>
+  <tr><td><kbd>a</kbd></td><td>About Dofek</td></tr>
   <tr><td><kbd>?</kbd></td><td>Toggle help overlay</td></tr>
   <tr><td><kbd>esc</kbd></td><td>Clear search / close overlays</td></tr>
   <tr><td><kbd>q</kbd></td><td>Quit</td></tr>
@@ -320,7 +320,7 @@ dofek-tui --config ~/Library/Application\ Support/dofek/dofek.toml</code></pre>
 
 <!-- ─────────────────── 5 ─────────────────── -->
 <h2 id="config">5. Configuration</h2>
-<p>dofek loads config from the first file it finds, in this order:</p>
+<p>Dofek loads config from the first file it finds, in this order:</p>
 <ol>
   <li><code>--config &lt;path&gt;</code> command-line flag (TUI only)</li>
   <li><code>./dofek.toml</code> in the current working directory</li>
@@ -400,7 +400,7 @@ timeout_ms = 2000
 
 <!-- ─────────────────── 7 ─────────────────── -->
 <h2 id="ai-detect">7. AI workload detection</h2>
-<p>Once a process is classified as AI, dofek tags its current state:</p>
+<p>Once a process is classified as AI, Dofek tags its current state:</p>
 
 <table class="ref">
   <tr><th>Badge</th><th>Condition</th></tr>
@@ -413,13 +413,13 @@ timeout_ms = 2000
 
 <!-- ─────────────────── 8 ─────────────────── -->
 <h2 id="gpu">8. GPU support & LibreHardwareMonitor</h2>
-<p>dofek talks to two data sources for GPU metrics:</p>
+<p>Dofek talks to two data sources for GPU metrics:</p>
 <ol>
   <li><strong>NVML</strong> (primary, all platforms) — NVIDIA driver API. Provides utilization, VRAM, temperature, power, <em>and</em> per-process VRAM. No extra install required beyond the NVIDIA driver.</li>
   <li><strong>LibreHardwareMonitor HTTP</strong> (Windows-only fallback) — for non-NVIDIA GPUs or when NVML isn't available on Windows.</li>
 </ol>
 
-<div class="note"><b>Per-platform reality:</b> LHM is Windows-only — Linux and macOS users can skip the LHM section below entirely. On Linux without an NVIDIA GPU, dofek shows GPU info as N/A (AMD GPU support is on the roadmap). On macOS Apple Silicon, the GPU is integrated and shares system memory; the GPU tile shows your chip name and points you at the MEM panel — Apple Silicon GPU/VRAM and SMC sensor integration are tracked for a future release.</div>
+<div class="note"><b>Per-platform reality:</b> LHM is Windows-only — Linux and macOS users can skip the LHM section below entirely. On Linux without an NVIDIA GPU, Dofek shows GPU info as N/A (AMD GPU support is on the roadmap). On macOS Apple Silicon, the GPU is integrated and shares system memory; the GPU tile shows your chip name and points you at the MEM panel — Apple Silicon GPU/VRAM and SMC sensor integration are tracked for a future release.</div>
 
 <h3>Setting up LibreHardwareMonitor (Windows only)</h3>
 <ol>
@@ -434,9 +434,9 @@ timeout_ms = 2000
 <!-- ─────────────────── 9 ─────────────────── -->
 <h2 id="plugins">9. Plugins</h2>
 
-<div class="warn"><b>Plugin API is experimental.</b> The JSON protocol is versioned (<code>schema_version: 1</code>) but subject to breaking changes until further notice. Pin your plugin to a specific dofek version if stability matters.</div>
+<div class="warn"><b>Plugin API is experimental.</b> The JSON protocol is versioned (<code>schema_version: 1</code>) but subject to breaking changes until further notice. Pin your plugin to a specific Dofek version if stability matters.</div>
 
-<p>Plugins are external processes that dofek spawns and polls via newline-delimited JSON over stdin/stdout. Each poll cycle, dofek writes a request, reads a response, and renders any panels / process annotations / metrics the plugin returned.</p>
+<p>Plugins are external processes that Dofek spawns and polls via newline-delimited JSON over stdin/stdout. Each poll cycle, Dofek writes a request, reads a response, and renders any panels / process annotations / metrics the plugin returned.</p>
 
 <h3>Built-in plugins</h3>
 <table class="ref">
@@ -452,7 +452,7 @@ timeout_ms = 2000
 <ul>
   <li><span style="color:var(--mem)">●</span> healthy</li>
   <li><span style="color:var(--warn)">●</span> unhealthy (5+ consecutive errors)</li>
-  <li><span style="color:var(--crit)">●</span> crashed — dofek restarts with exponential backoff (1s → 30s cap)</li>
+  <li><span style="color:var(--crit)">●</span> crashed — Dofek restarts with exponential backoff (1s → 30s cap)</li>
   <li><span style="color:var(--dim)">○</span> starting</li>
 </ul>
 
@@ -460,7 +460,7 @@ timeout_ms = 2000
 
 <!-- ─────────────────── 10 ─────────────────── -->
 <h2 id="telemetry">10. Telemetry</h2>
-<p>dofek includes opt-in anonymous telemetry to help improve the app. <strong>It is disabled by default.</strong> Nothing is sent unless you explicitly enable it.</p>
+<p>Dofek includes opt-in anonymous telemetry to help improve the app. <strong>It is disabled by default.</strong> Nothing is sent unless you explicitly enable it.</p>
 
 <h3>What's collected (if you opt in)</h3>
 <ul>
@@ -489,7 +489,7 @@ timeout_ms = 2000
 <ul>
   <li><strong>Windows (SmartScreen):</strong> right-click the installer or executable → <strong>Properties</strong> → check <strong>Unblock</strong> at the bottom of the General tab → OK.</li>
   <li><strong>Linux (AppImage):</strong> <code>chmod +x dofek_*.AppImage</code> before running. <code>.deb</code>/<code>.rpm</code> packages install normally via <code>apt</code>/<code>dnf</code>.</li>
-  <li><strong>macOS (Gatekeeper):</strong> first launch shows <em>"dofek.app is damaged and can't be opened"</em>. The app isn't damaged — it's unsigned and quarantined by your browser. Run <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> once. On macOS 14 Sonoma and earlier you can also right-click → <strong>Open</strong> → <strong>Open</strong>; macOS 15 Sequoia removed that bypass.</li>
+  <li><strong>macOS (Gatekeeper):</strong> first launch shows <em>"Dofek.app is damaged and can't be opened"</em>. The app isn't damaged — it's unsigned and quarantined by your browser. Run <code>xattr -dr com.apple.quarantine /Applications/Dofek.app</code> once. On macOS 14 Sonoma and earlier you can also right-click → <strong>Open</strong> → <strong>Open</strong>; macOS 15 Sequoia removed that bypass.</li>
 </ul>
 <p>Verify the download first by comparing against <code>SHA256SUMS.txt</code> from the GitHub release:</p>
 <pre><code># Windows (PowerShell)
@@ -505,7 +505,7 @@ shasum -a 256 -c SHA256SUMS.txt</code></pre>
 <ul>
   <li><strong>NVIDIA GPU?</strong> Make sure drivers are current. <code>nvidia-smi</code> should work from a terminal.</li>
   <li><strong>AMD / Intel GPU?</strong> NVML won't work — on Windows, set up <a href="#gpu">LibreHardwareMonitor</a> as the fallback. Linux non-NVIDIA support is on the roadmap.</li>
-  <li><strong>WSL / VM?</strong> NVML isn't available inside WSL2 without <code>--runtime=nvidia</code>. Run dofek on the Windows host instead.</li>
+  <li><strong>WSL / VM?</strong> NVML isn't available inside WSL2 without <code>--runtime=nvidia</code>. Run Dofek on the Windows host instead.</li>
   <li><strong>Apple Silicon (M-series)?</strong> Expected. The GPU tile shows your chip name (e.g. "Apple M4 GPU") with a unified-memory hint pointing to the MEM panel — Apple Silicon GPU/VRAM and CPU temperature integration are tracked for a future release. Apple's GPU shares system memory, so VRAM usage shows up as memory pressure rather than a separate number.</li>
 </ul>
 
@@ -513,27 +513,27 @@ shasum -a 256 -c SHA256SUMS.txt</code></pre>
 <ul>
   <li>Verify Ollama is running: <code>curl http://localhost:11434/api/tags</code></li>
   <li>Check the plugin dock — is it green (<span style="color:var(--mem)">●</span>) or red (<span style="color:var(--crit)">●</span>)?</li>
-  <li>If red, the plugin likely crashed. Run the plugin binary directly to see its stderr output: <code>dofek-ollama.exe</code> from <code>C:\Program Files\dofek\</code> on Windows, <code>dofek-ollama</code> from <code>/usr/bin/</code> or the AppImage on Linux, or <code>dofek-ollama</code> from inside <code>dofek.app/Contents/MacOS/</code> on macOS.</li>
+  <li>If red, the plugin likely crashed. Run the plugin binary directly to see its stderr output: <code>dofek-ollama.exe</code> from <code>C:\Program Files\dofek\</code> on Windows, <code>dofek-ollama</code> from <code>/usr/bin/</code> or the AppImage on Linux, or <code>dofek-ollama</code> from inside <code>Dofek.app/Contents/MacOS/</code> on macOS.</li>
   <li>Confirm the plugin is enabled in <code>dofek.toml</code> under <code>[[plugins]]</code>.</li>
 </ul>
 
 <h3>TUI looks cramped or wraps awkwardly</h3>
 <ul>
   <li>Set terminal font size to <strong>9–11pt</strong> (JetBrains Mono, Fira Code, MesloLGS NF, Cascadia Code, or Consolas all work).</li>
-  <li>Minimum terminal width ~110 columns, height ~30 rows. Below that, dofek shows a size hint.</li>
+  <li>Minimum terminal width ~110 columns, height ~30 rows. Below that, Dofek shows a size hint.</li>
   <li>In Windows Terminal, run <code>install-wt-profile.ps1</code> (from the source repo) for a pre-configured profile. On Linux/macOS, set the font in your terminal preferences.</li>
 </ul>
 
 <h3>CPU temperature always shows as "—"</h3>
 <ul>
   <li><strong>Windows:</strong> CPU temperature sensors aren't exposed to user-space processes without elevation. Enable LibreHardwareMonitor (see above) to get temperatures via its HTTP fallback.</li>
-  <li><strong>Linux:</strong> dofek reads <code>/sys/class/hwmon</code> via <code>sysinfo::Components</code>. If your kernel doesn't expose package-level temps, only per-core sensors will appear; ensure the relevant <code>coretemp</code>/<code>k10temp</code>/<code>amdgpu</code> module is loaded.</li>
+  <li><strong>Linux:</strong> Dofek reads <code>/sys/class/hwmon</code> via <code>sysinfo::Components</code>. If your kernel doesn't expose package-level temps, only per-core sensors will appear; ensure the relevant <code>coretemp</code>/<code>k10temp</code>/<code>amdgpu</code> module is loaded.</li>
   <li><strong>macOS:</strong> CPU temperature/power and GPU/VRAM are not implemented in v1.3 — Apple Silicon SMC integration is tracked for a future release.</li>
 </ul>
 
 <h3>Process kill fails with permission errors</h3>
 <ul>
-  <li><strong>Windows ("Access is denied"):</strong> system services, antivirus components, and protected processes can only be killed as admin. Launch dofek from an elevated prompt if needed; running it elevated isn't generally recommended.</li>
+  <li><strong>Windows ("Access is denied"):</strong> system services, antivirus components, and protected processes can only be killed as admin. Launch Dofek from an elevated prompt if needed; running it elevated isn't generally recommended.</li>
   <li><strong>Linux/macOS ("Operation not permitted"):</strong> SIGTERM is sent to the target PID. Root-owned processes need <code>sudo dofek-tui</code>. SIP-protected macOS system processes can't be killed at all.</li>
 </ul>
 
@@ -548,7 +548,7 @@ shasum -a 256 -c SHA256SUMS.txt</code></pre>
 </table>
 
 <footer>
-  dofek v1.3 — <a href="https://dofek.dev" target="_blank">dofek.dev</a> · MIT Licensed · Built by <a href="https://linkedin.com/in/asafsaar" target="_blank">Asaf Saar</a>
+  Dofek v1.3 — <a href="https://dofek.dev" target="_blank">dofek.dev</a> · MIT Licensed · Built by <a href="https://linkedin.com/in/asafsaar" target="_blank">Asaf Saar</a>
 </footer>
 
 </div>

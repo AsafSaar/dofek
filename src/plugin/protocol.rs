@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-// --- Request (dofek -> plugin) ---
+// --- Request (Dofek -> plugin) ---
 
 #[derive(Serialize, Debug)]
 pub struct PollRequest {
@@ -47,7 +47,7 @@ impl Default for ShutdownRequest {
     }
 }
 
-// --- Response (plugin -> dofek) ---
+// --- Response (plugin -> Dofek) ---
 
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct PollResponse {

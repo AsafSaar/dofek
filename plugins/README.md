@@ -1,14 +1,14 @@
-# dofek Plugin Development Guide
+# Dofek Plugin Development Guide
 
 > ⚠️ **Plugin API: experimental, subject to change until further notice.**
-> The JSON protocol is versioned (`schema_version: 1`), but expect breaking changes as the API matures. Pin your plugin to a specific dofek version if stability matters. Once dofek's plugin contract stabilizes, it will follow semver.
+> The JSON protocol is versioned (`schema_version: 1`), but expect breaking changes as the API matures. Pin your plugin to a specific Dofek version if stability matters. Once Dofek's plugin contract stabilizes, it will follow semver.
 
-Build external plugins that inject data into the dofek dashboard. Plugins are standalone executables that communicate with dofek via JSON-over-stdio.
+Build external plugins that inject data into the Dofek dashboard. Plugins are standalone executables that communicate with Dofek via JSON-over-stdio.
 
 ## How It Works
 
 ```
-dofek (parent)                    plugin (child process)
+Dofek (parent)                    plugin (child process)
   │                                  │
   │── spawns process ───────────────>│
   │                                  │
@@ -21,11 +21,11 @@ dofek (parent)                    plugin (child process)
   │── kills after 2s ──────────────>│
 ```
 
-- **Pull model**: dofek writes a request to the plugin's **stdin**, reads a response from **stdout**
+- **Pull model**: Dofek writes a request to the plugin's **stdin**, reads a response from **stdout**
 - **Newline-delimited JSON**: one JSON object per line, terminated by `\n`
-- **stderr**: captured by dofek for logging — use it for debug output
+- **stderr**: captured by Dofek for logging — use it for debug output
 - **Timeout**: if a plugin doesn't respond within `timeout_ms` (default 2000ms), the poll is skipped
-- **Crash recovery**: if the process dies, dofek restarts it with exponential backoff (1s, 2s, 4s, 8s, 16s, 30s cap)
+- **Crash recovery**: if the process dies, Dofek restarts it with exponential backoff (1s, 2s, 4s, 8s, 16s, 30s cap)
 
 ## Configuration
 
@@ -44,7 +44,7 @@ Multiple `[[plugins]]` entries are supported. Order determines dock layout order
 
 ## Protocol Reference
 
-### Poll Request (dofek → plugin)
+### Poll Request (Dofek → plugin)
 
 Sent to **stdin** on every refresh cycle:
 
@@ -73,7 +73,7 @@ Each process object:
 | `name` | `string` | Process name (e.g., `"ollama.exe"`) |
 | `vram_bytes` | `u64 \| null` | GPU VRAM usage in bytes, or null if unknown |
 
-### Poll Response (plugin → dofek)
+### Poll Response (plugin → Dofek)
 
 Write to **stdout** as a single JSON line:
 
@@ -90,7 +90,7 @@ All three arrays are **optional** — include only what your plugin provides.
 
 #### `manifest` (first response only)
 
-Include a `manifest` field in your first response so dofek can identify the plugin:
+Include a `manifest` field in your first response so Dofek can identify the plugin:
 
 ```json
 {
@@ -184,17 +184,17 @@ Named numeric values displayed as pills in the top ticker bar:
 
 ### Shutdown Request
 
-Sent when dofek is exiting. The plugin should clean up and exit:
+Sent when Dofek is exiting. The plugin should clean up and exit:
 
 ```json
 { "type": "shutdown" }
 ```
 
-dofek waits 2 seconds after sending this, then kills the process if still running.
+Dofek waits 2 seconds after sending this, then kills the process if still running.
 
 ## Plugin States
 
-dofek tracks each plugin's health:
+Dofek tracks each plugin's health:
 
 | State | Dock indicator | Condition |
 |-------|---------------|-----------|
@@ -203,7 +203,7 @@ dofek tracks each plugin's health:
 | Unhealthy | `●` yellow | 5+ consecutive poll errors/timeouts |
 | Crashed | `●` red | Process exited unexpectedly |
 
-After a crash, dofek respawns the plugin with exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s (capped).
+After a crash, Dofek respawns the plugin with exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s (capped).
 
 ## Minimal Plugin Example (Python)
 
@@ -309,12 +309,12 @@ fn main() {
 ## Tips
 
 - **Always flush stdout** after writing a response — buffered output will cause timeouts
-- **Use stderr for logging** — dofek captures it, stdout is reserved for the protocol
+- **Use stderr for logging** — Dofek captures it, stdout is reserved for the protocol
 - **Respond quickly** — you have `timeout_ms` (default 2s) to respond to each poll
 - **Namespace your metric IDs** — use `plugin_name.metric_name` to avoid collisions
-- **Ignore unknown fields** — dofek may add new fields to poll requests in the future
+- **Ignore unknown fields** — Dofek may add new fields to poll requests in the future
 - **Handle malformed input gracefully** — skip lines you can't parse, don't crash
-- **Test standalone first** — pipe JSON manually before connecting to dofek:
+- **Test standalone first** — pipe JSON manually before connecting to Dofek:
   ```bash
   echo '{"type":"poll","timestamp_ms":0,"processes":[]}' | python my_plugin.py
   ```

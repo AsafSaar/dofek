@@ -23,7 +23,7 @@ watch_processes = ["ffmpeg", "obs"]
 # watch_pids = [1234]
 
 # LHM is a Windows-only sensor source (CPU temp/power, AMD GPU fallback).
-# On Linux this section is harmless — dofek reads CPU temperature directly from
+# On Linux this section is harmless — Dofek reads CPU temperature directly from
 # /sys/class/hwmon via sysinfo and ignores LHM connection failures.
 # On macOS this section is also harmless — CPU temperature/power and GPU/VRAM
 # panels show N/A in v1.2 (Apple Silicon SMC integration is on the roadmap).
@@ -31,7 +31,7 @@ watch_processes = ["ffmpeg", "obs"]
 url = "http://localhost:8085"
 
 # Telemetry: opt-in anonymous usage data for beta feedback.
-# Disabled by default. Enable to help improve dofek.
+# Disabled by default. Enable to help improve Dofek.
 # [telemetry]
 # enabled = true
 # endpoint = "https://dofek.dev/api/v1/events"

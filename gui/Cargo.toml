@@ -2,7 +2,7 @@
 name = "dofek-gui"
 version = "1.3.4"
 edition = "2024"
-description = "dofek desktop GUI — trading-terminal system monitor"
+description = "Dofek desktop GUI — trading-terminal system monitor"
 
 [dependencies]
 dofek = { path = ".." }

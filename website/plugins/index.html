@@ -11,20 +11,20 @@
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Build plugins for dofek — the AI-aware system monitor for Windows, Linux, and macOS. JSON-over-stdio protocol, auto recovery, interactive playground, and starter templates for Python, Rust, and Node.js.">
+  <meta name="description" content="Build plugins for Dofek — the AI-aware system monitor for Windows, Linux, and macOS. JSON-over-stdio protocol, auto recovery, interactive playground, and starter templates for Python, Rust, and Node.js.">
   <meta name="theme-color" content="#060810">
   <link rel="canonical" href="https://dofek.dev/plugins/">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <meta property="og:title" content="dofek — Plugin Development Docs">
-  <meta property="og:description" content="Build plugins for dofek using JSON-over-stdio. Protocol reference, interactive playground, and starter templates for Python, Rust, and Node.js.">
+  <meta property="og:title" content="Dofek — Plugin Development Docs">
+  <meta property="og:description" content="Build plugins for Dofek using JSON-over-stdio. Protocol reference, interactive playground, and starter templates for Python, Rust, and Node.js.">
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://dofek.dev/plugins/">
   <meta property="og:image" content="https://dofek.dev/tui-screenshot.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="dofek — Plugin Development Docs">
-  <meta name="twitter:description" content="Build plugins for dofek using JSON-over-stdio. Protocol reference, interactive playground, and starter templates.">
+  <meta name="twitter:title" content="Dofek — Plugin Development Docs">
+  <meta name="twitter:description" content="Build plugins for Dofek using JSON-over-stdio. Protocol reference, interactive playground, and starter templates.">
   <meta name="twitter:image" content="https://dofek.dev/tui-screenshot.png">
-  <title>dofek — Plugin Development</title>
+  <title>Dofek — Plugin Development</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -32,8 +32,8 @@
   {
     "@context": "https://schema.org",
     "@type": "TechArticle",
-    "headline": "dofek Plugin Development",
-    "description": "Build plugins for dofek using JSON-over-stdio. Protocol reference, examples, and starter templates for Python, Rust, and Node.js.",
+    "headline": "Dofek Plugin Development",
+    "description": "Build plugins for Dofek using JSON-over-stdio. Protocol reference, examples, and starter templates for Python, Rust, and Node.js.",
     "url": "https://dofek.dev/plugins/",
     "mainEntityOfPage": "https://dofek.dev/plugins/",
     "author": {
@@ -43,7 +43,7 @@
     },
     "isPartOf": {
       "@type": "WebSite",
-      "name": "dofek",
+      "name": "Dofek",
       "url": "https://dofek.dev"
     }
   }
@@ -53,7 +53,7 @@
 
 <!-- Navigation -->
 <nav>
-  <a href="../index.html" class="nav-logo">dofek</a>
+  <a href="../index.html" class="nav-logo">Dofek</a>
   <div class="nav-links">
     <a href="../index.html">Home</a>
     <a href="./" class="active">Plugins</a>
@@ -65,11 +65,11 @@
 <div class="hero">
   <div class="hero-content">
     <div class="hero-badge">DEVELOPER DOCS</div>
-    <h1>Build plugins for <span class="hl">dofek</span></h1>
+    <h1>Build plugins for <span class="hl">Dofek</span></h1>
     <p class="hero-sub">Extend the dashboard with custom data sources. Plugins are standalone executables that communicate via JSON-over-stdio — write one in any language, in under 50 lines.</p>
     <div style="margin-top:24px;padding:14px 18px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.06);border-radius:4px;font-size:13px;line-height:1.6;color:var(--text);max-width:780px">
       <strong style="color:var(--watch)">⚠️ Plugin API — experimental.</strong>
-      The JSON protocol is versioned (<code>schema_version: 1</code>) but subject to breaking changes until further notice. Pin your plugin to a specific dofek version if stability matters. Once the contract stabilizes, the API will follow semver.
+      The JSON protocol is versioned (<code>schema_version: 1</code>) but subject to breaking changes until further notice. Pin your plugin to a specific Dofek version if stability matters. Once the contract stabilizes, the API will follow semver.
     </div>
   </div>
 </div>
@@ -78,9 +78,9 @@
 <section>
   <div class="section-tag">ARCHITECTURE</div>
   <h2>How plugins <span class="hl-gpu">work</span></h2>
-  <p class="section-sub">dofek spawns your plugin as a child process. Every refresh cycle, it writes a poll request to stdin and reads your JSON response from stdout. That's the entire contract.</p>
+  <p class="section-sub">Dofek spawns your plugin as a child process. Every refresh cycle, it writes a poll request to stdin and reads your JSON response from stdout. That's the entire contract.</p>
 
-  <div class="diagram reveal"><span class="hl-cpu">dofek</span> (parent)                    <span class="hl-gpu">plugin</span> (child process)
+  <div class="diagram reveal"><span class="hl-cpu">Dofek</span> (parent)                    <span class="hl-gpu">plugin</span> (child process)
   │                                  │
   │── spawns process ───────────────>│
   │                                  │
@@ -96,7 +96,7 @@
     <div class="proto-card">
       <span class="proto-icon" style="color:var(--cpu)">⟶</span>
       <h3>Pull Model</h3>
-      <p>dofek owns the tick rate. No backpressure, no buffering, no message floods. Your plugin just responds when asked.</p>
+      <p>Dofek owns the tick rate. No backpressure, no buffering, no message floods. Your plugin just responds when asked.</p>
     </div>
     <div class="proto-card">
       <span class="proto-icon" style="color:var(--gpu)">◇</span>
@@ -106,7 +106,7 @@
     <div class="proto-card">
       <span class="proto-icon" style="color:var(--mem)">↻</span>
       <h3>Auto Recovery</h3>
-      <p>If your plugin crashes, dofek restarts it with exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s cap.</p>
+      <p>If your plugin crashes, Dofek restarts it with exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s cap.</p>
     </div>
   </div>
 </section>
@@ -119,7 +119,7 @@
 
   <div class="two-col reveal">
     <div>
-      <h3>Poll Request <span style="color:var(--muted);font-weight:400;font-size:12px">dofek → plugin</span></h3>
+      <h3>Poll Request <span style="color:var(--muted);font-weight:400;font-size:12px">Dofek → plugin</span></h3>
       <div class="code-block"><span class="code-label">JSON</span>{
   <span class="cs">"type"</span>: <span class="cv">"poll"</span>,
   <span class="cs">"timestamp_ms"</span>: <span class="cn">1713020400000</span>,
@@ -139,7 +139,7 @@
       </table>
     </div>
     <div>
-      <h3>Poll Response <span style="color:var(--muted);font-weight:400;font-size:12px">plugin → dofek</span></h3>
+      <h3>Poll Response <span style="color:var(--muted);font-weight:400;font-size:12px">plugin → Dofek</span></h3>
       <div class="code-block"><span class="code-label">JSON</span>{
   <span class="cs">"status"</span>: <span class="cv">"ok"</span>,
   <span class="cs">"panels"</span>: [<span class="cm">...</span>],
@@ -238,7 +238,7 @@
 <section class="section-alt">
   <div class="section-tag">LIFECYCLE</div>
   <h2>Plugin <span class="hl-gpu">states</span></h2>
-  <p class="section-sub">dofek tracks each plugin's health and displays a colored indicator in the dock.</p>
+  <p class="section-sub">Dofek tracks each plugin's health and displays a colored indicator in the dock.</p>
 
   <div class="state-grid reveal">
     <div class="state-card">
@@ -288,7 +288,7 @@
 <section>
   <div class="section-tag">INTERACTIVE</div>
   <h2>Protocol <span class="hl-cpu">playground</span></h2>
-  <p class="section-sub">Edit a plugin response and see how it renders in the dofek dock. Validates your JSON in real-time.</p>
+  <p class="section-sub">Edit a plugin response and see how it renders in the Dofek dock. Validates your JSON in real-time.</p>
 
   <div class="playground-wrap reveal">
     <div class="playground-bar">
@@ -338,7 +338,7 @@
       </div>
       <div class="scaffolder-field">
         <label>DESCRIPTION</label>
-        <input type="text" id="scaffold-desc" placeholder="What does it do?" value="A custom dofek plugin">
+        <input type="text" id="scaffold-desc" placeholder="What does it do?" value="A custom Dofek plugin">
       </div>
       <div class="scaffolder-field">
         <label>LANGUAGE</label>
@@ -367,17 +367,17 @@
     <div>
       <ul class="feature-bullets">
         <li><strong style="color:var(--text)">Always flush stdout</strong> after writing a response — buffered output causes timeouts</li>
-        <li><strong style="color:var(--text)">Use stderr for logging</strong> — dofek captures it, stdout is reserved for the protocol</li>
+        <li><strong style="color:var(--text)">Use stderr for logging</strong> — Dofek captures it, stdout is reserved for the protocol</li>
         <li><strong style="color:var(--text)">Respond quickly</strong> — you have <code>timeout_ms</code> (default 2s) to respond to each poll</li>
         <li><strong style="color:var(--text)">Namespace metric IDs</strong> — use <code>plugin_name.metric_name</code> to avoid collisions</li>
-        <li><strong style="color:var(--text)">Ignore unknown fields</strong> — dofek may add new fields to poll requests in the future</li>
+        <li><strong style="color:var(--text)">Ignore unknown fields</strong> — Dofek may add new fields to poll requests in the future</li>
       </ul>
     </div>
     <div>
       <ul class="feature-bullets">
         <li><strong style="color:var(--text)">Handle malformed input</strong> — skip lines you can't parse, don't crash</li>
-        <li><strong style="color:var(--text)">Include a manifest</strong> in your first response so dofek can identify your plugin</li>
-        <li><strong style="color:var(--text)">Test standalone</strong> before connecting to dofek:</li>
+        <li><strong style="color:var(--text)">Include a manifest</strong> in your first response so Dofek can identify your plugin</li>
+        <li><strong style="color:var(--text)">Test standalone</strong> before connecting to Dofek:</li>
       </ul>
       <div class="code-block" style="margin-top:12px;font-size:11px"><span class="cm"># Quick test — pipe a poll request to your plugin</span>
 <span class="ck">echo</span> <span class="cv">'{"type":"poll","timestamp_ms":0,"processes":[]}'</span> | python my_plugin.py</div>
@@ -388,7 +388,7 @@
 <!-- Footer -->
 <footer>
   <div>
-    <span class="footer-logo">dofek</span>
+    <span class="footer-logo">Dofek</span>
     <span style="font-size:11px;color:var(--muted);margin-left:12px">Plugin System v1.1</span>
   </div>
   <div class="footer-links">

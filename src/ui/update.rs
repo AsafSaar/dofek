@@ -80,7 +80,7 @@ pub fn render(f: &mut Frame, app: &App) {
 
 fn ready_lines(info: &dofek::update::UpdateInfo, is_newer: bool) -> Vec<Line<'static>> {
     let headline = if is_newer {
-        format!("dofek v{} is available", info.latest)
+        format!("Dofek v{} is available", info.latest)
     } else {
         format!("You're on the latest release (v{})", info.current)
     };

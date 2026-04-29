@@ -71,7 +71,7 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                 name: "dofek-ollama".to_string(),
                 version: "0.1.0".to_string(),
                 description: "Ollama model status and inference tracking".to_string(),
-                author: "dofek contributors".to_string(),
+                author: "Dofek contributors".to_string(),
             })
         } else {
             None
@@ -238,7 +238,7 @@ fn format_size(bytes: u64) -> String {
     }
 }
 
-// --- Protocol types (mirror of dofek's plugin protocol) ---
+// --- Protocol types (mirror of Dofek's plugin protocol) ---
 
 #[derive(Deserialize, Debug)]
 struct ProcessContext {

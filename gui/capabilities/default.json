@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicokosi/tauri-plugin-shell/v2-stable/schemas/schema.json",
   "identifier": "default",
-  "description": "Default capabilities for dofek",
+  "description": "Default capabilities for Dofek",
   "windows": ["main"],
   "permissions": [
     "core:default",

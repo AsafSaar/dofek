@@ -19,7 +19,7 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
     f.render_widget(Clear, popup);
 
     let block = Block::default()
-        .title(" dofek — help ")
+        .title(" Dofek — help ")
         .title_style(Style::default().fg(theme::ACCENT_INDIGO).add_modifier(Modifier::BOLD))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::ACCENT_INDIGO))
@@ -48,7 +48,7 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
         help_line("h", "Toggle horizon chart"),
         help_line("s", "Save snapshot"),
         help_line("u", "Check for updates"),
-        help_line("a", "About dofek"),
+        help_line("a", "About Dofek"),
         help_line("?", "Toggle this help"),
         Line::from(""),
         Line::from(vec![

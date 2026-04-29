@@ -73,7 +73,7 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                 name: "dofek-docker".to_string(),
                 version: "0.1.0".to_string(),
                 description: "Docker container status and resource monitoring".to_string(),
-                author: "dofek contributors".to_string(),
+                author: "Dofek contributors".to_string(),
             })
         } else {
             None
@@ -195,7 +195,7 @@ fn query_containers(host: &str) -> Result<Vec<DockerContainer>, String> {
     Ok(containers)
 }
 
-// --- Protocol types (mirror of dofek's plugin protocol) ---
+// --- Protocol types (mirror of Dofek's plugin protocol) ---
 
 #[derive(Deserialize, Debug)]
 struct ProcessContext {

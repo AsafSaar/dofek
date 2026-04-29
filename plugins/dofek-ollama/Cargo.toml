@@ -2,7 +2,7 @@
 name = "dofek-ollama"
 version = "0.1.0"
 edition = "2024"
-description = "dofek plugin: Ollama model status and inference tracking"
+description = "Dofek plugin: Ollama model status and inference tracking"
 
 [[bin]]
 name = "dofek-ollama"

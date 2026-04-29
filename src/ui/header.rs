@@ -20,7 +20,7 @@ pub fn render(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
 
     // Left: logo + version
     let logo = Line::from(vec![
-        Span::styled("dofek", Style::default().fg(theme::ACCENT_INDIGO).add_modifier(Modifier::BOLD)),
+        Span::styled("Dofek", Style::default().fg(theme::ACCENT_INDIGO).add_modifier(Modifier::BOLD)),
         Span::styled(" v0.1", Style::default().fg(theme::TEXT_DIM)),
     ]);
     f.render_widget(Paragraph::new(logo), chunks[0]);

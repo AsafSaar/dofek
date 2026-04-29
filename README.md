@@ -1,4 +1,4 @@
-# dofek
+# Dofek
 
 **GUI and Terminal-native, AI-aware system monitor for Windows, Linux, and macOS.**
 
@@ -7,25 +7,25 @@
 [![Release](https://img.shields.io/github/v/release/AsafSaar/dofek)](https://github.com/AsafSaar/dofek/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/AsafSaar/dofek/release.yml)](https://github.com/AsafSaar/dofek/actions)
 
-> *dofek* (Hebrew: דּוֹפֶק) means "pulse" or "heartbeat"
+> *Dofek* (Hebrew: דּוֹפֶק) means "pulse" or "heartbeat"
 
-Most system monitors were designed before LLMs ran locally. They treat GPU as an afterthought and VRAM as a footnote. dofek is built for the developer who has `ollama` running in the background, is watching a model load into VRAM, and needs to know at a glance whether their system can handle the next task.
+Most system monitors were designed before LLMs ran locally. They treat GPU as an afterthought and VRAM as a footnote. Dofek is built for the developer who has `ollama` running in the background, is watching a model load into VRAM, and needs to know at a glance whether their system can handle the next task.
 
 ## Screenshots
 
 **GUI** — Tauri desktop app:
 
-![dofek GUI](docs/assets/gui-screenshot.png)
+![Dofek GUI](docs/assets/gui-screenshot.png)
 
 **TUI** — terminal interface:
 
-![dofek TUI](docs/assets/tui-screenshot.png)
+![Dofek TUI](docs/assets/tui-screenshot.png)
 
 <details>
 <summary>More GUI views</summary>
 
-![dofek GUI — process management](docs/assets/gui-another-screenshot.png)
-![dofek GUI — chart detail](docs/assets/gui-another-screenshot-2.png)
+![Dofek GUI — process management](docs/assets/gui-another-screenshot.png)
+![Dofek GUI — chart detail](docs/assets/gui-another-screenshot-2.png)
 
 </details>
 
@@ -33,7 +33,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 <summary>ASCII layout reference</summary>
 
 ```
-dofek v1.3  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+Dofek v1.3  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
@@ -92,10 +92,10 @@ Pre-built binaries are published on the [Releases page](https://github.com/AsafS
 
 Intel Macs are not supported in this release.
 
-> 🍎 **First launch on macOS — "dofek.app is damaged and can't be opened."**
+> 🍎 **First launch on macOS — "Dofek.app is damaged and can't be opened."**
 > That message is misleading: the app isn't damaged, it's just unsigned, and your browser tagged the DMG with a quarantine flag on download. Strip the flag once and it launches normally:
 > ```sh
-> xattr -dr com.apple.quarantine /Applications/dofek.app
+> xattr -dr com.apple.quarantine /Applications/Dofek.app
 > ```
 > On macOS 14 Sonoma and earlier you can also right-click the app → **Open** → **Open**. macOS 15 Sequoia removed that bypass, so the `xattr` command is the only fix there. Code signing + notarization is on the v1.4 roadmap.
 
@@ -103,7 +103,7 @@ Intel Macs are not supported in this release.
 
 `SHA256SUMS.txt` has checksums for every artifact.
 
-> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
+> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "Dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
 
 Verify (Windows): `Get-FileHash .\dofek_1.3.4_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
@@ -184,7 +184,7 @@ cargo build-gui                    # → target/release/dofek-gui  + native bund
 ./build-all.sh                     # → target/release/bundle/{deb,rpm,appimage}/dofek_*
 
 # macOS (Apple Silicon)
-./build-all.sh                     # → target/release/bundle/macos/dofek.app + dofek_*.dmg
+./build-all.sh                     # → target/release/bundle/macos/Dofek.app + Dofek_*.dmg
 ```
 
 **Plugins:**
@@ -246,15 +246,15 @@ dofek-tui
 dofek-tui --config path/to/dofek.toml
 ```
 
-The TUI is best viewed at font size **9-10pt**. If your terminal is too small, dofek will show a hint on startup.
+The TUI is best viewed at font size **9-10pt**. If your terminal is too small, Dofek will show a hint on startup.
 
-**Windows Terminal profile** (Windows only, recommended): Run this once to add a "dofek" entry to your Windows Terminal dropdown with optimal font settings:
+**Windows Terminal profile** (Windows only, recommended): Run this once to add a "Dofek" entry to your Windows Terminal dropdown with optimal font settings:
 
 ```powershell
 .\install-wt-profile.ps1
 ```
 
-This creates a profile with JetBrains Mono at 9pt. After running, select "dofek" from the Windows Terminal dropdown to launch with the right settings.
+This creates a profile with JetBrains Mono at 9pt. After running, select "Dofek" from the Windows Terminal dropdown to launch with the right settings.
 
 On Linux, set your terminal's font to a monospace nerd-font-style face at 9–10pt (JetBrains Mono, Fira Code, and Cascadia Code all render the half-block charts correctly).
 
@@ -282,7 +282,7 @@ On macOS, set Terminal.app or iTerm2 to a monospace nerd-font face at 10–11pt 
 | `[` / `]` | Resize chart / watchlist split |
 | `+` / `-` | Increase / decrease refresh rate |
 | `s` | Save snapshot to `~/dofek-snapshots/` |
-| `a` | About dofek |
+| `a` | About Dofek |
 | `?` | Toggle help overlay |
 | `esc` | Clear search / return to dashboard |
 | `q` | Quit |
@@ -291,7 +291,7 @@ On macOS, set Terminal.app or iTerm2 to a monospace nerd-font face at 10–11pt 
 
 ### Config file location
 
-dofek loads its config from the first file found, in this order:
+Dofek loads its config from the first file found, in this order:
 
 1. `--config <path>` flag (TUI only)
 2. `./dofek.toml` (current working directory)
@@ -348,7 +348,7 @@ All sections are optional — missing sections use sensible defaults. You only n
 
 ## Telemetry
 
-dofek includes opt-in anonymous telemetry to help improve the app during beta. **Disabled by default** — no data is collected unless you explicitly enable it.
+Dofek includes opt-in anonymous telemetry to help improve the app during beta. **Disabled by default** — no data is collected unless you explicitly enable it.
 
 ### What's collected
 
@@ -373,9 +373,9 @@ dofek includes opt-in anonymous telemetry to help improve the app during beta. *
 ## Plugins
 
 > ⚠️ **Plugin API: experimental, subject to change until further notice.**
-> The plugin JSON schema is versioned (`schema_version: 1`), but expect breaking changes as the API matures. Pin your plugin to a specific dofek version if stability matters to you. Once dofek's plugin contract stabilizes, the API will follow semver.
+> The plugin JSON schema is versioned (`schema_version: 1`), but expect breaking changes as the API matures. Pin your plugin to a specific Dofek version if stability matters to you. Once Dofek's plugin contract stabilizes, the API will follow semver.
 
-Plugins are external processes that inject data into the dofek dashboard. dofek spawns each plugin as a child process and communicates via newline-delimited JSON over stdio (stdin/stdout).
+Plugins are external processes that inject data into the Dofek dashboard. Dofek spawns each plugin as a child process and communicates via newline-delimited JSON over stdio (stdin/stdout).
 
 ### Available plugins
 
@@ -386,11 +386,11 @@ Plugins are external processes that inject data into the dofek dashboard. dofek 
 
 ### How it works
 
-1. dofek spawns the plugin process on startup
-2. Every refresh cycle, dofek sends a poll request (with process list) to the plugin's stdin
+1. Dofek spawns the plugin process on startup
+2. Every refresh cycle, Dofek sends a poll request (with process list) to the plugin's stdin
 3. The plugin responds with panels (dock UI), process annotations (watchlist labels), and metrics (ticker pills)
-4. If the plugin crashes, dofek restarts it with exponential backoff (1s → 30s)
-5. On shutdown, dofek sends a shutdown message and waits 2s before killing
+4. If the plugin crashes, Dofek restarts it with exponential backoff (1s → 30s)
+5. On shutdown, Dofek sends a shutdown message and waits 2s before killing
 
 ### Plugin status indicators
 

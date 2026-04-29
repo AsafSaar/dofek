@@ -42,7 +42,7 @@ pub struct UserSettings {
     /// don't carry a title), so `"text"` falls back to chart-only behavior.
     #[serde(default = "default_tray_display_mode")]
     pub tray_display_mode: String,
-    /// Run a background "is there a newer dofek?" check on app launch and
+    /// Run a background "is there a newer Dofek?" check on app launch and
     /// surface the result if a newer release exists. Off by default — this is
     /// an opt-in network call.
     #[serde(default)]
