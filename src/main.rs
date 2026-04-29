@@ -226,6 +226,14 @@ fn main() -> Result<()> {
     // Restore saved user settings
     app.apply_settings(&settings);
 
+    // Opt-in startup update check. Runs in the background; the result is
+    // surfaced only when the user opens the update overlay (via `u`) or — if
+    // a newer version is found — by auto-popping the overlay once it lands.
+    if settings.check_updates_on_startup {
+        app.trigger_update_check();
+    }
+    let mut update_auto_shown = false;
+
     // Telemetry: emit GPU path once, heartbeat periodically
     let mut gpu_path_emitted = false;
     let mut snapshot_count: u64 = 0;
@@ -275,6 +283,25 @@ fn main() -> Result<()> {
             }
             Ok(AppEvent::Tick) | Err(_) => {
                 // Normal tick, continue loop
+            }
+        }
+
+        // If a startup update check finds a newer release, surface the
+        // overlay once. The user can dismiss it like any other overlay; we
+        // never re-pop it within the same session.
+        if settings.check_updates_on_startup && !update_auto_shown {
+            let state = app.update_state.lock().unwrap().clone();
+            if let app::UpdateState::Ready(ref info) = state
+                && info.is_newer
+                && !app.show_help
+                && !app.show_about
+            {
+                app.show_update = true;
+                update_auto_shown = true;
+            } else if matches!(state, app::UpdateState::Error(_) | app::UpdateState::Ready(_)) {
+                // Resolved without a newer version (or hit an error) — don't
+                // bother the user.
+                update_auto_shown = true;
             }
         }
 

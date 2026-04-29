@@ -585,7 +585,13 @@ function openSettingsOverlay() {
       document.getElementById('telem-toggle-cb').checked = s.telemetry_enabled || false;
       document.getElementById('tray-enable-cb').checked = s.enable_tray !== false;
       document.getElementById('tray-close-cb').checked = s.close_to_tray !== false;
-      document.getElementById('tray-text-cb').checked = s.tray_show_text !== false;
+      // Resolve effective tray display mode: prefer the explicit 3-way
+      // setting; fall back to the legacy boolean for users upgrading from <1.4.
+      const mode = (s.tray_display_mode && ['chart','chart+text','text'].includes(s.tray_display_mode))
+        ? s.tray_display_mode
+        : (s.tray_show_text === false ? 'chart' : 'chart+text');
+      document.getElementById('tray-mode-select').value = mode;
+      document.getElementById('update-startup-cb').checked = !!s.check_updates_on_startup;
     }).catch(() => {});
   }
 }
@@ -2136,7 +2142,9 @@ function showToast(msg){
       <div class="settings-row"><span>Anonymous telemetry</span><label class="toggle-switch"><input type="checkbox" id="telem-toggle-cb"><span class="toggle-slider"></span></label></div>
       <div class="settings-row"><span>Show tray icon</span><label class="toggle-switch"><input type="checkbox" id="tray-enable-cb"><span class="toggle-slider"></span></label></div>
       <div class="settings-row"><span>Close to tray</span><label class="toggle-switch"><input type="checkbox" id="tray-close-cb"><span class="toggle-slider"></span></label></div>
-      <div class="settings-row"><span>Menu-bar text (macOS)</span><label class="toggle-switch"><input type="checkbox" id="tray-text-cb"><span class="toggle-slider"></span></label></div>
+      <div class="settings-row"><span>Tray display</span><select id="tray-mode-select" class="settings-select"><option value="chart">Chart only</option><option value="chart+text">Chart + text</option><option value="text">Text only (macOS)</option></select></div>
+      <div class="settings-row"><span>Check for updates on launch</span><label class="toggle-switch"><input type="checkbox" id="update-startup-cb"><span class="toggle-slider"></span></label></div>
+      <div class="settings-row"><span id="update-status">Updates</span><button id="check-update-btn" class="manual-btn" style="padding:4px 10px;font-size:11px;">Check now</button></div>
     </div>
     <div class="help-footer">press any key to close</div>
   </div>
@@ -2199,7 +2207,73 @@ async function patchSettings(patch) {
 }
 document.getElementById('tray-enable-cb').addEventListener('change', e => patchSettings({ enable_tray: e.target.checked }));
 document.getElementById('tray-close-cb').addEventListener('change', e => patchSettings({ close_to_tray: e.target.checked }));
-document.getElementById('tray-text-cb').addEventListener('change', e => patchSettings({ tray_show_text: e.target.checked }));
+document.getElementById('tray-mode-select').addEventListener('change', e => {
+  // Keep the legacy boolean roughly in sync so a downgrade still produces a
+  // sensible UI: "text" and "chart+text" both imply text-on.
+  patchSettings({
+    tray_display_mode: e.target.value,
+    tray_show_text: e.target.value !== 'chart',
+  });
+});
+document.getElementById('update-startup-cb').addEventListener('change', e => patchSettings({ check_updates_on_startup: e.target.checked }));
+
+/* Update check — manual button + opt-in startup probe.
+   Notify-only: we display version + a clickable release link, never download. */
+function showToast(msg, ms=2400) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+async function runUpdateCheck({silent=false} = {}) {
+  if (!invoke) return null;
+  const statusEl = document.getElementById('update-status');
+  if (statusEl && !silent) statusEl.textContent = 'Checking…';
+  try {
+    const info = await invoke('check_for_update');
+    if (info.is_newer) {
+      // Topbar pill: turn into a clickable "v… ↑" link to the release URL.
+      const top = document.getElementById('app-version');
+      if (top) {
+        top.textContent = `v${info.current} → v${info.latest} ↑`;
+        top.style.color = 'var(--mem)';
+        top.style.cursor = 'pointer';
+        top.title = `dofek v${info.latest} is available — click to view release`;
+        top.onclick = () => invoke('open_url', { url: info.url }).catch(()=>{});
+      }
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color:var(--mem);font-weight:600;">v${info.latest} available</span>`;
+      }
+      if (!silent) showToast(`dofek v${info.latest} is available`);
+      else showToast(`Update available: dofek v${info.latest}`, 4000);
+    } else {
+      if (statusEl) statusEl.textContent = `Up to date (v${info.current})`;
+      if (!silent) showToast(`You're on the latest release (v${info.current})`);
+    }
+    return info;
+  } catch (e) {
+    if (statusEl && !silent) statusEl.textContent = 'Update check failed';
+    if (!silent) showToast(`Update check failed: ${e}`, 3500);
+    console.warn('Update check failed:', e);
+    return null;
+  }
+}
+
+document.getElementById('check-update-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  runUpdateCheck();
+});
+
+/* Opt-in startup probe — fires once on boot if the user enabled it. */
+if (invoke) {
+  invoke('get_settings').then(s => {
+    if (s && s.check_updates_on_startup) {
+      // Defer slightly so the dashboard paints first.
+      setTimeout(() => runUpdateCheck({silent:true}), 1500);
+    }
+  }).catch(()=>{});
+}
 </script>
 
 <style>
@@ -2225,6 +2299,9 @@ document.getElementById('tray-text-cb').addEventListener('change', e => patchSet
 .toggle-slider:before{content:'';position:absolute;height:12px;width:12px;left:3px;bottom:3px;background:var(--dim);border-radius:50%;transition:.2s;}
 .toggle-switch input:checked + .toggle-slider{background:rgba(52,211,153,.3);}
 .toggle-switch input:checked + .toggle-slider:before{transform:translateX(18px);background:var(--mem);}
+.settings-select{background:var(--surf2);color:var(--text);border:1px solid var(--bdr2);border-radius:3px;padding:3px 8px;font-family:inherit;font-size:11px;cursor:pointer;outline:none;transition:border-color .15s;}
+.settings-select:hover{border-color:rgba(56,189,248,.5);}
+.settings-select:focus{border-color:var(--cpu);}
 
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surf2);color:var(--text);border:1px solid var(--bdr2);padding:6px 18px;border-radius:3px;font-size:11px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200;}
 .toast.show{opacity:1;}

@@ -24,6 +24,50 @@ use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 const ICON_SIZE: u32 = 32;
 const HISTORY: usize = 32;
+
+/// Three-way display selector: sparkline icon only, sparkline + text, or text
+/// only. Text-only is a macOS-only affordance — Windows/Linux system trays
+/// don't render a title, so on those platforms we fall back to chart-only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TrayMode {
+    Chart,
+    ChartAndText,
+    Text,
+}
+
+impl TrayMode {
+    /// Parse the persisted setting. Falls back to the legacy
+    /// `tray_show_text` boolean when `tray_display_mode` is unset/unrecognised
+    /// so users upgrading from <1.4 don't lose their previous choice.
+    fn from_settings(s: &UserSettings) -> Self {
+        match s.tray_display_mode.as_str() {
+            "chart" => TrayMode::Chart,
+            "text" => TrayMode::Text,
+            "chart+text" => TrayMode::ChartAndText,
+            _ => {
+                if s.tray_show_text {
+                    TrayMode::ChartAndText
+                } else {
+                    TrayMode::Chart
+                }
+            }
+        }
+    }
+
+    fn shows_chart(self) -> bool {
+        // Text-only is honored on macOS only; elsewhere we still draw the
+        // sparkline since title text is invisible on those platforms.
+        if cfg!(target_os = "macos") {
+            matches!(self, TrayMode::Chart | TrayMode::ChartAndText)
+        } else {
+            true
+        }
+    }
+
+    fn shows_text(self) -> bool {
+        matches!(self, TrayMode::ChartAndText | TrayMode::Text)
+    }
+}
 /// Cap tray repaints at ~1 Hz. The relay loop fires at the data-collector
 /// cadence (default 500 ms); each repaint encodes a PNG, writes it to /tmp,
 /// and dispatches a dbus NewIcon notification — pegging dofek-gui's CPU at
@@ -35,6 +79,9 @@ static LAST_TRAY_PAINT: Mutex<Option<Instant>> = Mutex::new(None);
 /// Last (rounded CPU%, rounded GPU%) pushed to tooltip/title. Skip dbus
 /// roundtrips when both numbers are unchanged.
 static LAST_TRAY_TEXT: Mutex<Option<(i32, i32)>> = Mutex::new(None);
+/// Last applied display mode. We track it so a mode flip (e.g. chart → text)
+/// repaints the icon immediately even if CPU/GPU values haven't moved.
+static LAST_TRAY_MODE: Mutex<Option<TrayMode>> = Mutex::new(None);
 
 /// Push a CPU% sample into the rolling history.
 pub fn record_cpu(sample: f32) {
@@ -167,11 +214,23 @@ pub fn update(app: &AppHandle, snap: &DataSnapshot, settings: &UserSettings) {
 
     record_cpu(snap.cpu.total_load);
 
+    let mode = TrayMode::from_settings(settings);
+
+    // A mode change (chart ↔ text) needs to repaint the icon immediately so
+    // the user sees the toggle land instead of waiting for the next throttle
+    // window. We compare against the last mode we applied.
+    let mode_changed = {
+        let mut last = LAST_TRAY_MODE.lock().unwrap();
+        let changed = *last != Some(mode);
+        *last = Some(mode);
+        changed
+    };
+
     // Throttle the icon repaint — see TRAY_PAINT_MIN_INTERVAL note above. The
     // CPU sample is still recorded every snapshot so the sparkline ring buffer
     // stays accurate; we just don't re-encode the PNG every time.
     let now = Instant::now();
-    let should_paint = {
+    let should_paint = mode_changed || {
         let mut last = LAST_TRAY_PAINT.lock().unwrap();
         let due = last.is_none_or(|t| now.duration_since(t) >= TRAY_PAINT_MIN_INTERVAL);
         if due {
@@ -180,15 +239,25 @@ pub fn update(app: &AppHandle, snap: &DataSnapshot, settings: &UserSettings) {
         due
     };
     if should_paint {
-        let samples: Vec<f32> = CPU_SAMPLES.lock().unwrap().iter().copied().collect();
-        if let Err(e) = tray.set_icon(Some(render_sparkline_icon(&samples))) {
+        // For text-only on macOS we pass None so NSStatusItem actually drops
+        // the image rather than rendering a 32×32 transparent gap. A blank
+        // pixmap looked right in theory but left a phantom indent before the
+        // text, which is what made the mode flip seem "stuck".
+        let icon: Option<Image> = if mode.shows_chart() {
+            let samples: Vec<f32> = CPU_SAMPLES.lock().unwrap().iter().copied().collect();
+            Some(render_sparkline_icon(&samples))
+        } else {
+            None
+        };
+        if let Err(e) = tray.set_icon(icon) {
             log::debug!("tray.set_icon failed: {e}");
         }
     }
 
     // Tooltip + title also go through dbus (`set_label` on Linux). Skip them
     // unless the rounded values changed — keeps the dofek-gui process quiet
-    // when the system is idle.
+    // when the system is idle. A mode flip also forces an update so toggling
+    // text on/off applies immediately.
     let cpu = snap.cpu.total_load.round() as i32;
     let gpu = snap
         .gpus
@@ -196,11 +265,11 @@ pub fn update(app: &AppHandle, snap: &DataSnapshot, settings: &UserSettings) {
         .map(|g| g.utilization.round() as i32)
         .unwrap_or(0);
     let mut last = LAST_TRAY_TEXT.lock().unwrap();
-    let changed = match *last {
+    let values_changed = match *last {
         Some((c, g)) => c != cpu || g != gpu,
         None => true,
     };
-    if !changed {
+    if !values_changed && !mode_changed {
         return;
     }
     *last = Some((cpu, gpu));
@@ -213,16 +282,20 @@ pub fn update(app: &AppHandle, snap: &DataSnapshot, settings: &UserSettings) {
     };
     let _ = tray.set_tooltip(Some(&tooltip));
 
-    let title = if settings.tray_show_text {
-        Some(if snap.gpus.is_empty() {
+    // On macOS, `set_title(None)` does not reliably clear the NSStatusItem
+    // title — Tauri's bridge leaves the previous text in place. Passing an
+    // empty string forces the platform to repaint the slot as empty, which is
+    // what "Chart only" / no-text actually wants.
+    let title: String = if mode.shows_text() {
+        if snap.gpus.is_empty() {
             format!("CPU {cpu}")
         } else {
             format!("CPU {cpu} GPU {gpu}")
-        })
+        }
     } else {
-        None
+        String::new()
     };
-    let _ = tray.set_title(title.as_deref());
+    let _ = tray.set_title(Some(&title));
 }
 
 fn toggle_window(app: &AppHandle) {

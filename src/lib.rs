@@ -8,6 +8,7 @@ pub mod data;
 pub mod plugin;
 pub mod settings;
 pub mod telemetry;
+pub mod update;
 
 /// Returns a human-readable OS version string, e.g. "Windows 11" or "Ubuntu 24.04 LTS".
 ///

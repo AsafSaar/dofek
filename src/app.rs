@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crossterm::event::{KeyCode, KeyEvent};
@@ -11,6 +11,17 @@ use crate::ui::sparkline_buf::{CandleBuf, SparklineBuf};
 
 use dofek::settings::UserSettings;
 use dofek::telemetry::{TelemetryEvent, TelemetryHandle};
+use dofek::update::UpdateInfo;
+
+/// Result of an update check, shared between the worker thread and the UI.
+#[derive(Debug, Clone, Default)]
+pub enum UpdateState {
+    #[default]
+    Idle,
+    Checking,
+    Ready(UpdateInfo),
+    Error(String),
+}
 
 /// Pending kill-confirmation state.
 pub enum ConfirmKill {
@@ -150,6 +161,8 @@ pub struct App {
     pub chart_mode: ChartMode,
     pub show_help: bool,
     pub show_about: bool,
+    pub show_update: bool,
+    pub update_state: Arc<Mutex<UpdateState>>,
     pub should_quit: bool,
     /// Polling interval shared with the data collector thread. The TUI's `+`/`-`
     /// keys mutate this in place so the collector picks up the new cadence on
@@ -192,6 +205,8 @@ impl App {
             sort_ascending: false,
             show_help: false,
             show_about: false,
+            show_update: false,
+            update_state: Arc::new(Mutex::new(UpdateState::Idle)),
             should_quit: false,
             refresh_ms,
             selected_process: None,
@@ -302,6 +317,10 @@ impl App {
         }
         if self.show_about {
             self.show_about = false;
+            return;
+        }
+        if self.show_update {
+            self.show_update = false;
             return;
         }
 
@@ -431,6 +450,10 @@ impl App {
             KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Char('?') => self.show_help = true,
             KeyCode::Char('a') => self.show_about = true,
+            KeyCode::Char('u') => {
+                self.show_update = true;
+                self.trigger_update_check();
+            }
             KeyCode::Tab => {
                 self.sort_column = self.sort_column.next();
                 self.sort_processes();
@@ -841,7 +864,30 @@ impl App {
             close_to_tray: prev.close_to_tray,
             start_in_tray: prev.start_in_tray,
             tray_show_text: prev.tray_show_text,
+            tray_display_mode: prev.tray_display_mode.clone(),
+            check_updates_on_startup: prev.check_updates_on_startup,
         }
+    }
+
+    /// Spawn a worker thread that hits the GitHub Releases API and writes the
+    /// outcome into `update_state`. Cheap to call: skips the spawn if a check
+    /// is already in flight.
+    pub fn trigger_update_check(&self) {
+        {
+            let mut s = self.update_state.lock().unwrap();
+            if matches!(*s, UpdateState::Checking) {
+                return;
+            }
+            *s = UpdateState::Checking;
+        }
+        let slot = Arc::clone(&self.update_state);
+        std::thread::spawn(move || {
+            let next = match dofek::update::check() {
+                Ok(info) => UpdateState::Ready(info),
+                Err(e) => UpdateState::Error(e.to_string()),
+            };
+            *slot.lock().unwrap() = next;
+        });
     }
 
     fn save_snapshot(&self) {

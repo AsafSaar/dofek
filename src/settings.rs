@@ -33,8 +33,20 @@ pub struct UserSettings {
     #[serde(default)]
     pub start_in_tray: bool,
     /// On macOS, render `CPU NN GPU NN` text next to the menu-bar icon.
+    /// Superseded by `tray_display_mode`; kept for backwards compat with
+    /// existing settings.toml files. New code reads `tray_display_mode`.
     #[serde(default = "default_true")]
     pub tray_show_text: bool,
+    /// What the tray entry shows: `"chart"`, `"chart+text"`, or `"text"`.
+    /// On Windows/Linux the text portion is a no-op (system trays there
+    /// don't carry a title), so `"text"` falls back to chart-only behavior.
+    #[serde(default = "default_tray_display_mode")]
+    pub tray_display_mode: String,
+    /// Run a background "is there a newer dofek?" check on app launch and
+    /// surface the result if a newer release exists. Off by default — this is
+    /// an opt-in network call.
+    #[serde(default)]
+    pub check_updates_on_startup: bool,
 }
 
 fn generate_anonymous_id() -> String {
@@ -43,6 +55,10 @@ fn generate_anonymous_id() -> String {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_tray_display_mode() -> String {
+    "chart+text".to_string()
 }
 
 impl Default for UserSettings {
@@ -62,6 +78,8 @@ impl Default for UserSettings {
             close_to_tray: true,
             start_in_tray: false,
             tray_show_text: true,
+            tray_display_mode: default_tray_display_mode(),
+            check_updates_on_startup: false,
         }
     }
 }

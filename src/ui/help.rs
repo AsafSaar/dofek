@@ -10,8 +10,8 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
     let area = f.area();
 
     let width = 46.min(area.width.saturating_sub(4));
-    // 20 help lines + telemetry + footer + spacing + 2 for border
-    let height = 26u16.min(area.height.saturating_sub(4));
+    // 21 help lines + telemetry + footer + spacing + 2 for border
+    let height = 27u16.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(width)) / 2;
     let y = (area.height.saturating_sub(height)) / 2;
     let popup = Rect::new(x, y, width, height);
@@ -47,6 +47,7 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
         help_line("[ ]", "Resize chart/watchlist"),
         help_line("h", "Toggle horizon chart"),
         help_line("s", "Save snapshot"),
+        help_line("u", "Check for updates"),
         help_line("a", "About dofek"),
         help_line("?", "Toggle this help"),
         Line::from(""),

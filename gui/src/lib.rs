@@ -54,6 +54,30 @@ fn get_app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// Tauri command: queries GitHub for the latest dofek release and returns
+/// version comparison + release URL. Notify-only — never downloads anything.
+/// The frontend decides how loud to be about the result.
+#[tauri::command]
+async fn check_for_update() -> Result<dofek::update::UpdateInfo, String> {
+    // Off-thread because ureq blocks; the async signature lets Tauri schedule
+    // it without parking the IPC worker.
+    tauri::async_runtime::spawn_blocking(|| dofek::update::check().map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Tauri command: open an arbitrary https URL in the user's default browser.
+/// Used by the "update available" affordance in the topbar / settings.
+#[tauri::command]
+fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+    if !url.starts_with("https://") {
+        return Err("only https URLs are allowed".into());
+    }
+    #[allow(deprecated)]
+    app.shell().open(url, None).map_err(|e| e.to_string())
+}
+
 /// Tauri command: opens the bundled offline manual.html in the user's default browser.
 #[tauri::command]
 fn open_manual(app: tauri::AppHandle) -> Result<(), String> {
@@ -78,16 +102,37 @@ fn get_settings(state: tauri::State<'_, AppState>) -> UserSettings {
 
 /// Tauri command: saves UI settings to disk, preserving telemetry/identity fields.
 #[tauri::command]
-fn save_settings(state: tauri::State<'_, AppState>, settings: UserSettings) -> Result<(), String> {
-    let mut current = state.settings.lock().unwrap();
-    // Preserve telemetry and identity fields — only set_telemetry_choice should change these
-    let merged = UserSettings {
-        anonymous_id: current.anonymous_id.clone(),
-        telemetry_prompted: current.telemetry_prompted,
-        telemetry_enabled: current.telemetry_enabled,
-        ..settings
+fn save_settings(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    settings: UserSettings,
+) -> Result<(), String> {
+    // Update the in-memory state first, then release the settings lock before
+    // touching anything else. The relay thread acquires snapshot-then-settings
+    // each tick, so we must not hold the settings lock while reaching for the
+    // snapshot lock here — that would invert the order and risk a deadlock.
+    let merged = {
+        let mut current = state.settings.lock().unwrap();
+        // Preserve telemetry and identity fields — only set_telemetry_choice should change these
+        let m = UserSettings {
+            anonymous_id: current.anonymous_id.clone(),
+            telemetry_prompted: current.telemetry_prompted,
+            telemetry_enabled: current.telemetry_enabled,
+            ..settings
+        };
+        *current = m.clone();
+        m
     };
-    *current = merged.clone();
+
+    // Apply tray-affecting settings synchronously so the user sees the change
+    // land immediately. Without this, the tray would only pick up new
+    // `tray_display_mode` / `tray_show_text` values on the next data-collector
+    // tick (≥1 s) — slow enough that users perceived it as "needs a restart".
+    if merged.enable_tray {
+        let snap = state.snapshot.lock().unwrap().clone();
+        tray::update(&app, &snap, &merged);
+    }
+
     merged.save().map_err(|e| e.to_string())
 }
 
@@ -283,6 +328,8 @@ pub fn run() {
             kill_process,
             kill_processes,
             open_manual,
+            check_for_update,
+            open_url,
             toggle_window_visibility,
             show_window,
             quit_app,

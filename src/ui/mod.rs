@@ -9,6 +9,7 @@ pub mod gpu;
 pub mod header;
 pub mod about;
 pub mod help;
+pub mod update;
 pub mod memory;
 pub mod network_disk;
 pub mod process_table;
@@ -50,6 +51,9 @@ pub fn render(f: &mut Frame, app: &App) {
     }
     if app.show_about {
         about::render(f);
+    }
+    if app.show_update {
+        update::render(f, app);
     }
 }
 
