@@ -791,7 +791,10 @@ impl App {
             _ => CategoryFilter::All,
         };
         self.split_pct = s.split_pct.clamp(30, 70);
-        self.refresh_ms = s.refresh_ms.clamp(100, 5000);
+        // Intentionally do NOT load refresh_ms from settings.toml — dofek.toml
+        // is the source of truth for the polling interval. settings.toml stores
+        // a default value that would otherwise silently override the user's
+        // explicit dofek.toml choice.
         self.telemetry_enabled = s.telemetry_enabled;
     }
 
