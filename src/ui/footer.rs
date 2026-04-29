@@ -35,7 +35,7 @@ pub fn render(f: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     f.render_widget(Paragraph::new(keybindings), chunks[0]);
 
     let refresh = Line::from(Span::styled(
-        format!("{}ms", app.refresh_ms),
+        format!("{}ms", app.refresh_ms.load(std::sync::atomic::Ordering::Relaxed)),
         Style::default().fg(theme::TEXT_DIM),
     ));
     f.render_widget(Paragraph::new(refresh).alignment(Alignment::Right), chunks[1]);

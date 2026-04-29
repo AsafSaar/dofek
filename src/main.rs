@@ -15,6 +15,8 @@ use crossterm::{
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
+use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use std::time::{Duration, Instant};
 
 use dofek::telemetry::{self, TelemetryEvent};
@@ -68,8 +70,12 @@ fn main() -> Result<()> {
         std::thread::sleep(Duration::from_secs(3));
     }
 
+    // Shared polling cadence: seeded from dofek.toml, mutated at runtime by
+    // App's `+`/`-` keys, read on every collector iteration.
+    let refresh_ms = Arc::new(AtomicU64::new(config.general.refresh_ms));
+
     // Spawn data collector thread
-    let data_rx = data::spawn_collector(config.clone());
+    let data_rx = data::spawn_collector(config.clone(), Arc::clone(&refresh_ms));
 
     // Spawn event reader thread
     let tick_rate = Duration::from_millis(16); // ~60fps event polling
@@ -215,7 +221,7 @@ fn main() -> Result<()> {
     });
     let session_start = Instant::now();
 
-    let mut app = App::new(config, telemetry.clone());
+    let mut app = App::new(config, telemetry.clone(), Arc::clone(&refresh_ms));
 
     // Restore saved user settings
     app.apply_settings(&settings);

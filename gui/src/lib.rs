@@ -224,14 +224,10 @@ pub fn run() {
     // re-cloned per IPC call — at 500 ms cadence this put dofek-gui above
     // 100% CPU on its own. 1 Hz keeps the visualisation responsive without
     // burning a core to monitor the system. TUI keeps the configured rate.
-    let collector_config = {
-        let mut c = config.clone();
-        if c.general.refresh_ms < 1000 {
-            c.general.refresh_ms = 1000;
-        }
-        c
-    };
-    let data_rx = dofek::data::spawn_collector(collector_config);
+    let gui_refresh_ms = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(
+        config.general.refresh_ms.max(1000),
+    ));
+    let data_rx = dofek::data::spawn_collector(config.clone(), std::sync::Arc::clone(&gui_refresh_ms));
 
     // Shared snapshot for Tauri commands
     let snapshot = Arc::new(Mutex::new(DataSnapshot::default()));

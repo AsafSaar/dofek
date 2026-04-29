@@ -53,7 +53,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             let legend = Paragraph::new(Line::from(vec![
                 Span::styled("60s", Style::default().fg(theme::TEXT_DIM)),
                 Span::styled(" · ", Style::default().fg(theme::BORDER2)),
-                Span::styled(format!("{}ms", app.refresh_ms), Style::default().fg(theme::TEXT_DIM)),
+                Span::styled(format!("{}ms", app.refresh_ms.load(std::sync::atomic::Ordering::Relaxed)), Style::default().fg(theme::TEXT_DIM)),
             ])).alignment(ratatui::layout::Alignment::Right);
             f.render_widget(legend, legend_area);
         }

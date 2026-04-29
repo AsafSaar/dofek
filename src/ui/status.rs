@@ -51,7 +51,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         .style(Style::default().bg(theme::BG_PRIMARY));
     f.render_widget(left, chunks[0]);
 
-    let rate = format!("{}ms ", app.refresh_ms);
+    let rate = format!("{}ms ", app.refresh_ms.load(std::sync::atomic::Ordering::Relaxed));
     let right = Paragraph::new(Line::from(vec![
         Span::styled(rate, Style::default().fg(theme::TEXT_DIM)),
     ]))

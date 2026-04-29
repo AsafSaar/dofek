@@ -17,6 +17,8 @@ use network::{NetworkStats, NetworkTracker};
 use process::ProcessInfo;
 use gpu::NvmlState;
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -59,7 +61,12 @@ impl Default for DataSnapshot {
 }
 
 /// Spawn the data collector thread. Returns a receiver for snapshots.
-pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
+///
+/// The polling interval is read from `refresh_ms` on every loop iteration so
+/// runtime changes (TUI `+`/`-` keys) take effect on the next sleep without
+/// needing to respawn the thread. `config.general.refresh_ms` is ignored —
+/// the caller is responsible for seeding the atomic from it.
+pub fn spawn_collector(config: Config, refresh_ms: Arc<AtomicU64>) -> mpsc::Receiver<DataSnapshot> {
     let (tx, rx) = mpsc::channel();
 
     thread::spawn(move || {
@@ -230,7 +237,7 @@ pub fn spawn_collector(config: Config) -> mpsc::Receiver<DataSnapshot> {
                 return; // Main thread dropped, exit
             }
 
-            thread::sleep(Duration::from_millis(config.general.refresh_ms));
+            thread::sleep(Duration::from_millis(refresh_ms.load(Ordering::Relaxed)));
         }
     });
 

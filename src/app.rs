@@ -1,4 +1,6 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crossterm::event::{KeyCode, KeyEvent};
 
@@ -149,7 +151,10 @@ pub struct App {
     pub show_help: bool,
     pub show_about: bool,
     pub should_quit: bool,
-    pub refresh_ms: u64,
+    /// Polling interval shared with the data collector thread. The TUI's `+`/`-`
+    /// keys mutate this in place so the collector picks up the new cadence on
+    /// its next iteration without needing to be respawned.
+    pub refresh_ms: Arc<AtomicU64>,
     pub selected_process: Option<usize>,
     /// Scroll offset for the full-screen process table.
     pub process_scroll: usize,
@@ -172,9 +177,8 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(config: Config, telemetry: TelemetryHandle) -> Self {
+    pub fn new(config: Config, telemetry: TelemetryHandle, refresh_ms: Arc<AtomicU64>) -> Self {
         let history_len = config.general.history_len;
-        let refresh_ms = config.general.refresh_ms;
         Self {
             data: DataSnapshot::default(),
             history: HistoryBuffers::new(history_len),
@@ -485,14 +489,17 @@ impl App {
                 self.reset_selection();
                 self.telemetry.track(TelemetryEvent::FilterChange { filter: "watch".into() });
             }
-            // Refresh rate
+            // Refresh rate. Mutating the Arc here propagates to the collector
+            // thread (next sleep) and to every UI panel that reads it.
             KeyCode::Char('+') | KeyCode::Char('=') => {
-                if self.refresh_ms > 100 {
-                    self.refresh_ms = self.refresh_ms.saturating_sub(100);
+                let cur = self.refresh_ms.load(Ordering::Relaxed);
+                if cur > 100 {
+                    self.refresh_ms.store(cur.saturating_sub(100), Ordering::Relaxed);
                 }
             }
             KeyCode::Char('-') => {
-                self.refresh_ms = (self.refresh_ms + 100).min(5000);
+                let cur = self.refresh_ms.load(Ordering::Relaxed);
+                self.refresh_ms.store((cur + 100).min(5000), Ordering::Relaxed);
             }
             KeyCode::Char('s') => {
                 self.save_snapshot();
@@ -826,7 +833,7 @@ impl App {
                 CategoryFilter::Watch => "watch",
             }.to_string(),
             split_pct: self.split_pct,
-            refresh_ms: self.refresh_ms,
+            refresh_ms: self.refresh_ms.load(Ordering::Relaxed),
             anonymous_id: prev.anonymous_id.clone(),
             telemetry_prompted: prev.telemetry_prompted,
             telemetry_enabled: self.telemetry_enabled,
