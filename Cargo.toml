@@ -1,5 +1,10 @@
 [workspace]
-members = ["gui", "plugins/dofek-ollama", "plugins/dofek-docker"]
+members = [
+    "crates/dofek-plugin-protocol",
+    "gui",
+    "plugins/dofek-ollama",
+    "plugins/dofek-docker",
+]
 
 [package]
 name = "dofek"
@@ -45,6 +50,9 @@ log = "0.4"
 env_logger = "0.11"
 dirs = "6.0.0"
 uuid = { version = "1", features = ["v4"] }
+
+# Plugin protocol — shared with plugins/* and external authors.
+dofek-plugin-protocol = { path = "crates/dofek-plugin-protocol", version = "0.1.0" }
 
 # Local time formatting (cross-platform; replaces the OS-specific clock blocks)
 chrono = { version = "0.4", default-features = false, features = ["clock"] }

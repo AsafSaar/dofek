@@ -248,28 +248,25 @@ args = ["path/to/hello_plugin.py"]
 
 ## Minimal Plugin Example (Rust)
 
+The shared `dofek-plugin-protocol` crate provides serde-ready types for the
+entire protocol — depend on it instead of redeclaring structs.
+
+`Cargo.toml`:
+
+```toml
+[dependencies]
+# From this workspace:
+dofek-plugin-protocol = { path = "../../crates/dofek-plugin-protocol" }
+# External plugins can use the published version once released:
+# dofek-plugin-protocol = "0.1"
+serde_json = "1"
+```
+
+`src/main.rs`:
+
 ```rust
+use dofek_plugin_protocol::{Panel, PanelEntry, PollResponse};
 use std::io::{self, BufRead, Write};
-use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize)]
-struct Request { r#type: String }
-
-#[derive(Serialize)]
-struct Response {
-    status: String,
-    panels: Vec<Panel>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    process_annotations: Vec<()>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    metrics: Vec<()>,
-}
-
-#[derive(Serialize)]
-struct Panel { id: String, label: String, content: Vec<Entry> }
-
-#[derive(Serialize)]
-struct Entry { key: String, value: String, style: String }
 
 fn main() {
     let stdin = io::stdin();
@@ -277,30 +274,29 @@ fn main() {
     let mut stdout = stdout.lock();
 
     for line in stdin.lock().lines().flatten() {
-        let req: Request = match serde_json::from_str(&line) {
-            Ok(r) => r,
+        let req: serde_json::Value = match serde_json::from_str(&line) {
+            Ok(v) => v,
             Err(_) => continue,
         };
-        if req.r#type == "shutdown" { break; }
-        if req.r#type != "poll" { continue; }
+        match req.get("type").and_then(|v| v.as_str()) {
+            Some("shutdown") => break,
+            Some("poll") => {}
+            _ => continue,
+        }
 
-        let resp = Response {
-            status: "ok".into(),
-            panels: vec![Panel {
-                id: "hello".into(),
-                label: "HELLO".into(),
-                content: vec![Entry {
-                    key: "Msg".into(),
-                    value: "it works!".into(),
-                    style: "accent".into(),
-                }],
+        let mut resp = PollResponse::default();
+        resp.status = "ok".into();
+        resp.panels.push(Panel {
+            id: "hello".into(),
+            label: "HELLO".into(),
+            content: vec![PanelEntry {
+                key: "Msg".into(),
+                value: "it works!".into(),
+                style: "accent".into(),
             }],
-            process_annotations: vec![],
-            metrics: vec![],
-        };
+        });
 
-        let json = serde_json::to_string(&resp).unwrap();
-        writeln!(stdout, "{json}").unwrap();
+        writeln!(stdout, "{}", serde_json::to_string(&resp).unwrap()).unwrap();
         stdout.flush().unwrap();
     }
 }

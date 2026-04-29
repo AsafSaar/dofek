@@ -1,5 +1,7 @@
+pub mod cli;
 pub mod process;
 pub mod protocol;
+pub mod store;
 
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -243,6 +245,26 @@ impl PluginManager {
         for plugin in &mut self.plugins {
             plugin.kill();
         }
+    }
+
+    /// Hot-reload the plugin set without blocking the collector for a full
+    /// 2-second graceful-shutdown window. Used when the user installs /
+    /// removes / toggles a plugin via the GUI or `dofek-tui plugins ...` and
+    /// `plugins.toml` changes on disk.
+    ///
+    /// Old children are sent `shutdown`, given 200 ms to comply, then killed
+    /// — that's enough for our own well-behaved plugins and bounded enough
+    /// that a reload only causes a single missed snapshot. The new manager
+    /// then spawns from the supplied config the same way `new()` does.
+    pub fn replace(&mut self, configs: &[PluginConfig]) {
+        for plugin in &mut self.plugins {
+            plugin.shutdown();
+        }
+        std::thread::sleep(Duration::from_millis(200));
+        for plugin in &mut self.plugins {
+            plugin.kill();
+        }
+        *self = PluginManager::new(configs);
     }
 
     /// Returns true if any plugins are configured.

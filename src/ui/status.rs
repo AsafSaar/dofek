@@ -32,7 +32,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         ("1-4", "filter"),
         ("[]", "resize"),
         ("s", "snap"),
-        ("?", "help"),
+        ("?", "settings"),
     ];
 
     let mut spans: Vec<Span> = Vec::new();

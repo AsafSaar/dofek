@@ -5,7 +5,10 @@
 //! On Windows, Docker Desktop exposes the API on tcp://localhost:2375 when enabled
 //! in Settings > General > "Expose daemon on tcp://localhost:2375 without TLS".
 
-use serde::{Deserialize, Serialize};
+use dofek_plugin_protocol::{
+    Metric, Panel, PanelEntry, PluginManifest, PollResponse, ProcessAnnotation, ProcessContext,
+};
+use serde::Deserialize;
 use std::io::{self, BufRead, Write};
 
 fn main() {
@@ -69,9 +72,9 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
     let mut response = PollResponse {
         status: "ok".to_string(),
         manifest: if include_manifest {
-            Some(Manifest {
+            Some(PluginManifest {
                 name: "dofek-docker".to_string(),
-                version: "0.1.0".to_string(),
+                version: env!("CARGO_PKG_VERSION").to_string(),
                 description: "Docker container status and resource monitoring".to_string(),
                 author: "Dofek contributors".to_string(),
             })
@@ -108,7 +111,6 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                     style: "dim".to_string(),
                 });
             } else {
-                // Show up to 3 container names
                 for container in running.iter().take(3) {
                     let name = container
                         .names
@@ -117,10 +119,7 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                         .map(|n| n.trim_start_matches('/').to_string())
                         .unwrap_or_else(|| container.id[..12].to_string());
 
-                    let image = container
-                        .image
-                        .as_deref()
-                        .unwrap_or("unknown");
+                    let image = container.image.as_deref().unwrap_or("unknown");
 
                     panel_content.push(PanelEntry {
                         key: name,
@@ -138,7 +137,6 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                 }
             }
 
-            // Metrics
             response.metrics.push(Metric {
                 id: "docker.containers".to_string(),
                 label: "Containers".to_string(),
@@ -146,7 +144,6 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                 unit: String::new(),
             });
 
-            // Annotate docker/containerd processes
             for proc in processes {
                 let name_lower = proc.name.to_lowercase();
                 if name_lower.contains("docker") || name_lower.contains("containerd") {
@@ -191,68 +188,7 @@ fn query_containers(host: &str) -> Result<Vec<DockerContainer>, String> {
         .call()
         .map_err(|e| e.to_string())?;
     let body_str = resp.into_string().map_err(|e| e.to_string())?;
-    let containers: Vec<DockerContainer> = serde_json::from_str(&body_str).map_err(|e| e.to_string())?;
+    let containers: Vec<DockerContainer> =
+        serde_json::from_str(&body_str).map_err(|e| e.to_string())?;
     Ok(containers)
-}
-
-// --- Protocol types (mirror of Dofek's plugin protocol) ---
-
-#[derive(Deserialize, Debug)]
-struct ProcessContext {
-    pid: u32,
-    name: String,
-    #[allow(dead_code)]
-    vram_bytes: Option<u64>,
-}
-
-#[derive(Serialize)]
-struct PollResponse {
-    status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    manifest: Option<Manifest>,
-    panels: Vec<Panel>,
-    process_annotations: Vec<ProcessAnnotation>,
-    metrics: Vec<Metric>,
-}
-
-#[derive(Serialize)]
-struct Manifest {
-    name: String,
-    version: String,
-    description: String,
-    author: String,
-}
-
-#[derive(Serialize)]
-struct Panel {
-    id: String,
-    label: String,
-    content: Vec<PanelEntry>,
-}
-
-#[derive(Serialize)]
-struct PanelEntry {
-    key: String,
-    value: String,
-    style: String,
-}
-
-#[derive(Serialize)]
-struct ProcessAnnotation {
-    pid: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    label: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    ai_state: Option<String>,
-}
-
-#[derive(Serialize)]
-struct Metric {
-    id: String,
-    label: String,
-    value: f64,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    unit: String,
 }

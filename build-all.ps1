@@ -16,6 +16,14 @@ Write-Host "Copying dofek-tui.exe -> dofek-tui-$triple.exe"
 Copy-Item "target\release\dofek-tui.exe" "target\release\dofek-tui-$triple.exe" -Force
 
 Write-Host ""
+Write-Host "=== Building first-party plugins (release) ==="
+cargo build --release -p dofek-ollama -p dofek-docker
+if ($LASTEXITCODE -ne 0) { exit 1 }
+Write-Host "Plugin binaries:"
+Write-Host "  target\release\dofek-ollama.exe"
+Write-Host "  target\release\dofek-docker.exe"
+
+Write-Host ""
 Write-Host "=== Building dofek-gui + MSI bundle ==="
 Push-Location gui
 try {
@@ -28,3 +36,4 @@ try {
 Write-Host ""
 Write-Host "=== Done ==="
 Write-Host "MSI installer: target\release\bundle\msi\"
+Write-Host "Plugin binaries (ship as optional add-ons): target\release\dofek-ollama.exe, target\release\dofek-docker.exe"

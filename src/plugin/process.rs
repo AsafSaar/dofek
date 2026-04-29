@@ -17,8 +17,14 @@ pub struct PluginProcess {
 
 impl PluginProcess {
     /// Spawn a new plugin child process.
+    ///
+    /// Resolves bare command names against the managed plugin directory
+    /// (`<config_dir>/dofek/plugins/`) before falling back to `PATH`, so
+    /// plugins installed via `dofek-tui plugins add` work without touching
+    /// the user's environment.
     pub fn spawn(command: &str, args: &[String]) -> Result<Self> {
-        let mut cmd = Command::new(command);
+        let resolved = super::store::resolve_command(command);
+        let mut cmd = Command::new(&resolved);
         cmd.args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

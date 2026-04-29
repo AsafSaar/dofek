@@ -186,6 +186,83 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+// --- Plugin store IPC ---
+//
+// Thin wrappers around dofek::plugin::store::PluginStore. The store handles
+// the heavy lifting (probe manifest, copy binary, chmod, xattr, append to
+// plugins.toml) — these commands just translate path/string arguments and
+// surface errors as plain strings for the frontend.
+
+#[derive(serde::Serialize)]
+pub struct PluginEntryView {
+    pub name: String,
+    pub binary_path: String,
+    pub description: String,
+    pub version: String,
+    pub author: String,
+    pub args: Vec<String>,
+    pub enabled: bool,
+}
+
+impl From<dofek::plugin::store::InstalledPlugin> for PluginEntryView {
+    fn from(p: dofek::plugin::store::InstalledPlugin) -> Self {
+        Self {
+            name: p.name,
+            binary_path: p.binary_path.to_string_lossy().to_string(),
+            description: p.description,
+            version: p.version,
+            author: p.author,
+            args: p.args,
+            enabled: p.enabled,
+        }
+    }
+}
+
+#[tauri::command]
+fn plugins_list() -> Result<Vec<PluginEntryView>, String> {
+    let store = dofek::plugin::store::PluginStore::open().map_err(|e| e.to_string())?;
+    let list = store.list().map_err(|e| e.to_string())?;
+    Ok(list.into_iter().map(Into::into).collect())
+}
+
+#[tauri::command]
+fn plugins_add(path: String, args: Vec<String>) -> Result<PluginEntryView, String> {
+    let store = dofek::plugin::store::PluginStore::open().map_err(|e| e.to_string())?;
+    let installed = store
+        .add(std::path::Path::new(&path), args)
+        .map_err(|e| format!("{e:#}"))?;
+    Ok(installed.into())
+}
+
+#[tauri::command]
+fn plugins_remove(name: String) -> Result<(), String> {
+    let store = dofek::plugin::store::PluginStore::open().map_err(|e| e.to_string())?;
+    store.remove(&name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn plugins_set_enabled(name: String, enabled: bool) -> Result<(), String> {
+    let store = dofek::plugin::store::PluginStore::open().map_err(|e| e.to_string())?;
+    store.set_enabled(&name, enabled).map_err(|e| e.to_string())
+}
+
+/// Native "choose plugin binary" file picker. Returns the selected absolute
+/// path or `None` if the user cancelled. Doing this server-side keeps the
+/// frontend JS plugin-agnostic — no @tauri-apps/plugin-dialog discovery dance.
+#[tauri::command]
+async fn plugins_pick_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog()
+        .file()
+        .set_title("Select a Dofek plugin binary")
+        .pick_file(move |path| {
+            let s = path.map(|p| p.to_string());
+            let _ = tx.send(s);
+        });
+    rx.recv().map_err(|e| e.to_string())
+}
+
 /// Tauri command: kill a single process by PID.
 #[tauri::command]
 fn kill_process(state: tauri::State<'_, AppState>, pid: u32) -> Result<String, String> {
@@ -239,7 +316,7 @@ pub fn run() {
     env_logger::init();
 
     // Load config (same lookup as TUI)
-    let cli = dofek::config::Cli { config: None };
+    let cli = dofek::config::Cli { config: None, command: None };
     let config = Config::load(&cli).unwrap_or_default();
 
     // Load settings — telemetry respects first-run choice or config override
@@ -313,6 +390,7 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(state)
         .invoke_handler(tauri::generate_handler![
@@ -333,6 +411,11 @@ pub fn run() {
             toggle_window_visibility,
             show_window,
             quit_app,
+            plugins_list,
+            plugins_add,
+            plugins_remove,
+            plugins_set_enabled,
+            plugins_pick_file,
         ])
         .on_window_event(move |window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

@@ -24,6 +24,13 @@ echo "Copying ${SRC} → ${DST}"
 cp "$SRC" "$DST"
 
 echo ""
+echo "=== Building first-party plugins (release) ==="
+cargo build --release -p dofek-ollama -p dofek-docker
+echo "Plugin binaries:"
+echo "  target/release/dofek-ollama${EXT}"
+echo "  target/release/dofek-docker${EXT}"
+
+echo ""
 echo "=== Building dofek-gui + native bundles ==="
 cd gui
 cargo tauri build
@@ -31,3 +38,4 @@ cargo tauri build
 echo ""
 echo "=== Done ==="
 echo "Bundles in: target/release/bundle/"
+echo "Plugin binaries (ship as optional add-ons): target/release/dofek-{ollama,docker}${EXT}"

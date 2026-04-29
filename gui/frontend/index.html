@@ -527,7 +527,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;pointer-even
     <div class="kb"><span class="kk">[ ]</span><span>resize</span></div>
     <div class="kb"><span class="kk">s</span><span>snapshot</span></div>
     <div class="kb"><span class="kk">a</span><span>about</span></div>
-    <div class="kb"><span class="kk">?</span><span>help</span></div>
+    <div class="kb"><span class="kk">?</span><span>settings</span></div>
   </div>
   <span class="rrate">500ms</span>
 </div>
@@ -593,6 +593,8 @@ function openSettingsOverlay() {
       document.getElementById('tray-mode-select').value = mode;
       document.getElementById('update-startup-cb').checked = !!s.check_updates_on_startup;
     }).catch(() => {});
+    // Also hydrate the plugin list (defined later in this file).
+    if (typeof refreshPluginsList === 'function') refreshPluginsList();
   }
 }
 
@@ -2116,35 +2118,55 @@ function showToast(msg){
 
 </script>
 
-<!-- Help overlay -->
+<!-- Help & settings overlay -->
 <div class="help-overlay" id="help-overlay">
-  <div class="help-box">
-    <div class="help-title">Dofek — help</div>
-    <table class="help-table">
-      <tr><td class="hk">tab</td><td class="hd">Cycle sort column</td></tr>
-      <tr><td class="hk">c / g / m / n</td><td class="hd">CPU / GPU / MEM / NET chart</td></tr>
-      <tr><td class="hk">d</td><td class="hd">Disk I/O chart</td></tr>
-      <tr><td class="hk">h</td><td class="hd">Toggle horizon chart</td></tr>
-      <tr><td class="hk">1-4</td><td class="hd">Filter ALL / AI / DEV / WATCH</td></tr>
-      <tr><td class="hk">/</td><td class="hd">Search processes</td></tr>
-      <tr><td class="hk">x / del</td><td class="hd">Kill selected process</td></tr>
-      <tr><td class="hk">X</td><td class="hd">Kill all matching</td></tr>
-      <tr><td class="hk">t</td><td class="hd">Toggle tree / flat view</td></tr>
-      <tr><td class="hk">[ ]</td><td class="hd">Resize chart / watchlist</td></tr>
-      <tr><td class="hk">s</td><td class="hd">Save snapshot</td></tr>
-      <tr><td class="hk">a</td><td class="hd">About Dofek</td></tr>
-      <tr><td class="hk">?</td><td class="hd">Toggle this help</td></tr>
-    </table>
-    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;">
-      <button id="open-manual-btn" class="manual-btn">📖 Open full manual</button>
-    </div>
-    <div class="settings-list">
-      <div class="settings-row"><span>Anonymous telemetry</span><label class="toggle-switch"><input type="checkbox" id="telem-toggle-cb"><span class="toggle-slider"></span></label></div>
-      <div class="settings-row"><span>Show tray icon</span><label class="toggle-switch"><input type="checkbox" id="tray-enable-cb"><span class="toggle-slider"></span></label></div>
-      <div class="settings-row"><span>Close to tray</span><label class="toggle-switch"><input type="checkbox" id="tray-close-cb"><span class="toggle-slider"></span></label></div>
-      <div class="settings-row"><span>Tray display</span><select id="tray-mode-select" class="settings-select"><option value="chart">Chart only</option><option value="chart+text">Chart + text</option><option value="text">Text only (macOS)</option></select></div>
-      <div class="settings-row"><span>Check for updates on launch</span><label class="toggle-switch"><input type="checkbox" id="update-startup-cb"><span class="toggle-slider"></span></label></div>
-      <div class="settings-row"><span id="update-status">Updates</span><button id="check-update-btn" class="manual-btn" style="padding:4px 10px;font-size:11px;">Check now</button></div>
+  <div class="help-box help-box--split">
+    <div class="help-panes">
+      <!-- Left pane: shortcuts reference + manual -->
+      <div class="help-pane help-pane--left">
+        <div class="pane-title">Shortcuts</div>
+        <table class="help-table">
+          <tr><td class="hk">tab</td><td class="hd">Cycle sort column</td></tr>
+          <tr><td class="hk">c / g / m / n</td><td class="hd">CPU / GPU / MEM / NET chart</td></tr>
+          <tr><td class="hk">d</td><td class="hd">Disk I/O chart</td></tr>
+          <tr><td class="hk">h</td><td class="hd">Toggle horizon chart</td></tr>
+          <tr><td class="hk">1-4</td><td class="hd">Filter ALL / AI / DEV / WATCH</td></tr>
+          <tr><td class="hk">/</td><td class="hd">Search processes</td></tr>
+          <tr><td class="hk">x / del</td><td class="hd">Kill selected process</td></tr>
+          <tr><td class="hk">X</td><td class="hd">Kill all matching</td></tr>
+          <tr><td class="hk">t</td><td class="hd">Toggle tree / flat view</td></tr>
+          <tr><td class="hk">[ ]</td><td class="hd">Resize chart / watchlist</td></tr>
+          <tr><td class="hk">s</td><td class="hd">Save snapshot</td></tr>
+          <tr><td class="hk">a</td><td class="hd">About Dofek</td></tr>
+          <tr><td class="hk">?</td><td class="hd">Toggle this help</td></tr>
+        </table>
+        <div class="pane-foot">
+          <button id="open-manual-btn" class="manual-btn">📖 Open full manual</button>
+        </div>
+      </div>
+      <!-- Right pane: settings + plugins -->
+      <div class="help-pane help-pane--right">
+        <div class="pane-title">Settings</div>
+        <div class="settings-list">
+          <div class="settings-row"><span>Anonymous telemetry</span><label class="toggle-switch"><input type="checkbox" id="telem-toggle-cb"><span class="toggle-slider"></span></label></div>
+          <div class="settings-row"><span>Show tray icon</span><label class="toggle-switch"><input type="checkbox" id="tray-enable-cb"><span class="toggle-slider"></span></label></div>
+          <div class="settings-row"><span>Close to tray</span><label class="toggle-switch"><input type="checkbox" id="tray-close-cb"><span class="toggle-slider"></span></label></div>
+          <div class="settings-row"><span>Tray display</span><select id="tray-mode-select" class="settings-select"><option value="chart">Chart only</option><option value="chart+text">Chart + text</option><option value="text">Text only (macOS)</option></select></div>
+          <div class="settings-row"><span>Check for updates on launch</span><label class="toggle-switch"><input type="checkbox" id="update-startup-cb"><span class="toggle-slider"></span></label></div>
+          <div class="settings-row"><span id="update-status">Updates</span><button id="check-update-btn" class="manual-btn" style="padding:4px 10px;font-size:11px;">Check now</button></div>
+        </div>
+        <div class="plugins-list" id="plugins-section">
+          <div class="plugins-header">
+            <span class="pane-subtitle">Plugins</span>
+            <button id="add-plugin-btn" class="manual-btn" style="padding:4px 10px;font-size:11px;">+ Add plugin</button>
+          </div>
+          <div id="plugins-empty" class="plugins-empty">No plugins installed.</div>
+          <div id="plugins-rows"></div>
+          <div class="plugins-help">
+            Plugins extend Dofek with custom panels &amp; metrics. See <a href="#" id="open-plugins-docs" class="about-link">dofek.dev/plugins</a>.
+          </div>
+        </div>
+      </div>
     </div>
     <div class="help-footer">press any key to close</div>
   </div>
@@ -2265,6 +2287,121 @@ document.getElementById('check-update-btn').addEventListener('click', e => {
   runUpdateCheck();
 });
 
+/* ---------- Plugin manager (settings → Plugins section) ---------- */
+/* The Rust side owns install/uninstall — this UI just calls plugins_*
+   IPC commands and refreshes the list. Hot-reload of the running plugin
+   manager isn't wired yet, so we tell the user to restart for changes
+   to take effect after add/remove. */
+
+async function refreshPluginsList() {
+  if (!invoke) return;
+  const empty = document.getElementById('plugins-empty');
+  const rows = document.getElementById('plugins-rows');
+  if (!rows || !empty) return;
+  try {
+    const list = await invoke('plugins_list');
+    rows.innerHTML = '';
+    if (!list || list.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    for (const p of list) {
+      const row = document.createElement('div');
+      row.className = 'plugin-row';
+      const meta = document.createElement('div');
+      meta.className = 'plugin-meta';
+      const titleLine = document.createElement('div');
+      titleLine.className = 'plugin-title-line';
+      const name = document.createElement('span');
+      name.className = 'plugin-name';
+      name.textContent = p.name;
+      const ver = document.createElement('span');
+      ver.className = 'plugin-version';
+      ver.textContent = p.version ? `v${p.version}` : '';
+      titleLine.appendChild(name);
+      titleLine.appendChild(ver);
+      const desc = document.createElement('div');
+      desc.className = 'plugin-desc';
+      desc.textContent = p.description || '(no description)';
+      meta.appendChild(titleLine);
+      meta.appendChild(desc);
+
+      const ctrl = document.createElement('div');
+      ctrl.className = 'plugin-ctrl';
+      const toggle = document.createElement('label');
+      toggle.className = 'toggle-switch';
+      toggle.title = p.enabled ? 'Disable plugin' : 'Enable plugin';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!p.enabled;
+      cb.addEventListener('change', async () => {
+        try {
+          await invoke('plugins_set_enabled', { name: p.name, enabled: cb.checked });
+          showToast(`${cb.checked ? 'Enabled' : 'Disabled'} ${p.name}`);
+        } catch (e) {
+          cb.checked = !cb.checked;
+          showToast(`Failed: ${e}`, 3500);
+        }
+      });
+      const slider = document.createElement('span');
+      slider.className = 'toggle-slider';
+      toggle.appendChild(cb);
+      toggle.appendChild(slider);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'plugin-remove';
+      removeBtn.title = 'Uninstall plugin';
+      removeBtn.textContent = '✕';
+      removeBtn.addEventListener('click', async () => {
+        if (!confirm(`Uninstall ${p.name}? This deletes the binary from Dofek's plugin directory.`)) return;
+        try {
+          await invoke('plugins_remove', { name: p.name });
+          showToast(`Uninstalled ${p.name}`);
+          refreshPluginsList();
+        } catch (e) {
+          showToast(`Remove failed: ${e}`, 3500);
+        }
+      });
+
+      ctrl.appendChild(toggle);
+      ctrl.appendChild(removeBtn);
+      row.appendChild(meta);
+      row.appendChild(ctrl);
+      rows.appendChild(row);
+    }
+  } catch (e) {
+    console.warn('plugins_list failed:', e);
+  }
+}
+
+document.getElementById('add-plugin-btn').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!invoke) return;
+  let path;
+  try {
+    path = await invoke('plugins_pick_file');
+  } catch (err) {
+    showToast(`File picker failed: ${err}`, 3500);
+    return;
+  }
+  if (!path) return; // user cancelled
+  try {
+    const installed = await invoke('plugins_add', { path, args: [] });
+    showToast(`Installed ${installed.name}`, 3500);
+    refreshPluginsList();
+  } catch (err) {
+    showToast(`Install failed: ${err}`, 4500);
+  }
+});
+
+document.getElementById('open-plugins-docs').addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (invoke) invoke('open_url', { url: 'https://dofek.dev/plugins/' }).catch(()=>{});
+});
+
+
 /* Opt-in startup probe — fires once on boot if the user enabled it. */
 if (invoke) {
   invoke('get_settings').then(s => {
@@ -2281,13 +2418,50 @@ if (invoke) {
 .help-overlay.visible{display:flex;}
 .help-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:4px;padding:20px 28px;min-width:320px;max-width:400px;}
 .help-title{font-size:13px;font-weight:700;color:var(--cpu);margin-bottom:14px;letter-spacing:.06em;}
+/* Two-pane variant of the help/settings dialog: shortcuts on the left,
+   settings + plugins on the right. The outer box handles overall sizing
+   and the bottom footer; .help-panes is the row, each .help-pane is a
+   column. Right pane scrolls independently so a long plugin list never
+   makes the dialog itself exceed window height. */
+.help-box--split{max-width:820px;width:min(820px,calc(100vw - 48px));max-height:calc(100vh - 60px);padding:18px 0 0;display:flex;flex-direction:column;}
+.help-panes{display:flex;flex-direction:row;gap:0;flex:1;min-height:0;padding:0 24px 12px;}
+.help-pane{flex:1;min-width:0;display:flex;flex-direction:column;}
+.help-pane--left{padding-right:20px;border-right:1px solid var(--bdr2);}
+.help-pane--right{padding-left:20px;overflow-y:auto;}
+.pane-title{font-size:12px;font-weight:700;color:var(--cpu);margin-bottom:10px;letter-spacing:.08em;text-transform:uppercase;}
+.pane-subtitle{font-size:11px;font-weight:700;color:var(--cpu);letter-spacing:.06em;}
+.pane-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;}
+/* Below ~720px viewport (cramped Linux laptops, narrow GUI windows), fall
+   back to a single column so the dialog doesn't get squeezed. */
+@media (max-width: 720px){
+  .help-box--split{max-width:420px;width:calc(100vw - 32px);}
+  .help-panes{flex-direction:column;padding:0 20px 12px;}
+  .help-pane--left{padding-right:0;border-right:none;border-bottom:1px solid var(--bdr2);padding-bottom:14px;margin-bottom:14px;}
+  .help-pane--right{padding-left:0;overflow-y:visible;}
+}
 .help-table{border-collapse:collapse;width:100%;}
 .hk{color:var(--cpu);font-weight:600;padding:3px 12px 3px 0;white-space:nowrap;text-align:right;width:90px;font-size:11px;}
 .hd{color:var(--dim);padding:3px 0;font-size:11px;}
 .help-footer{color:var(--muted);font-size:10px;margin-top:14px;text-align:center;}
-.settings-list{margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2);}
-.settings-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:11px;color:var(--dim);}
+.help-box--split .help-footer{margin-top:0;padding:10px 24px 14px;border-top:1px solid var(--bdr2);}
+.settings-list{padding-top:0;border-top:none;}
+.help-pane--right .settings-list{margin-top:0;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:11px;color:var(--dim);}
 .settings-row + .settings-row{border-top:none;}
+.plugins-list{margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr2);}
+.plugins-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:6px;font-size:11px;font-weight:700;color:var(--cpu);letter-spacing:.06em;}
+.plugins-empty{padding:10px 0;color:var(--muted);font-size:11px;font-style:italic;text-align:center;}
+.plugin-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--bdr);}
+.plugin-row:first-child{border-top:none;}
+.plugin-meta{flex:1;min-width:0;}
+.plugin-title-line{display:flex;align-items:baseline;gap:8px;}
+.plugin-name{font-size:11px;font-weight:600;color:var(--text);}
+.plugin-version{font-size:10px;color:var(--muted);}
+.plugin-desc{font-size:10px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.plugin-ctrl{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.plugin-remove{background:transparent;color:var(--muted);border:1px solid var(--bdr2);width:20px;height:20px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.plugin-remove:hover{color:#f87171;border-color:#f87171;background:rgba(248,113,113,.08);}
+.plugins-help{margin-top:8px;padding-top:6px;border-top:1px dashed var(--bdr);font-size:10px;color:var(--muted);text-align:center;}
 .about-link{color:var(--cpu);text-decoration:none;font-size:11px;transition:color .15s;}
 .about-link:hover{color:var(--text);text-decoration:underline;}
 .manual-btn{background:rgba(56,189,248,.08);color:var(--cpu);border:1px solid rgba(56,189,248,.3);padding:6px 14px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.04em;border-radius:3px;cursor:pointer;transition:all .15s;}

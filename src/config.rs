@@ -1,14 +1,52 @@
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use serde::Deserialize;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "dofek", version, about = "Terminal-native system monitor for Windows and Linux")]
+#[command(name = "dofek", version, about = "Terminal-native system monitor for Windows, Linux, and macOS")]
 pub struct Cli {
     /// Path to config file
     #[arg(short, long)]
     pub config: Option<PathBuf>,
+
+    #[command(subcommand)]
+    pub command: Option<CliCommand>,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum CliCommand {
+    /// Manage installed plugins (list / add / remove / enable / disable).
+    Plugins {
+        #[command(subcommand)]
+        action: PluginsAction,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum PluginsAction {
+    /// List installed plugins.
+    List,
+    /// Install a plugin from a local binary path. The binary is copied into
+    /// the managed plugin directory, made executable, probed for its manifest,
+    /// and registered in the managed plugins.toml — no manual config editing.
+    Add {
+        /// Path to the plugin binary to install.
+        path: PathBuf,
+        /// Optional CLI arguments passed to the plugin on every spawn (e.g.
+        /// `--host http://localhost:11434`).
+        #[arg(last = true)]
+        args: Vec<String>,
+    },
+    /// Uninstall a plugin (removes it from plugins.toml and deletes the binary).
+    Remove {
+        /// Plugin name as shown by `plugins list`.
+        name: String,
+    },
+    /// Enable a previously installed plugin.
+    Enable { name: String },
+    /// Disable a plugin without uninstalling it.
+    Disable { name: String },
 }
 
 #[derive(Deserialize, Debug, Clone, Default)]
@@ -199,6 +237,12 @@ impl Config {
     /// 2. ./dofek.toml
     /// 3. user config dir / dofek / dofek.toml
     ///    (Windows: %APPDATA%\dofek\dofek.toml; Linux: ~/.config/dofek/dofek.toml)
+    ///
+    /// `Config::plugins` here contains *only* the user-owned dofek.toml
+    /// entries. Managed plugins (installed via `dofek-tui plugins ...` or the
+    /// GUI) live in a separate `<config_dir>/dofek/plugins.toml` and are
+    /// composed in by the data collector — that lets the collector watch the
+    /// file's mtime and hot-reload plugins without restarting the app.
     pub fn load(cli: &Cli) -> Result<Self> {
         let candidates: Vec<PathBuf> = if let Some(ref path) = cli.config {
             vec![path.clone()]
@@ -210,19 +254,24 @@ impl Config {
             paths
         };
 
+        let mut config = Config::default();
+        let mut loaded_from = None;
         for path in &candidates {
             if path.exists() {
                 let content = std::fs::read_to_string(path)
                     .with_context(|| format!("Failed to read config from {}", path.display()))?;
-                let mut config: Config = toml::from_str(&content)
+                config = toml::from_str(&content)
                     .with_context(|| format!("Failed to parse config from {}", path.display()))?;
-                config.precompute_lowercase();
-                log::info!("Loaded config from {}", path.display());
-                return Ok(config);
+                loaded_from = Some(path.clone());
+                break;
             }
         }
 
-        log::info!("No config file found, using defaults");
-        Ok(Config::default())
+        config.precompute_lowercase();
+        match loaded_from {
+            Some(path) => log::info!("Loaded config from {}", path.display()),
+            None => log::info!("No dofek.toml found, using defaults"),
+        }
+        Ok(config)
     }
 }

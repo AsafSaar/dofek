@@ -1,0 +1,10 @@
+[package]
+name = "dofek-plugin-protocol"
+version = "0.1.0"
+edition = "2024"
+description = "JSON-over-stdio protocol types for Dofek plugins"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AsafSaar/dofek"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }

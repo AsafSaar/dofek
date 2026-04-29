@@ -8,9 +8,10 @@ pub mod process;
 pub mod rapl;
 pub mod sysinfo_source;
 
-use crate::config::Config;
+use crate::config::{Config, PluginConfig};
 use crate::plugin::{PluginManager, PluginStatus};
 use crate::plugin::protocol::ProcessContext;
+use crate::plugin::store::PluginStore;
 use disk::{DiskStats, DiskTracker};
 use lhm::{CpuSensors, GpuSensors, MemorySensors};
 use network::{NetworkStats, NetworkTracker};
@@ -60,6 +61,15 @@ impl Default for DataSnapshot {
     }
 }
 
+/// Returns the modification time of `path` as a `SystemTime`, or `None` if
+/// the path is missing or its metadata can't be read. We only use the value
+/// for equality comparison ("did this file change since last tick?"), so a
+/// missing-file `None` is a meaningful state, not an error.
+fn read_mtime(path: Option<&std::path::Path>) -> Option<std::time::SystemTime> {
+    let p = path?;
+    std::fs::metadata(p).ok().and_then(|m| m.modified().ok())
+}
+
 /// Spawn the data collector thread. Returns a receiver for snapshots.
 ///
 /// The polling interval is read from `refresh_ms` on every loop iteration so
@@ -75,7 +85,25 @@ pub fn spawn_collector(config: Config, refresh_ms: Arc<AtomicU64>) -> mpsc::Rece
         let nvml = NvmlState::init();
         let mut prev_vram: HashMap<u32, u64> = HashMap::new();
         let mut lhm_failed = false; // stop retrying LHM after first failure
-        let mut plugin_manager = PluginManager::new(&config.plugins);
+
+        // Plugin set = user-owned dofek.toml entries + managed plugins.toml.
+        // The collector owns the merge so it can watch plugins.toml and
+        // hot-reload when the user installs / removes / toggles a plugin via
+        // the GUI or `dofek-tui plugins ...`.
+        let plugin_store = PluginStore::open().ok();
+        let plugins_toml_path = plugin_store
+            .as_ref()
+            .map(|s| s.plugins_toml().to_path_buf());
+        let merge_plugins = |store: Option<&PluginStore>| -> Vec<PluginConfig> {
+            let mut all = config.plugins.clone();
+            if let Some(s) = store {
+                all.extend(s.load_plugin_configs());
+            }
+            all
+        };
+        let mut plugin_manager = PluginManager::new(&merge_plugins(plugin_store.as_ref()));
+        let mut plugins_toml_mtime = read_mtime(plugins_toml_path.as_deref());
+
         let hostname = System::host_name().unwrap_or_default();
 
         // sysinfo::System persists across polls for CPU% delta computation
@@ -90,6 +118,22 @@ pub fn spawn_collector(config: Config, refresh_ms: Arc<AtomicU64>) -> mpsc::Rece
         let mut rapl = rapl::RaplTracker::default();
 
         loop {
+            // Hot-reload plugins if the managed plugins.toml has been touched
+            // since the last tick. Cheap (one stat call) so it runs every
+            // poll. The replace path sends shutdown to old children, kills
+            // them after 200 ms, and respawns from the fresh config — that's
+            // visible as one missed snapshot, no restart needed.
+            let now_mtime = read_mtime(plugins_toml_path.as_deref());
+            if now_mtime != plugins_toml_mtime {
+                plugins_toml_mtime = now_mtime;
+                let new_set = merge_plugins(plugin_store.as_ref());
+                log::info!(
+                    "plugins.toml changed, reloading plugin manager ({} plugin(s))",
+                    new_set.len()
+                );
+                plugin_manager.replace(&new_set);
+            }
+
             // Refresh sysinfo data
             system.refresh_cpu_all();
             system.refresh_memory();

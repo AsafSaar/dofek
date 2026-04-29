@@ -39,6 +39,11 @@ url = "http://localhost:8085"
 
 # Plugins: external processes that inject data into the dashboard.
 # Each [[plugins]] entry spawns a child process communicating via JSON-over-stdio.
+# See plugins/README.md for the protocol, or https://dofek.dev/plugins/ for live docs.
+#
+# First-party plugins (build from this repo or grab the binaries from a release):
+#   cargo build --release -p dofek-ollama -p dofek-docker
+# then put the binaries on PATH and uncomment the block(s) below.
 
 # [[plugins]]
 # name = "ollama"

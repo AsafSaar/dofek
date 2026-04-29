@@ -3,7 +3,10 @@
 //! Protocol: reads newline-delimited JSON from stdin, writes responses to stdout.
 //! Communicates with Ollama via its REST API (default http://localhost:11434).
 
-use serde::{Deserialize, Serialize};
+use dofek_plugin_protocol::{
+    Metric, Panel, PanelEntry, PluginManifest, PollResponse, ProcessAnnotation, ProcessContext,
+};
+use serde::Deserialize;
 use std::io::{self, BufRead, Write};
 
 fn main() {
@@ -67,9 +70,9 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
     let mut response = PollResponse {
         status: "ok".to_string(),
         manifest: if include_manifest {
-            Some(Manifest {
+            Some(PluginManifest {
                 name: "dofek-ollama".to_string(),
-                version: "0.1.0".to_string(),
+                version: env!("CARGO_PKG_VERSION").to_string(),
                 description: "Ollama model status and inference tracking".to_string(),
                 author: "Dofek contributors".to_string(),
             })
@@ -81,22 +84,18 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
         metrics: Vec::new(),
     };
 
-    // Query running models (ollama ps)
     let running = query_running_models(host);
-    // Query available models (ollama tags)
     let available = query_available_models(host);
 
     let mut panel_content = Vec::new();
 
     match (&running, &available) {
         (Err(_), _) => {
-            // Ollama not reachable
             panel_content.push(PanelEntry {
                 key: "Status".to_string(),
                 value: "offline".to_string(),
                 style: "dim".to_string(),
             });
-            response.status = "ok".to_string(); // plugin itself is fine
         }
         (Ok(running_models), Ok(available_models)) => {
             if running_models.is_empty() {
@@ -116,7 +115,6 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                 }
             }
 
-            // Report total available models count
             if !available_models.is_empty() {
                 panel_content.push(PanelEntry {
                     key: "Available".to_string(),
@@ -125,7 +123,6 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                 });
             }
 
-            // Metrics: number of running models
             response.metrics.push(Metric {
                 id: "ollama.running".to_string(),
                 label: "Models".to_string(),
@@ -133,7 +130,6 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                 unit: String::new(),
             });
 
-            // Process annotations: match ollama-related processes
             for proc in processes {
                 let name_lower = proc.name.to_lowercase();
                 if name_lower.contains("ollama") {
@@ -148,7 +144,6 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
                     };
 
                     let ai_state = if running_models.iter().any(|m| m.size > 0) {
-                        // If models are loaded, the server process is at least idle
                         Some("idle".to_string())
                     } else {
                         None
@@ -236,66 +231,4 @@ fn format_size(bytes: u64) -> String {
     } else {
         format!("{bytes}B")
     }
-}
-
-// --- Protocol types (mirror of Dofek's plugin protocol) ---
-
-#[derive(Deserialize, Debug)]
-struct ProcessContext {
-    pid: u32,
-    name: String,
-    #[allow(dead_code)]
-    vram_bytes: Option<u64>,
-}
-
-#[derive(Serialize)]
-struct PollResponse {
-    status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    manifest: Option<Manifest>,
-    panels: Vec<Panel>,
-    process_annotations: Vec<ProcessAnnotation>,
-    metrics: Vec<Metric>,
-}
-
-#[derive(Serialize)]
-struct Manifest {
-    name: String,
-    version: String,
-    description: String,
-    author: String,
-}
-
-#[derive(Serialize)]
-struct Panel {
-    id: String,
-    label: String,
-    content: Vec<PanelEntry>,
-}
-
-#[derive(Serialize)]
-struct PanelEntry {
-    key: String,
-    value: String,
-    style: String,
-}
-
-#[derive(Serialize)]
-struct ProcessAnnotation {
-    pid: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    label: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    ai_state: Option<String>,
-}
-
-#[derive(Serialize)]
-struct Metric {
-    id: String,
-    label: String,
-    value: f64,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    unit: String,
 }

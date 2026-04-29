@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use dofek::telemetry::{self, TelemetryEvent};
 
 use app::App;
-use config::{Cli, Config};
+use config::{Cli, CliCommand, Config};
 use event::AppEvent;
 
 /// Returns true if the terminal advertises 24-bit RGB color support.
@@ -48,6 +48,17 @@ fn main() -> Result<()> {
     env_logger::init();
 
     let cli = Cli::parse();
+
+    // Dispatch CLI subcommands (e.g. `dofek-tui plugins add ...`) before the
+    // TUI takes over the terminal — these print to stdout and exit.
+    if let Some(command) = cli.command {
+        match command {
+            CliCommand::Plugins { action } => {
+                std::process::exit(plugin::cli::run(action));
+            }
+        }
+    }
+
     let config = Config::load(&cli)?;
 
     // Pre-flight terminal capability check. Dofek's trading-terminal palette is
