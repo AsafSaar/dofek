@@ -19,9 +19,12 @@ Linux
 
 macOS (Apple Silicon)
   - GUI:    Launchpad → "dofek", or "open /Applications/dofek.app"
-            First launch is blocked by Gatekeeper — right-click the app
-            → Open → Open, or run once:
+            First launch shows "dofek.app is damaged and can't be opened" —
+            the app isn't damaged, it's unsigned and quarantined by your
+            browser. Strip the flag once and it launches normally:
               xattr -dr com.apple.quarantine /Applications/dofek.app
+            (macOS 14 Sonoma and earlier also accept right-click → Open
+            → Open; macOS 15 Sequoia removed that bypass.)
   - TUI:    "dofek-tui" from Terminal.app or iTerm2 (chmod +x first if
             you downloaded the standalone binary)
   - Manual: open "manual.html" from inside dofek.app/Contents/Resources/

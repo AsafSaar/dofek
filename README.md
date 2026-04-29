@@ -92,11 +92,18 @@ Pre-built binaries are published on the [Releases page](https://github.com/AsafS
 
 Intel Macs are not supported in this release.
 
+> 🍎 **First launch on macOS — "dofek.app is damaged and can't be opened."**
+> That message is misleading: the app isn't damaged, it's just unsigned, and your browser tagged the DMG with a quarantine flag on download. Strip the flag once and it launches normally:
+> ```sh
+> xattr -dr com.apple.quarantine /Applications/dofek.app
+> ```
+> On macOS 14 Sonoma and earlier you can also right-click the app → **Open** → **Open**. macOS 15 Sequoia removed that bypass, so the `xattr` command is the only fix there. Code signing + notarization is on the v1.4 roadmap.
+
 > ℹ️ **TUI requires a truecolor terminal.** dofek-tui's trading-terminal palette uses 24-bit RGB. Apple's Terminal.app misparses these escape sequences and renders panels as bright magenta/red — use [iTerm2](https://iterm2.com), [WezTerm](https://wezterm.org), [Ghostty](https://ghostty.org), [Alacritty](https://alacritty.org), or [Kitty](https://sw.kovidgoyal.net/kitty/) instead. The same applies on Linux for any terminal that doesn't set `COLORTERM=truecolor`. dofek-tui prints a warning at startup if it detects a non-truecolor terminal.
 
 `SHA256SUMS.txt` has checksums for every artifact.
 
-> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper will block first launch — right-click the .app → **Open** → **Open**, or run `xattr -dr com.apple.quarantine /Applications/dofek.app` once.
+> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
 
 Verify (Windows): `Get-FileHash .\dofek_1.3.3_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`

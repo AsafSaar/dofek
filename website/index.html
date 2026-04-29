@@ -868,7 +868,7 @@ footer {
     <div class="install-step reveal">
       <div class="step-num">01 — DOWNLOAD OR BUILD</div>
       <div class="step-title">Get the binary</div>
-      <div class="step-body">Grab the TUI or desktop app from GitHub Releases — Windows .msi, Linux .deb / .rpm / .AppImage, macOS unsigned .app (Apple Silicon). Or build from source with the Rust stable toolchain (plus VS Build Tools on Windows, webkit2gtk + GTK headers on Linux, or Xcode Command Line Tools on macOS).</div>
+      <div class="step-body">Grab the TUI or desktop app from GitHub Releases — Windows .msi, Linux .deb / .rpm / .AppImage, macOS unsigned .app (Apple Silicon). Or build from source with the Rust stable toolchain (plus VS Build Tools on Windows, webkit2gtk + GTK headers on Linux, or Xcode Command Line Tools on macOS). On macOS the unsigned .app shows <em>"dofek.app is damaged"</em> on first launch — strip the quarantine flag once with <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> and it opens normally.</div>
       <div class="step-code">git clone github.com/AsafSaar/dofek<br>cd dofek<br>cargo build --release <span style="color:var(--muted)"># TUI</span><br>cd gui &amp;&amp; cargo tauri build <span style="color:var(--muted)"># Desktop</span></div>
     </div>
     <div class="install-step reveal reveal-d1">

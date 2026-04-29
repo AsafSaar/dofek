@@ -251,7 +251,7 @@ kbd {
     <ul>
       <li><strong>Windows:</strong> Start Menu, or <code>dofek.exe</code> from <code>C:\Program Files\dofek\</code>.</li>
       <li><strong>Linux:</strong> application launcher, or run the <code>.AppImage</code>, or <code>dofek-gui</code> after installing the <code>.deb</code>/<code>.rpm</code>.</li>
-      <li><strong>macOS:</strong> Launchpad / Applications, or <code>open /Applications/dofek.app</code>. First launch is blocked by Gatekeeper — right-click the .app → <strong>Open</strong> → <strong>Open</strong>, or run <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> once.</li>
+      <li><strong>macOS:</strong> Launchpad / Applications, or <code>open /Applications/dofek.app</code>. First launch shows <em>"dofek.app is damaged and can't be opened"</em> — the app isn't damaged, it's unsigned and quarantined. Run <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> once and it launches normally. (On macOS 14 Sonoma and earlier, right-click → <strong>Open</strong> → <strong>Open</strong> also works; macOS 15 Sequoia removed that bypass.)</li>
     </ul>
   </li>
   <li>The dashboard opens with live CPU, GPU, memory, and network charts. The process watchlist on the right shows the top VRAM/CPU/MEM consumers.</li>
@@ -489,7 +489,7 @@ timeout_ms = 2000
 <ul>
   <li><strong>Windows (SmartScreen):</strong> right-click the installer or executable → <strong>Properties</strong> → check <strong>Unblock</strong> at the bottom of the General tab → OK.</li>
   <li><strong>Linux (AppImage):</strong> <code>chmod +x dofek_*.AppImage</code> before running. <code>.deb</code>/<code>.rpm</code> packages install normally via <code>apt</code>/<code>dnf</code>.</li>
-  <li><strong>macOS (Gatekeeper):</strong> right-click <code>dofek.app</code> → <strong>Open</strong> → <strong>Open</strong> in the warning dialog, or run <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> once.</li>
+  <li><strong>macOS (Gatekeeper):</strong> first launch shows <em>"dofek.app is damaged and can't be opened"</em>. The app isn't damaged — it's unsigned and quarantined by your browser. Run <code>xattr -dr com.apple.quarantine /Applications/dofek.app</code> once. On macOS 14 Sonoma and earlier you can also right-click → <strong>Open</strong> → <strong>Open</strong>; macOS 15 Sequoia removed that bypass.</li>
 </ul>
 <p>Verify the download first by comparing against <code>SHA256SUMS.txt</code> from the GitHub release:</p>
 <pre><code># Windows (PowerShell)
