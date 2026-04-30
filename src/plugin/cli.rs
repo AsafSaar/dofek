@@ -47,8 +47,8 @@ fn list(store: &PluginStore) -> Result<()> {
         return Ok(());
     }
     println!(
-        "{:<24} {:<10} {:<8} {}",
-        "NAME", "VERSION", "ENABLED", "DESCRIPTION"
+        "{:<24} {:<10} {:<8} DESCRIPTION",
+        "NAME", "VERSION", "ENABLED"
     );
     for p in plugins {
         let version = if p.version.is_empty() { "-" } else { &p.version };

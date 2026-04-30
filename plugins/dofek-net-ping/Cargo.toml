@@ -1,0 +1,13 @@
+[package]
+name = "dofek-net-ping"
+version = "0.1.0"
+edition = "2024"
+description = "Dofek plugin: TCP-connect latency to a remote host"
+
+[[bin]]
+name = "dofek-net-ping"
+path = "src/main.rs"
+
+[dependencies]
+dofek-plugin-protocol = { path = "../../crates/dofek-plugin-protocol", version = "0.1.0" }
+serde_json = "1"

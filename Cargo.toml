@@ -4,11 +4,12 @@ members = [
     "gui",
     "plugins/dofek-ollama",
     "plugins/dofek-docker",
+    "plugins/dofek-net-ping",
 ]
 
 [package]
 name = "dofek"
-version = "1.5.0"
+version = "1.5.1"
 edition = "2024"
 description = "Terminal-native system monitor for Windows, Linux, and macOS (Apple Silicon) — AI-aware, visually stunning"
 

@@ -2,6 +2,24 @@
 
 All notable changes to Dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-04-30
+
+Patch release — closes Tracks 3 and 4 of the v1.5 plugin-showcase plan. Adds a third first-party plugin, wires plugin binaries into the release pipeline, and unblocks the next CI release tag.
+
+### Added
+- **`dofek-net-ping` plugin** (`plugins/dofek-net-ping/`). Third first-party plugin: TCP-connect latency to a configurable host. Demonstrates a different plugin shape than the existing two — a background sampler thread does periodic work *between* polls, pushing into a 60-sample ring buffer; each `poll` reads the buffer and emits current/avg/min/max/loss in the panel plus a `netping.latency_ms` ticker metric. Defaults: `--host 1.1.1.1 --port 443 --interval-ms 1000`. README and `dofek.toml.example` updated.
+
+### Changed
+- **CI release workflow** (`.github/workflows/release.yml`) now builds and uploads `dofek-{ollama,docker,net-ping}` as standalone download artefacts on Windows, Linux, and macOS. Release-notes body gained a "Plugins (optional add-ons)" download table.
+- **`build-all.sh` / `build-all.ps1`** also build the new net-ping plugin alongside the existing two.
+- **Website plugin cards** (`website/index.html`) now link to `releases/latest` and the per-plugin READMEs; replaced the placeholder `dofek-lmstudio` card with the real `dofek-net-ping` card.
+
+### Fixed
+- Two pre-existing Rust 1.95 clippy errors that would have blocked the next CI release: `print_literal` in `src/plugin/cli.rs:51` and `never_loop` in `src/plugin/store.rs:318`. The probe loop's `#[allow(clippy::never_loop)]` is documented inline — the deadline check is wall-clock-only because `read_line` is blocking; a future refactor could go non-blocking.
+
+### Notes
+- Plan for a Tabby terminal integration (Option B: `dofek-tui serve` headless mode + `tabby-dofek` npm plugin) is captured at `docs/tabby-integration.md` for a future cycle. Not part of this release.
+
 ## [1.5.0] - 2026-04-30
 
 Minor release — turns the plugin system from a hand-rolled "edit dofek.toml + put a binary on PATH" workflow into a managed install experience driven from the GUI or CLI, with hot reload.

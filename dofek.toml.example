@@ -42,7 +42,7 @@ url = "http://localhost:8085"
 # See plugins/README.md for the protocol, or https://dofek.dev/plugins/ for live docs.
 #
 # First-party plugins (build from this repo or grab the binaries from a release):
-#   cargo build --release -p dofek-ollama -p dofek-docker
+#   cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
 # then put the binaries on PATH and uncomment the block(s) below.
 
 # [[plugins]]
@@ -56,5 +56,12 @@ url = "http://localhost:8085"
 # name = "docker"
 # command = "dofek-docker"
 # args = ["--host", "http://localhost:2375"]
+# enabled = true
+# timeout_ms = 2000
+
+# [[plugins]]
+# name = "net-ping"
+# command = "dofek-net-ping"
+# args = ["--host", "1.1.1.1", "--port", "443", "--interval-ms", "1000"]
 # enabled = true
 # timeout_ms = 2000

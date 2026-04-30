@@ -17,11 +17,12 @@ Copy-Item "target\release\dofek-tui.exe" "target\release\dofek-tui-$triple.exe" 
 
 Write-Host ""
 Write-Host "=== Building first-party plugins (release) ==="
-cargo build --release -p dofek-ollama -p dofek-docker
+cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
 if ($LASTEXITCODE -ne 0) { exit 1 }
 Write-Host "Plugin binaries:"
 Write-Host "  target\release\dofek-ollama.exe"
 Write-Host "  target\release\dofek-docker.exe"
+Write-Host "  target\release\dofek-net-ping.exe"
 
 Write-Host ""
 Write-Host "=== Building dofek-gui + MSI bundle ==="
@@ -36,4 +37,4 @@ try {
 Write-Host ""
 Write-Host "=== Done ==="
 Write-Host "MSI installer: target\release\bundle\msi\"
-Write-Host "Plugin binaries (ship as optional add-ons): target\release\dofek-ollama.exe, target\release\dofek-docker.exe"
+Write-Host "Plugin binaries (ship as optional add-ons): target\release\dofek-ollama.exe, target\release\dofek-docker.exe, target\release\dofek-net-ping.exe"

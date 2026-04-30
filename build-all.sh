@@ -25,10 +25,11 @@ cp "$SRC" "$DST"
 
 echo ""
 echo "=== Building first-party plugins (release) ==="
-cargo build --release -p dofek-ollama -p dofek-docker
+cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
 echo "Plugin binaries:"
 echo "  target/release/dofek-ollama${EXT}"
 echo "  target/release/dofek-docker${EXT}"
+echo "  target/release/dofek-net-ping${EXT}"
 
 echo ""
 echo "=== Building dofek-gui + native bundles ==="
@@ -38,4 +39,4 @@ cargo tauri build
 echo ""
 echo "=== Done ==="
 echo "Bundles in: target/release/bundle/"
-echo "Plugin binaries (ship as optional add-ons): target/release/dofek-{ollama,docker}${EXT}"
+echo "Plugin binaries (ship as optional add-ons): target/release/dofek-{ollama,docker,net-ping}${EXT}"

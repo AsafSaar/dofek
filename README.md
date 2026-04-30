@@ -105,7 +105,7 @@ Intel Macs are not supported in this release.
 
 > ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "Dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
 
-Verify (Windows): `Get-FileHash .\Dofek_1.5.0_x64_en-US.msi -Algorithm SHA256`
+Verify (Windows): `Get-FileHash .\Dofek_1.5.1_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 
@@ -192,6 +192,7 @@ cargo build-gui                    # → target/release/dofek-gui  + native bund
 ```bash
 cargo build --release -p dofek-ollama   # → target/release/dofek-ollama
 cargo build --release -p dofek-docker   # → target/release/dofek-docker
+cargo build --release -p dofek-net-ping # → target/release/dofek-net-ping
 ```
 
 **Maintenance:**
@@ -383,6 +384,7 @@ Plugins are external processes that inject data into the Dofek dashboard. Dofek 
 |--------|-------------|----------|
 | `dofek-ollama` | Shows loaded models, inference state, annotates Ollama processes | [Ollama](https://ollama.com/) running locally |
 | `dofek-docker` | Lists running containers, annotates Docker processes | Docker Desktop with TCP API enabled |
+| `dofek-net-ping` | TCP-connect latency to a remote host — current/avg/min/max/loss in the dock, latency pill in the ticker | Outbound TCP to the chosen host:port |
 
 ### How it works
 
@@ -401,6 +403,7 @@ In the plugin dock: `●` green = healthy, `●` yellow = unhealthy (5+ consecut
 ```bash
 cargo build --release -p dofek-ollama   # Build Ollama plugin
 cargo build --release -p dofek-docker   # Build Docker plugin
+cargo build --release -p dofek-net-ping # Build net-ping plugin
 ```
 
 Place the built binaries somewhere on your PATH, or use an absolute path in the `command` field.
@@ -451,8 +454,9 @@ A process is classified as an AI workload if:
     │     └── Vanilla HTML/CSS/JS ── canvas charts, CSS bars, drag-resize
     │
     └── plugins/
-          ├── dofek-ollama ─── Ollama model status + inference tracking
-          └── dofek-docker ─── Docker container monitoring
+          ├── dofek-ollama ──── Ollama model status + inference tracking
+          ├── dofek-docker ──── Docker container monitoring
+          └── dofek-net-ping ── TCP-connect latency sampler
 ```
 
 ### Threading Model (sync, no tokio)
@@ -518,6 +522,7 @@ gui/
 plugins/
   dofek-ollama/        Ollama plugin: model status, inference tracking
   dofek-docker/        Docker plugin: container monitoring
+  dofek-net-ping/      Net-ping plugin: TCP-connect latency sampler
 ```
 
 ### Key Data Flow

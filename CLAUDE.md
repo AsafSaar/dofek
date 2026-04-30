@@ -54,8 +54,9 @@ cargo build-gui                    # → target/release/dofek-gui[.exe] + native
     │     └── Vanilla HTML/CSS/JS frontend with Canvas charts
     │
     └── plugins/
-          ├── dofek-ollama ─── Ollama model status + inference tracking
-          └── dofek-docker ─── Docker container monitoring
+          ├── dofek-ollama ──── Ollama model status + inference tracking
+          ├── dofek-docker ──── Docker container monitoring
+          └── dofek-net-ping ── TCP-connect latency sampler
 ```
 
 ### Threading Model (sync, no tokio)

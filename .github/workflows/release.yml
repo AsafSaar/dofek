@@ -43,6 +43,9 @@ jobs:
       - name: Build TUI
         run: cargo build --release -p dofek --bin dofek-tui
 
+      - name: Build first-party plugins
+        run: cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
+
       # Tauri's externalBin expects the binary name suffixed with the target triple.
       # Mirrors the local build-all.ps1 step.
       - name: Stage TUI binary for Tauri externalBin
@@ -76,6 +79,18 @@ jobs:
               | Copy-Item -Destination artifacts/ -Force
           } else {
             Write-Warning "No Tauri bundle output found under $bundleRoot."
+          }
+
+          # Plugin binaries ship as optional standalone downloads (not bundled
+          # in the MSI). Same naming as dofek-tui — no triple suffix on Windows
+          # to keep download names readable.
+          foreach ($p in @("dofek-ollama","dofek-docker","dofek-net-ping")) {
+            $src = "target/release/$p.exe"
+            if (Test-Path $src) {
+              Copy-Item $src "artifacts/" -Force
+            } else {
+              Write-Warning "Plugin binary not found at $src"
+            }
           }
 
           Write-Host "`nArtifacts:"
@@ -144,6 +159,9 @@ jobs:
       - name: Build TUI
         run: cargo build --release -p dofek --bin dofek-tui
 
+      - name: Build first-party plugins
+        run: cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
+
       # Tauri externalBin expects the binary name suffixed with the host target triple.
       - name: Stage TUI binary for Tauri externalBin
         run: |
@@ -167,6 +185,17 @@ jobs:
           else
             echo "::warning::TUI binary not found at target/release/dofek-tui"
           fi
+
+          # Plugin binaries ship as optional standalone downloads (not bundled
+          # in the .deb/.rpm/.AppImage). Plain names — Linux is the canonical
+          # x86_64 build for now.
+          for p in dofek-ollama dofek-docker dofek-net-ping; do
+            if [ -f "target/release/$p" ]; then
+              cp "target/release/$p" artifacts/
+            else
+              echo "::warning::Plugin binary not found at target/release/$p"
+            fi
+          done
 
           bundle_root="target/release/bundle"
           if [ -d "$bundle_root" ]; then
@@ -228,6 +257,9 @@ jobs:
       - name: Build TUI
         run: cargo build --release -p dofek --bin dofek-tui
 
+      - name: Build first-party plugins
+        run: cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
+
       # Tauri externalBin expects the binary name suffixed with the host target triple.
       - name: Stage TUI binary for Tauri externalBin
         run: |
@@ -258,6 +290,16 @@ jobs:
           else
             echo "::warning::TUI binary not found at target/release/dofek-tui"
           fi
+
+          # Plugin binaries — same triple-suffix pattern as dofek-tui to avoid
+          # colliding with the Linux artefacts in the publish job's flatten.
+          for p in dofek-ollama dofek-docker dofek-net-ping; do
+            if [ -f "target/release/$p" ]; then
+              cp "target/release/$p" "artifacts/${p}-aarch64-apple-darwin"
+            else
+              echo "::warning::Plugin binary not found at target/release/$p"
+            fi
+          done
 
           # The .app bundle is a directory — zip it for upload/distribution.
           app_path=$(find target/release/bundle/macos -maxdepth 1 -name '*.app' -type d | head -n1)
@@ -411,6 +453,18 @@ jobs:
             | `dofek-tui-aarch64-apple-darwin` | Standalone TUI binary (`chmod +x` and run) |
 
             Intel Macs are not supported in this release.
+
+            ### Plugins (optional add-ons)
+
+            First-party plugins ship as standalone binaries — download only the ones you want, drop them on your `PATH`, and uncomment the matching `[[plugins]]` block in `dofek.toml`. They are **not** required for Dofek to run.
+
+            | Plugin | Windows | Linux | macOS (aarch64) |
+            | --- | --- | --- | --- |
+            | `dofek-ollama` — Ollama model status | `dofek-ollama.exe` | `dofek-ollama` | `dofek-ollama-aarch64-apple-darwin` |
+            | `dofek-docker` — Docker container monitor | `dofek-docker.exe` | `dofek-docker` | `dofek-docker-aarch64-apple-darwin` |
+            | `dofek-net-ping` — Latency to a remote host | `dofek-net-ping.exe` | `dofek-net-ping` | `dofek-net-ping-aarch64-apple-darwin` |
+
+            See [`dofek.toml.example`](https://github.com/AsafSaar/dofek/blob/main/dofek.toml.example) and the per-plugin READMEs in [`plugins/`](https://github.com/AsafSaar/dofek/tree/main/plugins) for configuration.
 
             ### Verification
             `SHA256SUMS.txt` contains checksums for every artifact above.

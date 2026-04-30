@@ -314,7 +314,13 @@ fn probe_manifest(binary: &Path, args: &[String]) -> Result<ProbedManifest> {
     let mut reader = BufReader::new(stdout);
     let mut line = String::new();
 
+    // The deadline guards against a plugin that opens stdout but never writes;
+    // read_line is blocking, so the bound is wall-clock-only — if the plugin
+    // hangs forever we would too. A future refactor could set a non-blocking
+    // read; for now we accept "single attempt with an upper bound" semantics
+    // and silence clippy::never_loop because every arm exits the loop.
     let deadline = Instant::now() + Duration::from_millis(2500);
+    #[allow(clippy::never_loop)]
     let response = loop {
         if Instant::now() > deadline {
             let _ = child.kill();
