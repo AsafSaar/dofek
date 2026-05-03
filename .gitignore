@@ -20,3 +20,9 @@ website/node_modules/
 /gui/icons/ios/
 /gui/icons/Square*Logo.png
 /gui/icons/StoreLogo.png
+
+# Remotion launch-video project — build artifacts and licensed audio bed
+/video/node_modules/
+/video/out/
+/video/public/track.mp3
+/video/audio/track.mp3

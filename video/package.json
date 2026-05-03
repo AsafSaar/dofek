@@ -1,0 +1,24 @@
+{
+  "name": "dofek-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remotion-driven launch video for Dofek (hero 60s + vertical 30s).",
+  "scripts": {
+    "studio": "remotion studio",
+    "build:hero": "remotion render HeroSpot60 out/dofek-hero-60s.mp4 --codec=h264",
+    "build:short": "remotion render VerticalShort30 out/dofek-short-30s.mp4 --codec=h264",
+    "build:both": "npm run build:hero && npm run build:short"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.380",
+    "@remotion/google-fonts": "4.0.380",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.380"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "typescript": "5.6.3"
+  }
+}

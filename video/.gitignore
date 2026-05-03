@@ -1,0 +1,4 @@
+node_modules/
+out/
+audio/track.mp3
+.DS_Store
