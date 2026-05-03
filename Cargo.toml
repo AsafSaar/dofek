@@ -23,7 +23,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # TUI
-ratatui = "0.29"
+ratatui = "0.30"
 crossterm = "0.28"
 
 # HTTP client (blocking, no TLS needed — LHM is localhost only)
