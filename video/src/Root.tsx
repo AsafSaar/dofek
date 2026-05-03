@@ -19,7 +19,7 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-        defaultProps={{ withAudio: false }}
+        defaultProps={{ withAudio: true }}
       />
       <Composition
         id="VerticalShort30"
@@ -28,7 +28,7 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1080}
         height={1920}
-        defaultProps={{ withAudio: false }}
+        defaultProps={{ withAudio: true }}
       />
     </>
   );

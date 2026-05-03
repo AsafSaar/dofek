@@ -48,7 +48,7 @@ export const PulseOpen: React.FC<{ format?: Format }> = ({ format = "hero" }) =>
             textTransform: "lowercase",
           }}
         >
-          <span style={{ color: T.cpu }}>דּוֹפֶק</span>
+          <span style={{ color: T.cpu }}>דופק</span>
           <span style={{ color: T.muted, margin: "0 18px" }}>·</span>
           <span>dofek</span>
         </div>

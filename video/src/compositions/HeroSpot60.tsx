@@ -10,11 +10,13 @@ import { Plugins } from "../scenes/06_Plugins";
 import { Tray } from "../scenes/07_Tray";
 import { CTA } from "../scenes/08_CTA";
 
+const HERO_DURATION = 1800;
+
 // Scene durations sum to 1800 frames @ 30 fps = 60s
 // 0:0–90, 1:90–270, 2:270–540, 3:540–780, 4:780–960, 5:960–1140, 6:1140–1410, 7:1410–1560, 8:1560–1800
-// To enable audio, drop your licensed bed at video/public/track.mp3 and
-// pass withAudio={true} on the composition (or flip the default below).
-export const HeroSpot60: React.FC<{ withAudio?: boolean }> = ({ withAudio = false }) => {
+// Audio: drop your licensed bed at video/public/track.mp3.
+// Longer tracks are sliced via endAt; missing file causes a render-time error.
+export const HeroSpot60: React.FC<{ withAudio?: boolean }> = ({ withAudio = true }) => {
   return (
     <AbsoluteFill>
       <Series>
@@ -46,7 +48,13 @@ export const HeroSpot60: React.FC<{ withAudio?: boolean }> = ({ withAudio = fals
           <CTA />
         </Series.Sequence>
       </Series>
-      {withAudio && <Audio src={staticFile("track.mp3")} volume={0.7} />}
+      {withAudio && (
+        <Audio
+          src={staticFile("track.mp3")}
+          volume={0.7}
+          endAt={HERO_DURATION}
+        />
+      )}
     </AbsoluteFill>
   );
 };

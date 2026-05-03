@@ -20,11 +20,11 @@
 <meta property="og:description" content="AI-aware system monitor for Windows, Linux, and macOS — TUI and desktop app. VRAM per process, candlestick CPU charts, AI workload detection.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://dofek.dev/">
-<meta property="og:image" content="https://dofek.dev/tui-screenshot.png">
+<meta property="og:image" content="https://dofek.dev/dofek-hero-poster.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Dofek — system monitor for the AI era">
 <meta name="twitter:description" content="AI-aware system monitor for Windows, Linux, and macOS — TUI and desktop app. VRAM per process, candlestick CPU charts, AI workload detection.">
-<meta name="twitter:image" content="https://dofek.dev/tui-screenshot.png">
+<meta name="twitter:image" content="https://dofek.dev/dofek-hero-poster.jpg">
 <title>Dofek — system monitor for the AI era</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -644,10 +644,17 @@ footer {
   </div>
 </section>
 
-<!-- ── REAL SCREENSHOT ─────────────────────────── -->
-<!-- TODO: Replace with actual TUI screenshot/GIF. Drop the image at website/tui-screenshot.png -->
+<!-- ── HERO VIDEO ──────────────────────────────── -->
 <div class="reveal" style="padding:0 48px 60px;text-align:center">
-  <img src="tui-screenshot.png" alt="Dofek TUI in action" style="max-width:960px;width:100%;border:1px solid var(--bdr2);border-radius:4px;box-shadow:0 40px 80px rgba(0,0,0,.6);display:none" onload="this.style.display='inline-block'">
+  <video
+    src="dofek-hero.mp4"
+    poster="dofek-hero-poster.jpg"
+    autoplay muted loop playsinline preload="metadata" controls
+    style="max-width:1100px;width:100%;border:1px solid var(--bdr2);border-radius:6px;box-shadow:0 40px 80px rgba(0,0,0,.6);display:block;margin:0 auto;background:var(--bg)"
+    aria-label="60-second walkthrough of Dofek across Windows, Linux, and macOS">
+    Your browser doesn't support inline video. Watch on
+    <a href="dofek-hero.mp4">dofek-hero.mp4</a>.
+  </video>
 </div>
 
 <!-- ── INSIGHT ─────────────────────────────────── -->
@@ -869,16 +876,16 @@ footer {
   <h2 class="reveal">Up in <span class="hl-cpu">three steps</span>.</h2>
   <div class="install-steps">
     <div class="install-step reveal">
-      <div class="step-num">01 — DOWNLOAD OR BUILD</div>
+      <div class="step-num">01 — INSTALL</div>
       <div class="step-title">Get the binary</div>
-      <div class="step-body">Grab the TUI or desktop app from GitHub Releases — Windows .msi, Linux .deb / .rpm / .AppImage, macOS unsigned .app (Apple Silicon). Or build from source with the Rust stable toolchain (plus VS Build Tools on Windows, webkit2gtk + GTK headers on Linux, or Xcode Command Line Tools on macOS). On macOS the unsigned .app shows <em>"Dofek.app is damaged"</em> on first launch — strip the quarantine flag once with <code>xattr -dr com.apple.quarantine /Applications/Dofek.app</code> and it opens normally.</div>
-      <div class="step-code">git clone github.com/AsafSaar/dofek<br>cd dofek<br>cargo build --release <span style="color:var(--muted)"># TUI</span><br>cd gui &amp;&amp; cargo tauri build <span style="color:var(--muted)"># Desktop</span></div>
+      <div class="step-body"><strong style="color:var(--cpu)">macOS (Apple Silicon)</strong> — install via Homebrew tap. Both the CLI and the desktop GUI are published. <strong style="color:var(--mem)">Windows / Linux</strong> — grab the installer from <a href="https://github.com/AsafSaar/dofek/releases/latest" target="_blank" rel="noopener" style="color:var(--cpu)">GitHub Releases</a> (.msi, .deb, .rpm, or .AppImage). On macOS the unsigned .app may show <em>"Dofek.app is damaged"</em> on first launch — strip the quarantine flag once with <code>xattr -dr com.apple.quarantine /Applications/Dofek.app</code>.</div>
+      <div class="step-code"><span style="color:var(--muted)"># macOS — CLI bundle (TUI + plugins)</span><br>brew install AsafSaar/dofek/dofek<br><br><span style="color:var(--muted)"># macOS — desktop GUI app</span><br>brew install --cask AsafSaar/dofek/dofek</div>
     </div>
     <div class="install-step reveal reveal-d1">
       <div class="step-num">02 — RUN</div>
       <div class="step-title">Launch Dofek</div>
       <div class="step-body">Run the TUI from any terminal, or launch the desktop app. NVIDIA GPU metrics work automatically via NVML — no extra setup needed.</div>
-      <div class="step-code"><span style="color:var(--muted)"># TUI</span><br>dofek<br><span style="color:var(--muted)"># Desktop app</span><br>dofek-gui</div>
+      <div class="step-code"><span style="color:var(--muted)"># TUI (terminal)</span><br>dofek-tui<br><span style="color:var(--muted)"># Desktop app — launch from /Applications or:</span><br>open -a Dofek</div>
     </div>
     <div class="install-step reveal reveal-d2">
       <div class="step-num">03 — OPTIONAL</div>
