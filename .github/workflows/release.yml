@@ -358,19 +358,19 @@ jobs:
       # directories so the second download doesn't overwrite the first; then
       # combine into a single canonical SHA256SUMS.txt for the release.
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-build
           path: artifacts-win
 
       - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-build
           path: artifacts-linux
 
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macos-build
           path: artifacts-macos
