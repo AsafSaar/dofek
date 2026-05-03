@@ -9,6 +9,16 @@
 
 > *Dofek* (Hebrew: דּוֹפֶק) means "pulse" or "heartbeat"
 
+<video
+  src="https://github.com/AsafSaar/dofek/releases/download/v1.5.1/dofek-hero.mp4"
+  poster="website/dofek-hero-poster.jpg"
+  controls muted playsinline
+  width="100%">
+  <a href="https://dofek.dev">Watch the 60-second walkthrough on dofek.dev</a>
+</video>
+
+> ▶ Walkthrough: variance, AI awareness, cross-platform, plugins, and tray. Also embedded inline at [dofek.dev](https://dofek.dev).
+
 Most system monitors were designed before LLMs ran locally. They treat GPU as an afterthought and VRAM as a footnote. Dofek is built for the developer who has `ollama` running in the background, is watching a model load into VRAM, and needs to know at a glance whether their system can handle the next task.
 
 ## Screenshots
@@ -93,7 +103,7 @@ Pre-built binaries are published on the [Releases page](https://github.com/AsafS
 Intel Macs are not supported in this release.
 
 > 🍎 **First launch on macOS — "Dofek.app is damaged and can't be opened."**
-> That message is misleading: the app isn't damaged, it's just unsigned, and your browser tagged the DMG with a quarantine flag on download. Strip the flag once and it launches normally:
+> Only applies if you downloaded the `.dmg` directly from the browser — `brew install --cask AsafSaar/dofek/dofek` skips this entirely (curl downloads don't carry the quarantine attribute). For manual downloads, the message is misleading: the app isn't damaged, it's just unsigned, and your browser tagged the DMG with a quarantine flag on download. Strip the flag once and it launches normally:
 > ```sh
 > xattr -dr com.apple.quarantine /Applications/Dofek.app
 > ```
@@ -140,6 +150,24 @@ Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 - **Linux GUI** — the tray menu attaches ~1.5 s after launch (deferred to dodge a libayatana-appindicator dbusmenu race against the GNOME AppIndicator extension that otherwise renders the menu items blank). The icon and left-click toggle work immediately. Idle CPU on the WebKitGTK process sits in the low single-digit % range while the window is visible and drops near zero when minimised or closed-to-tray.
 
 ## Install
+
+### Package managers
+
+**macOS** — [Homebrew tap](https://github.com/AsafSaar/homebrew-dofek):
+
+```bash
+# CLI bundle (TUI + plugins) — installs dofek-tui, dofek-ollama, dofek-docker, dofek-net-ping
+brew install AsafSaar/dofek/dofek
+
+# Desktop GUI app — installs Dofek.app to /Applications
+brew install --cask AsafSaar/dofek/dofek
+```
+
+Apple Silicon only.
+
+**Windows** — `winget` package coming once [PR #368026](https://github.com/microsoft/winget-pkgs/pull/368026) merges. Until then, grab the `.msi` from the [Releases page](https://github.com/AsafSaar/dofek/releases/latest).
+
+**Linux** — no package-manager channel yet. Use the `.deb`, `.rpm`, or `.AppImage` from [Releases](https://github.com/AsafSaar/dofek/releases/latest).
 
 ### From source
 
@@ -553,14 +581,14 @@ LHM fallback ──> GPU sensors (if NVML unavailable) ────────�
 
 | Component | Crate | Version |
 |-----------|-------|---------|
-| TUI framework | ratatui | 0.29 |
+| TUI framework | ratatui | 0.30 |
 | Terminal backend | crossterm | 0.28 |
-| System info | sysinfo | 0.33 |
-| NVIDIA GPU | nvml-wrapper | 0.10 |
+| System info | sysinfo | 0.38 |
+| NVIDIA GPU | nvml-wrapper | 0.12 |
 | HTTP client | ureq | 2 |
 | Config | toml + clap | 0.8 / 4 |
 | Serialization | serde + serde_json | 1 |
-| Win32 API (Windows only) | windows | 0.58 |
+| Win32 API (Windows only) | windows | 0.61 |
 | POSIX signals (Unix only) | nix | 0.29 |
 | Local time formatting | chrono | 0.4 |
 | Error handling | anyhow | 1 |
@@ -588,7 +616,8 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v1.3** — System-tray companion (live CPU sparkline icon, close-to-tray default, right-click Show/Hide/Settings/Quit on Windows + macOS, icon-only on Linux, macOS menu-bar text); Linux CPU power via RAPL (`/sys/class/powercap/intel-rapl:0`); cross-platform disk I/O metrics with new `DISK` chart tab and ticker pill; backend → frontend snapshot push (Tauri events) replacing per-second IPC polling for lower WebKitGTK CPU on Linux
 - **v1.4** — Notify-only "check for updates" across TUI (`u` key) and GUI (Check now button + topbar update pill), with opt-in startup probe; 3-mode tray display (chart only / chart + text / text only); rebrand of all user-facing display strings from "dofek" to "Dofek" while keeping every identifier (crate names, binaries, paths, URLs, bundle ID) untouched
 - **v1.5** (current) — Managed plugin store: install plugins via the GUI's Settings → Plugins panel (native file picker) or `dofek-tui plugins {list,add,remove,enable,disable}`, with binaries copied into `<config_dir>/dofek/plugins/` and registered in a managed `plugins.toml`; manifest probed automatically; macOS quarantine xattr cleared on install; data collector watches `plugins.toml` mtime and hot-reloads the plugin manager so installs/removes take effect without restart; settings dialog redesigned into a two-pane Shortcuts / Settings layout; new `dofek-plugin-protocol` workspace crate so external plugin authors share canonical serde types; per-plugin READMEs for `dofek-ollama` + `dofek-docker`; build-all scripts now also build the plugin binaries
-- **v1.6+** — Curated plugin registry (one-click install of official plugins from dofek.dev), code signing for binaries, AMD GPU VRAM, GPU/VRAM/CPU-temp on macOS, Intel-Mac and Linux-aarch64 builds, AMD CPU power (`amd_energy`)
+- **v1.5.x** (in flight) — Distribution channels: Homebrew tap live at [`AsafSaar/homebrew-dofek`](https://github.com/AsafSaar/homebrew-dofek) (`brew install AsafSaar/dofek/dofek` for CLI, `brew install --cask AsafSaar/dofek/dofek` for GUI); winget submission in review at [winget-pkgs#368026](https://github.com/microsoft/winget-pkgs/pull/368026); 60-second Remotion launch video embedded on dofek.dev; CTA video updated to surface real install commands as channels go live
+- **v1.6+** — Code signing + notarization on macOS and Authenticode on Windows (eliminates Gatekeeper / SmartScreen friction across all install paths); curated plugin registry (one-click install of official plugins from dofek.dev); AMD GPU VRAM; GPU/VRAM/CPU-temp on macOS; Intel-Mac and Linux-aarch64 builds; AMD CPU power (`amd_energy`); apt repo at apt.dofek.dev for `apt install dofek`
 
 ## License
 
