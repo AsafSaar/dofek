@@ -26,6 +26,8 @@ cargo build-gui                    # → target/release/dofek-gui[.exe] + native
 ./build-all.sh                     # Linux   → target/release/bundle/{deb,rpm,appimage}/dofek_*
 ```
 
+The GUI bundles the TUI binary as a Tauri sidecar (`externalBin` in `gui/tauri.conf.json`), which must exist as `target/release/dofek-tui-<target-triple>` before the GUI build script runs. `cargo gui` and `cargo build-gui` prepare it automatically via Tauri `beforeDevCommand`/`beforeBuildCommand` hooks that run `gui/prep-sidecar.sh` (Unix) or `gui/prep-sidecar.ps1` (Windows, via `gui/tauri.windows.conf.json`); these build the release TUI and copy it to the triple-suffixed name. The hooks anchor to the git repo root (`git rev-parse --show-toplevel`) because Tauri's hook working directory is not the repo root. No manual prep step is needed.
+
 **Prerequisites:** Rust toolchain (stable, edition 2024), Tauri CLI (`cargo install tauri-cli --version "^2"`) for GUI builds, plus per-OS:
 - **Windows:** Visual Studio Build Tools with C++ workload.
 - **Linux (apt):** `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev` — and `rpm` if you want `.rpm` bundles.

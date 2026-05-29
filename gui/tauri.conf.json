@@ -4,7 +4,9 @@
   "version": "1.5.1",
   "identifier": "com.dofek.app",
   "build": {
-    "frontendDist": "frontend"
+    "frontendDist": "frontend",
+    "beforeDevCommand": "bash \"$(git rev-parse --show-toplevel)/gui/prep-sidecar.sh\"",
+    "beforeBuildCommand": "bash \"$(git rev-parse --show-toplevel)/gui/prep-sidecar.sh\""
   },
   "bundle": {
     "active": true,
