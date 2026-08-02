@@ -6,6 +6,7 @@ pub mod network;
 pub mod process;
 #[cfg(target_os = "linux")]
 pub mod rapl;
+pub mod rate;
 pub mod sysinfo_source;
 
 use crate::config::{Config, PluginConfig};
@@ -39,7 +40,9 @@ pub struct DataSnapshot {
     pub hostname: String,
     #[serde(skip)]
     pub timestamp: Instant,
-    #[serde(skip)]
+    /// Serialized since v1.7 so the GUI can render a live plugin dock. The
+    /// payload is bounded at ingest by `plugin::sanitize`, and every GUI sink
+    /// that touches it writes through `textContent`.
     pub plugin_statuses: Vec<PluginStatus>,
 }
 
@@ -70,16 +73,60 @@ fn read_mtime(path: Option<&std::path::Path>) -> Option<std::time::SystemTime> {
     std::fs::metadata(p).ok().and_then(|m| m.modified().ok())
 }
 
-/// Spawn the data collector thread. Returns a receiver for snapshots.
+/// Handle for stopping the collector thread and waiting for it to finish.
+///
+/// Needed because plugin children are put in their own session
+/// (`plugin::process`), which is what lets dofek reap a plugin's own
+/// grandchildren — but also means they no longer receive the terminal's
+/// job-control signals. Without an explicit teardown, quitting dofek would
+/// leave every plugin running. The collector owns the `PluginManager`, so this
+/// is the only place that teardown can be triggered from.
+pub struct CollectorHandle {
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    /// Dropping this wakes the collector out of its inter-tick sleep, so
+    /// shutdown costs one in-flight tick rather than a full refresh interval.
+    wake: Option<mpsc::Sender<()>>,
+    join: Option<thread::JoinHandle<()>>,
+}
+
+impl CollectorHandle {
+    /// Stop collecting and tear down every plugin. Bounded: one in-flight tick
+    /// plus the plugin grace period (plugins tear down concurrently).
+    pub fn shutdown(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        self.wake = None;
+        if let Some(h) = self.join.take()
+            && h.join().is_err()
+        {
+            log::warn!("collector thread panicked during shutdown");
+        }
+    }
+}
+
+impl Drop for CollectorHandle {
+    fn drop(&mut self) {
+        self.shutdown();
+    }
+}
+
+/// Spawn the data collector thread. Returns a receiver for snapshots and a
+/// handle for shutting it down.
 ///
 /// The polling interval is read from `refresh_ms` on every loop iteration so
 /// runtime changes (TUI `+`/`-` keys) take effect on the next sleep without
 /// needing to respawn the thread. `config.general.refresh_ms` is ignored —
 /// the caller is responsible for seeding the atomic from it.
-pub fn spawn_collector(config: Config, refresh_ms: Arc<AtomicU64>) -> mpsc::Receiver<DataSnapshot> {
+pub fn spawn_collector(
+    config: Config,
+    refresh_ms: Arc<AtomicU64>,
+) -> (mpsc::Receiver<DataSnapshot>, CollectorHandle) {
     let (tx, rx) = mpsc::channel();
+    let (wake, wake_rx) = mpsc::channel::<()>();
+    let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let thread_stop = Arc::clone(&stop);
 
-    thread::spawn(move || {
+    let join = thread::spawn(move || {
+        let stop = thread_stop;
         let mut net_tracker = NetworkTracker::default();
         let mut disk_tracker = DiskTracker::default();
         let nvml = NvmlState::init();
@@ -118,6 +165,10 @@ pub fn spawn_collector(config: Config, refresh_ms: Arc<AtomicU64>) -> mpsc::Rece
         let mut rapl = rapl::RaplTracker::default();
 
         loop {
+            if stop.load(Ordering::Relaxed) {
+                break;
+            }
+
             // Hot-reload plugins if the managed plugins.toml has been touched
             // since the last tick. Cheap (one stat call) so it runs every
             // poll. The replace path sends shutdown to old children, kills
@@ -223,16 +274,27 @@ pub fn spawn_collector(config: Config, refresh_ms: Arc<AtomicU64>) -> mpsc::Rece
                 }
             }
 
-            // Poll plugins with process context
-            let proc_context: Vec<ProcessContext> = processes
-                .iter()
-                .map(|p| ProcessContext {
-                    pid: p.pid,
-                    name: p.name.clone(),
-                    vram_bytes: p.vram_bytes,
-                })
-                .collect();
-            let plugin_statuses = plugin_manager.poll_all(&proc_context);
+            // Publish the process context and collect plugin status. `tick` is
+            // non-blocking: each plugin runs on its own supervisor thread, so a
+            // wedged plugin no longer stalls this loop (and with it every
+            // metric in both UIs).
+            //
+            // The context itself is ~500 `String` clones, so it is built only
+            // when something is actually going to read it — it used to be built
+            // on every tick of every install, plugins or not.
+            let plugin_statuses = if plugin_manager.has_plugins() {
+                let proc_context: Vec<ProcessContext> = processes
+                    .iter()
+                    .map(|p| ProcessContext {
+                        pid: p.pid,
+                        name: p.name.clone(),
+                        vram_bytes: p.vram_bytes,
+                    })
+                    .collect();
+                plugin_manager.tick(proc_context)
+            } else {
+                Vec::new()
+            };
 
             // Apply plugin process annotations
             for status in &plugin_statuses {
@@ -278,12 +340,126 @@ pub fn spawn_collector(config: Config, refresh_ms: Arc<AtomicU64>) -> mpsc::Rece
             };
 
             if tx.send(snapshot).is_err() {
-                return; // Main thread dropped, exit
+                break; // Main thread dropped
             }
 
-            thread::sleep(Duration::from_millis(refresh_ms.load(Ordering::Relaxed)));
+            // `recv_timeout` rather than `sleep` so a shutdown doesn't have to
+            // wait out a full refresh interval — which the user can set as high
+            // as they like.
+            match wake_rx.recv_timeout(Duration::from_millis(refresh_ms.load(Ordering::Relaxed))) {
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                // Either an explicit wake or the handle was dropped: stop.
+                _ => break,
+            }
         }
+
+        // Explicit rather than relying on drop order, because this is the step
+        // that stops every plugin child process.
+        plugin_manager.shutdown();
     });
 
-    rx
+    (
+        rx,
+        CollectorHandle {
+            stop,
+            wake: Some(wake),
+            join: Some(join),
+        },
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::plugin::PluginState;
+    use crate::plugin::protocol::{Panel, PanelEntry, PollResponse};
+
+    fn snapshot_with_plugin() -> DataSnapshot {
+        DataSnapshot {
+            plugin_statuses: vec![PluginStatus {
+                name: "ollama".into(),
+                display_name: "Ollama".into(),
+                state: PluginState::Unhealthy,
+                response: Some(PollResponse {
+                    panels: vec![Panel {
+                        id: "models".into(),
+                        label: "Models".into(),
+                        content: vec![PanelEntry {
+                            key: "loaded".into(),
+                            value: "llama3:8b".into(),
+                            style: "accent".into(),
+                        }],
+                    }],
+                    ..Default::default()
+                }),
+            }],
+            processes: vec![process::ProcessInfo {
+                pid: 42,
+                name: "ollama".into(),
+                cpu_percent: 1.0,
+                memory_bytes: 0,
+                vram_bytes: None,
+                is_ai_workload: true,
+                ai_state: process::AiState::Inferring,
+                category: process::ProcessCategory::Ai,
+                plugin_label: Some("llama3:8b".into()),
+            }],
+            ..Default::default()
+        }
+    }
+
+    /// `plugin_statuses` carried `#[serde(skip)]` until v1.7, so the GUI dock
+    /// could only ever be static markup. Dropping the attribute is the whole
+    /// premise of PR 5 — this is the guard against it coming back.
+    #[test]
+    fn plugin_statuses_reach_the_wire() {
+        let json = serde_json::to_value(snapshot_with_plugin()).expect("snapshot serializes");
+        let statuses = json["plugin_statuses"]
+            .as_array()
+            .expect("plugin_statuses must be serialized, not skipped");
+        assert_eq!(statuses.len(), 1);
+        assert_eq!(statuses[0]["display_name"], "Ollama");
+        assert_eq!(
+            statuses[0]["response"]["panels"][0]["content"][0]["value"],
+            "llama3:8b",
+            "panel content must survive serialization — it is what the dock renders"
+        );
+    }
+
+    /// The GUI keys its dot colours off these strings, so the wire form is
+    /// part of the contract, not an implementation detail of the enum.
+    #[test]
+    fn plugin_state_serializes_lowercase() {
+        let json = serde_json::to_value(snapshot_with_plugin()).unwrap();
+        assert_eq!(json["plugin_statuses"][0]["state"], "unhealthy");
+
+        for (state, expected) in [
+            (PluginState::Starting, "starting"),
+            (PluginState::Healthy, "healthy"),
+            (PluginState::Unhealthy, "unhealthy"),
+            (PluginState::Crashed, "crashed"),
+        ] {
+            assert_eq!(serde_json::to_value(state).unwrap(), expected);
+            // The Display impl and the wire form must not drift apart.
+            assert_eq!(state.to_string(), expected);
+        }
+    }
+
+    /// `plugin_label` was serialized all along but never rendered. Now that
+    /// both UIs draw it, it needs to survive the trip.
+    #[test]
+    fn plugin_label_reaches_the_wire() {
+        let json = serde_json::to_value(snapshot_with_plugin()).unwrap();
+        assert_eq!(json["processes"][0]["plugin_label"], "llama3:8b");
+    }
+
+    /// `skip_serializing_if` keeps the common case off the wire — ~500
+    /// processes a second, almost none of them labelled.
+    #[test]
+    fn unlabelled_processes_carry_no_label_key() {
+        let mut snap = snapshot_with_plugin();
+        snap.processes[0].plugin_label = None;
+        let json = serde_json::to_value(snap).unwrap();
+        assert!(json["processes"][0].get("plugin_label").is_none());
+    }
 }

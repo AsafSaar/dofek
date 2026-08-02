@@ -6,6 +6,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Sparkline, Widget, Wrap};
 use ratatui::Frame;
 
 use crate::app::App;
+use crate::ui::text::truncate;
 use crate::ui::theme;
 
 /// Render the bottom compact strip: CPU cores | GPU | MEM | NET.
@@ -421,15 +422,5 @@ impl Widget for ColorBar {
                 }
             }
         }
-    }
-}
-
-fn truncate(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else if max_len > 3 {
-        format!("{}...", &s[..max_len - 3])
-    } else {
-        s[..max_len].to_string()
     }
 }

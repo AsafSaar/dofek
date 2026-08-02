@@ -5,6 +5,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Sparkline};
 use ratatui::Frame;
 
 use crate::app::App;
+use crate::ui::text::truncate;
 use crate::ui::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
@@ -89,15 +90,5 @@ fn format_bytes_rate(bytes_per_sec: f64) -> String {
         format!("{:.1} KB/s", bytes_per_sec / 1024.0)
     } else {
         format!("{:.0} B/s", bytes_per_sec)
-    }
-}
-
-fn truncate(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else if max_len > 3 {
-        format!("{}...", &s[..max_len - 3])
-    } else {
-        s[..max_len].to_string()
     }
 }

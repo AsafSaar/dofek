@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use std::io::Read;
 
 /// Node in the LibreHardwareMonitor JSON tree.
 #[derive(Deserialize, Debug, Clone)]
@@ -66,6 +67,11 @@ pub fn parse_lhm_value(s: &str) -> Option<f32> {
     numeric.parse().ok()
 }
 
+/// Upper bound on a `data.json` body. A real LHM tree is tens of kilobytes;
+/// this is only here so a wrong or hostile `lhm.url` can't stream unbounded
+/// data into memory on every poll.
+const MAX_LHM_BODY_BYTES: u64 = 8 * 1024 * 1024;
+
 /// Fetch and parse the LHM data.json tree.
 pub fn fetch_lhm_data(base_url: &str) -> Result<LhmNode> {
     let url = format!("{}/data.json", base_url.trim_end_matches('/'));
@@ -73,8 +79,17 @@ pub fn fetch_lhm_data(base_url: &str) -> Result<LhmNode> {
         .timeout(std::time::Duration::from_secs(2))
         .call()
         .with_context(|| format!("Failed to connect to LHM at {url}"))?;
-    let body = response.into_string()
+    // `into_string()` reads to EOF with no limit. Cap it instead: a truncated
+    // body fails to parse as JSON, which is the correct outcome.
+    let mut body = String::new();
+    response
+        .into_reader()
+        .take(MAX_LHM_BODY_BYTES)
+        .read_to_string(&mut body)
         .context("Failed to read LHM response body")?;
+    if body.len() as u64 >= MAX_LHM_BODY_BYTES {
+        anyhow::bail!("LHM response exceeded {MAX_LHM_BODY_BYTES} bytes — refusing to parse");
+    }
     let node: LhmNode = serde_json::from_str(&body)
         .context("Failed to parse LHM JSON response")?;
     Ok(node)
@@ -219,6 +234,154 @@ fn extract_single_gpu(gpu_node: &LhmNode) -> Option<GpuSensors> {
         temperature,
         power_watts,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_values_with_units() {
+        assert_eq!(parse_lhm_value("64.3 %"), Some(64.3));
+        assert_eq!(parse_lhm_value("1200 MHz"), Some(1200.0));
+        assert_eq!(parse_lhm_value("45.0 °C"), Some(45.0));
+        assert_eq!(parse_lhm_value("12 W"), Some(12.0));
+        assert_eq!(parse_lhm_value("0.5"), Some(0.5));
+        assert_eq!(parse_lhm_value("  7.25 GB  "), Some(7.25));
+        assert_eq!(parse_lhm_value("-5 °C"), Some(-5.0));
+    }
+
+    /// Some LHM locales emit a comma decimal separator.
+    #[test]
+    fn parses_comma_decimal_separator() {
+        assert_eq!(parse_lhm_value("64,3 %"), Some(64.3));
+        assert_eq!(parse_lhm_value("1,5 GB"), Some(1.5));
+    }
+
+    #[test]
+    fn rejects_unparseable_values() {
+        // LHM's "no reading" sentinel, and assorted junk.
+        assert_eq!(parse_lhm_value("-"), None);
+        assert_eq!(parse_lhm_value(""), None);
+        assert_eq!(parse_lhm_value("   "), None);
+        assert_eq!(parse_lhm_value("N/A"), None);
+        assert_eq!(parse_lhm_value("MHz"), None);
+        // Leading unit means nothing numeric gets taken.
+        assert_eq!(parse_lhm_value("%64.3"), None);
+        // Malformed numerics must not panic on the way to None.
+        assert_eq!(parse_lhm_value("1.2.3"), None);
+        assert_eq!(parse_lhm_value("--"), None);
+        assert_eq!(parse_lhm_value("."), None);
+    }
+
+    fn node(text: &str, value: Option<&str>, children: Vec<LhmNode>) -> LhmNode {
+        LhmNode {
+            id: 0,
+            text: text.to_string(),
+            children,
+            min: None,
+            max: None,
+            value: value.map(str::to_string),
+            image_url: None,
+        }
+    }
+
+    fn sample_tree() -> LhmNode {
+        node(
+            "Sensor",
+            None,
+            vec![node(
+                "MYPC",
+                None,
+                vec![node(
+                    "Intel Core i9-13900K",
+                    None,
+                    vec![
+                        node(
+                            "Load",
+                            None,
+                            vec![
+                                node("CPU Total", Some("42.5 %"), vec![]),
+                                node("CPU Core #1", Some("31.0 %"), vec![]),
+                            ],
+                        ),
+                        node("Temperatures", None, vec![node("Core Max", Some("71 °C"), vec![])]),
+                    ],
+                )],
+            )],
+        )
+    }
+
+    #[test]
+    fn find_path_walks_the_tree_case_insensitively() {
+        let root = sample_tree();
+
+        let total = root.find_path(&["MYPC", "Intel", "Load", "CPU Total"]).unwrap();
+        assert_eq!(total.value_f32(), Some(42.5));
+
+        // Matching is a case-insensitive substring, not an exact compare.
+        let same = root.find_path(&["mypc", "intel core", "load", "cpu total"]).unwrap();
+        assert_eq!(same.text, total.text);
+
+        // An empty path is the node itself.
+        assert_eq!(root.find_path(&[]).unwrap().text, "Sensor");
+    }
+
+    #[test]
+    fn find_path_returns_none_for_a_missing_segment() {
+        let root = sample_tree();
+        assert!(root.find_path(&["MYPC", "AMD"]).is_none());
+        assert!(root.find_path(&["MYPC", "Intel", "Load", "GPU Total"]).is_none());
+        // A missing segment mid-path fails the whole walk.
+        assert!(root.find_path(&["MYPC", "nope", "Load"]).is_none());
+    }
+
+    #[test]
+    fn extracts_cpu_sensors_from_a_realistic_tree() {
+        let cpu = extract_cpu(&sample_tree()).expect("CPU node should be found");
+        assert_eq!(cpu.name, "Intel Core i9-13900K");
+        assert_eq!(cpu.total_load, 42.5);
+        assert_eq!(cpu.per_core_load, vec![31.0]);
+        assert_eq!(cpu.temperature, Some(71.0));
+        assert_eq!(cpu.power, None);
+    }
+
+    /// `LhmNode` is recursive, so a hostile or corrupt `data.json` could try to
+    /// blow the stack during deserialization. serde_json enforces a depth limit,
+    /// which must surface as an `Err` rather than a crash — dofek fetches this
+    /// from a network endpoint whose URL is user-configurable.
+    #[test]
+    fn deeply_nested_json_errors_instead_of_overflowing_the_stack() {
+        const DEPTH: usize = 10_000;
+        let mut json = String::with_capacity(DEPTH * 40);
+        for _ in 0..DEPTH {
+            json.push_str(r#"{"id":0,"Text":"x","Children":["#);
+        }
+        json.push_str(r#"{"id":0,"Text":"leaf"}"#);
+        for _ in 0..DEPTH {
+            json.push_str("]}");
+        }
+
+        let parsed = serde_json::from_str::<LhmNode>(&json);
+        assert!(parsed.is_err(), "10k-deep JSON should be rejected, not parsed");
+    }
+
+    #[test]
+    fn missing_optional_fields_deserialize() {
+        // Only `id` and `Text` are required; everything else defaults.
+        let n: LhmNode = serde_json::from_str(r#"{"id":7,"Text":"bare"}"#).unwrap();
+        assert_eq!(n.id, 7);
+        assert!(n.children.is_empty());
+        assert_eq!(n.value_f32(), None);
+    }
+
+    #[test]
+    fn extract_helpers_tolerate_an_empty_tree() {
+        let empty = node("Sensor", None, vec![]);
+        assert!(extract_cpu(&empty).is_none());
+        assert!(extract_memory(&empty).is_none());
+        assert!(extract_gpus(&empty).is_empty());
+    }
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]

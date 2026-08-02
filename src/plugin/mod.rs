@@ -1,15 +1,37 @@
+//! Plugin system: spawn, supervise, poll and tear down JSON-over-stdio child
+//! processes.
+//!
+//! The runtime is split three ways so that nothing a plugin does can reach the
+//! collector thread:
+//!
+//! * [`process`] owns the OS contract — spawning contained, bounded reads off a
+//!   dedicated thread, draining stderr, killing a process group.
+//! * [`worker`] owns one plugin's lifecycle — cadence, timeout, health,
+//!   backoff — on a supervisor thread of its own.
+//! * [`sanitize`] bounds every string and collection a plugin sends, at ingest.
+//!
+//! [`PluginManager`] is only a fan-out point: it swaps the shared process
+//! context, nudges each supervisor, and reads back the last-known status. It
+//! never waits on a plugin.
+
 pub mod cli;
 pub mod process;
 pub mod protocol;
+pub mod sanitize;
 pub mod store;
+pub mod worker;
 
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex};
 
 use crate::config::PluginConfig;
-use process::PluginProcess;
-use protocol::{PollRequest, PollResponse, ProcessContext};
+use protocol::{PollResponse, ProcessContext};
+use worker::{PluginWorker, SharedContext};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Serialized lowercase so the JSON matches the `Display` impl (and the
+/// protocol's own `status` strings) rather than the Rust variant spelling —
+/// the GUI keys its dot colours off these values.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum PluginState {
     Starting,
     Healthy,
@@ -28,134 +50,14 @@ impl std::fmt::Display for PluginState {
     }
 }
 
-/// Runtime state for a single plugin instance.
-struct PluginInstance {
-    config: PluginConfig,
-    process: Option<PluginProcess>,
-    state: PluginState,
-    last_response: Option<PollResponse>,
-    manifest: Option<protocol::PluginManifest>,
-    consecutive_errors: u32,
-    crash_count: u32,
-    last_crash: Option<Instant>,
-}
-
-impl PluginInstance {
-    fn new(config: PluginConfig) -> Self {
-        Self {
-            config,
-            process: None,
-            state: PluginState::Starting,
-            last_response: None,
-            manifest: None,
-            consecutive_errors: 0,
-            crash_count: 0,
-            last_crash: None,
-        }
-    }
-
-    fn backoff_duration(&self) -> Duration {
-        let secs = match self.crash_count {
-            0 => 1,
-            1 => 2,
-            2 => 4,
-            3 => 8,
-            4 => 16,
-            _ => 30,
-        };
-        Duration::from_secs(secs)
-    }
-
-    fn should_respawn(&self) -> bool {
-        match self.last_crash {
-            Some(t) => t.elapsed() >= self.backoff_duration(),
-            None => true,
-        }
-    }
-
-    fn spawn(&mut self) {
-        match PluginProcess::spawn(&self.config.command, &self.config.args) {
-            Ok(proc) => {
-                self.process = Some(proc);
-                self.state = PluginState::Starting;
-                self.consecutive_errors = 0;
-                log::info!("Plugin '{}' spawned (command: {})", self.config.name, self.config.command);
-            }
-            Err(e) => {
-                log::error!("Failed to spawn plugin '{}': {e}", self.config.name);
-                self.state = PluginState::Crashed;
-                self.crash_count += 1;
-                self.last_crash = Some(Instant::now());
-            }
-        }
-    }
-
-    fn poll(&mut self, request: &PollRequest) {
-        let proc = match self.process.as_mut() {
-            Some(p) => p,
-            None => return,
-        };
-
-        // Check if process is still alive
-        if !proc.is_alive() {
-            log::warn!("Plugin '{}' process died", self.config.name);
-            self.process = None;
-            self.state = PluginState::Crashed;
-            self.crash_count += 1;
-            self.last_crash = Some(Instant::now());
-            return;
-        }
-
-        let timeout = Duration::from_millis(self.config.timeout_ms);
-        match proc.poll(request, timeout) {
-            Ok(response) => {
-                // Capture manifest on first successful response
-                if self.manifest.is_none()
-                    && let Some(ref manifest) = response.manifest
-                {
-                    log::info!(
-                        "Plugin '{}' identified: {} v{}",
-                        self.config.name,
-                        manifest.name,
-                        manifest.version
-                    );
-                    self.manifest = Some(manifest.clone());
-                }
-
-                self.last_response = Some(response);
-                self.consecutive_errors = 0;
-                self.state = PluginState::Healthy;
-            }
-            Err(e) => {
-                self.consecutive_errors += 1;
-                log::debug!(
-                    "Plugin '{}' poll error ({}/5): {e}",
-                    self.config.name,
-                    self.consecutive_errors
-                );
-                if self.consecutive_errors >= 5 {
-                    self.state = PluginState::Unhealthy;
-                }
-            }
-        }
-    }
-
-    fn shutdown(&mut self) {
-        if let Some(ref mut proc) = self.process {
-            proc.send_shutdown();
-        }
-    }
-
-    fn kill(&mut self) {
-        if let Some(ref mut proc) = self.process {
-            proc.kill();
-        }
-        self.process = None;
-    }
-}
-
 /// Summary of a plugin's current state, sent to the UI layer.
-#[derive(Debug, Clone)]
+///
+/// Serialized into `DataSnapshot` for the GUI. Safe to expose because the
+/// contained `PollResponse` has already been through `sanitize::response` at
+/// ingest — bounded panels/entries/metrics, capped string lengths, control
+/// characters stripped — so the payload is a few KB regardless of what the
+/// plugin sent.
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PluginStatus {
     pub name: String,
     pub display_name: String,
@@ -163,112 +65,85 @@ pub struct PluginStatus {
     pub response: Option<PollResponse>,
 }
 
-/// Manages all plugin instances: spawn, poll, restart, shutdown.
+/// Owns one supervisor per configured plugin.
 pub struct PluginManager {
-    plugins: Vec<PluginInstance>,
+    workers: Vec<PluginWorker>,
+    ctx: SharedContext,
 }
 
 impl PluginManager {
-    /// Create a new PluginManager from config. Spawns all enabled plugins.
+    /// Start a supervisor for every enabled plugin in `configs`.
+    ///
+    /// Returns immediately — each child is spawned on its own supervisor
+    /// thread. Previously this spawned every plugin inline, so a plugin whose
+    /// binary was on a slow or missing network path delayed dofek's startup.
     pub fn new(configs: &[PluginConfig]) -> Self {
-        let mut plugins: Vec<PluginInstance> = configs
+        let ctx: SharedContext = Arc::new(Mutex::new(Arc::new(Vec::new())));
+        let workers = configs
             .iter()
             .filter(|c| c.enabled)
-            .map(|c| PluginInstance::new(c.clone()))
+            .map(|c| PluginWorker::start(c.clone(), Arc::clone(&ctx)))
             .collect();
-
-        // Initial spawn
-        for plugin in &mut plugins {
-            plugin.spawn();
-        }
-
-        Self { plugins }
+        Self { workers, ctx }
     }
 
-    /// Poll all plugins with the current process context. Call this once per refresh cycle.
-    pub fn poll_all(&mut self, processes: &[ProcessContext]) -> Vec<PluginStatus> {
-        let timestamp_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64;
-
-        let request = PollRequest::new(timestamp_ms, processes.to_vec());
-
-        for plugin in &mut self.plugins {
-            match plugin.state {
-                PluginState::Crashed if plugin.should_respawn() => {
-                    log::info!("Respawning plugin '{}' (attempt {})", plugin.config.name, plugin.crash_count + 1);
-                    plugin.spawn();
-                    if plugin.process.is_some() {
-                        plugin.poll(&request);
-                    }
-                }
-                PluginState::Starting | PluginState::Healthy | PluginState::Unhealthy => {
-                    plugin.poll(&request);
-                }
-                _ => {} // Crashed, waiting for backoff
-            }
-        }
-
-        self.statuses()
-    }
-
-    /// Get current status of all plugins.
-    fn statuses(&self) -> Vec<PluginStatus> {
-        self.plugins
-            .iter()
-            .map(|p| {
-                let display_name = p
-                    .manifest
-                    .as_ref()
-                    .map(|m| m.name.clone())
-                    .unwrap_or_else(|| p.config.name.clone());
-                PluginStatus {
-                    name: p.config.name.clone(),
-                    display_name,
-                    state: p.state,
-                    response: p.last_response.clone(),
-                }
-            })
-            .collect()
-    }
-
-    /// Graceful shutdown: send shutdown message, wait briefly, then kill.
-    pub fn shutdown(&mut self) {
-        for plugin in &mut self.plugins {
-            plugin.shutdown();
-        }
-
-        // Give plugins 2 seconds to exit gracefully
-        std::thread::sleep(Duration::from_secs(2));
-
-        for plugin in &mut self.plugins {
-            plugin.kill();
-        }
-    }
-
-    /// Hot-reload the plugin set without blocking the collector for a full
-    /// 2-second graceful-shutdown window. Used when the user installs /
-    /// removes / toggles a plugin via the GUI or `dofek-tui plugins ...` and
-    /// `plugins.toml` changes on disk.
+    /// Publish this cycle's process list and collect what every plugin last
+    /// reported. Call once per refresh.
     ///
-    /// Old children are sent `shutdown`, given 200 ms to comply, then killed
-    /// — that's enough for our own well-behaved plugins and bounded enough
-    /// that a reload only causes a single missed snapshot. The new manager
-    /// then spawns from the supplied config the same way `new()` does.
+    /// Non-blocking by construction: one lock to swap the shared context, one
+    /// per plugin to read its status, and a `try_send` nudge that is dropped if
+    /// that supervisor is still busy. Nothing here waits on a child process, so
+    /// a hung plugin costs the collector nothing.
+    ///
+    /// Takes the list by value so the common case is zero clones: the collector
+    /// builds it once, and every supervisor borrows from the same `Arc`.
+    pub fn tick(&self, processes: Vec<ProcessContext>) -> Vec<PluginStatus> {
+        if self.workers.is_empty() {
+            return Vec::new();
+        }
+        let shared = Arc::new(processes);
+        match self.ctx.lock() {
+            Ok(mut g) => *g = shared,
+            Err(p) => *p.into_inner() = shared,
+        }
+        for w in &self.workers {
+            w.nudge();
+        }
+        self.workers.iter().map(PluginWorker::status).collect()
+    }
+
+    /// Stop every plugin. Signals all supervisors first, then joins them, so
+    /// teardown costs roughly the slowest plugin rather than the sum — the old
+    /// implementation slept a flat 2 seconds on the collector thread.
+    pub fn shutdown(&mut self) {
+        for w in &mut self.workers {
+            w.stop_signal();
+        }
+        for w in &mut self.workers {
+            w.join();
+        }
+        self.workers.clear();
+    }
+
+    /// Swap the plugin set in place. Used when the user installs, removes or
+    /// toggles a plugin via the GUI or `dofek-tui plugins ...` and
+    /// `plugins.toml` changes on disk.
     pub fn replace(&mut self, configs: &[PluginConfig]) {
-        for plugin in &mut self.plugins {
-            plugin.shutdown();
-        }
-        std::thread::sleep(Duration::from_millis(200));
-        for plugin in &mut self.plugins {
-            plugin.kill();
-        }
+        self.shutdown();
         *self = PluginManager::new(configs);
     }
 
-    /// Returns true if any plugins are configured.
+    /// Whether any plugin is configured. The collector checks this before
+    /// building the per-tick process context at all — that context is ~500
+    /// `String` clones a second, and until now it was built on every tick of
+    /// every install regardless of whether a plugin existed to read it.
     pub fn has_plugins(&self) -> bool {
-        !self.plugins.is_empty()
+        !self.workers.is_empty()
+    }
+}
+
+impl Drop for PluginManager {
+    fn drop(&mut self) {
+        self.shutdown();
     }
 }

@@ -6,6 +6,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Sparkline, Widget};
 use ratatui::Frame;
 
 use crate::app::App;
+use crate::ui::text::truncate;
 use crate::ui::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
@@ -13,7 +14,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         .title(Line::from(vec![
             Span::styled(" CPU ", Style::default().fg(theme::CPU_COLOR).add_modifier(Modifier::BOLD)),
             Span::styled(
-                truncate_str(&app.data.cpu.name, area.width.saturating_sub(20) as usize),
+                truncate(&app.data.cpu.name, area.width.saturating_sub(20) as usize),
                 Style::default().fg(theme::TEXT_SECONDARY),
             ),
             Span::raw(" "),
@@ -141,15 +142,5 @@ impl Widget for ColorBar {
                 }
             }
         }
-    }
-}
-
-fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else if max_len > 3 {
-        format!("{}...", &s[..max_len - 3])
-    } else {
-        s[..max_len].to_string()
     }
 }

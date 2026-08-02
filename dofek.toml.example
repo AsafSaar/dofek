@@ -41,9 +41,19 @@ url = "http://localhost:8085"
 # Each [[plugins]] entry spawns a child process communicating via JSON-over-stdio.
 # See plugins/README.md for the protocol, or https://dofek.dev/plugins/ for live docs.
 #
-# First-party plugins (build from this repo or grab the binaries from a release):
+# `command` is NOT looked up on PATH, and never resolves against the current
+# directory. It must be either:
+#   * a bare file name installed in the managed plugin directory
+#     (<config_dir>/dofek/plugins/) — use `dofek-tui plugins add <path>` or the
+#     GUI's Settings → Plugins → "+ Add plugin" to put it there; or
+#   * an absolute path to the binary.
+#
+# The three first-party plugins below are a third case: they ship inside the
+# MSI, .dmg/.app and AppImage, so on those installs a bare name resolves to the
+# bundled copy with nothing to install. Building from source instead:
 #   cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
-# then put the binaries on PATH and uncomment the block(s) below.
+# then either `dofek-tui plugins add target/release/dofek-ollama` or give the
+# absolute path as `command`.
 
 # [[plugins]]
 # name = "ollama"

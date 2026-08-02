@@ -105,6 +105,16 @@ fn ready_lines(info: &dofek::update::UpdateInfo, is_newer: bool) -> Vec<Line<'st
             Style::default().fg(theme::CPU_COLOR),
         )),
     ];
+    // How to actually get it, for this install. Telling a Homebrew user to
+    // download a .dmg leaves two copies fighting over one config directory,
+    // so the hint matters more than the URL above it.
+    if is_newer && !info.hint.is_empty() {
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            info.hint.clone(),
+            Style::default().fg(theme::WATCH_COLOR),
+        )));
+    }
     if is_newer && !info.notes.is_empty() {
         lines.push(Line::from(""));
         // First line of release notes only — overlay is small.

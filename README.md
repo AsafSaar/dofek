@@ -113,7 +113,7 @@ Intel Macs are not supported in this release.
 
 `SHA256SUMS.txt` has checksums for every artifact.
 
-> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "Dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
+> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "Dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix. Signing is in progress; the [code signing policy](https://dofek.dev/code-signing-policy/) describes who will sign what, and who authorises each signature.
 
 Verify (Windows): `Get-FileHash .\Dofek_1.5.1_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
@@ -309,6 +309,7 @@ On macOS, set Terminal.app or iTerm2 to a monospace nerd-font face at 10–11pt 
 | `del` / `x` | Kill selected process (with confirmation) |
 | `X` | Kill all matching processes (search/filter) |
 | `[` / `]` | Resize chart / watchlist split |
+| `P` | Expand / collapse the plugin dock |
 | `+` / `-` | Increase / decrease refresh rate |
 | `s` | Save snapshot to `~/dofek-snapshots/` |
 | `a` | About Dofek |
@@ -367,7 +368,7 @@ enabled = true                        # Opt-in anonymous usage telemetry (defaul
 # Plugins (optional — each entry spawns a child process)
 [[plugins]]
 name = "ollama"
-command = "dofek-ollama"              # resolved via PATH or absolute path
+command = "dofek-ollama"              # name in the managed plugins dir, or an absolute path
 args = ["--host", "http://localhost:11434"]
 enabled = true                        # default: true
 timeout_ms = 2000                     # per-poll timeout in ms (default: 2000)
@@ -416,15 +417,17 @@ Plugins are external processes that inject data into the Dofek dashboard. Dofek 
 
 ### How it works
 
-1. Dofek spawns the plugin process on startup
+1. Dofek spawns each plugin on its own supervisor thread at startup
 2. Every refresh cycle, Dofek sends a poll request (with process list) to the plugin's stdin
 3. The plugin responds with panels (dock UI), process annotations (watchlist labels), and metrics (ticker pills)
-4. If the plugin crashes, Dofek restarts it with exponential backoff (1s → 30s)
-5. On shutdown, Dofek sends a shutdown message and waits 2s before killing
+4. Responses are bounded on arrival, so a plugin can't flood the UI or the heap
+5. A plugin that misses its `timeout_ms` costs nothing — plugins are polled concurrently, never on the collector thread. Five consecutive misses and it's restarted
+6. If the plugin crashes, Dofek restarts it with exponential backoff (1s → 30s)
+7. On shutdown, Dofek sends a shutdown message, closes stdin, then terminates the plugin's whole process group — including anything it spawned. All plugins tear down concurrently
 
 ### Plugin status indicators
 
-In the plugin dock: `●` green = healthy, `●` yellow = unhealthy (5+ consecutive errors), `●` red = crashed, `○` gray = starting.
+In the plugin dock: `●` green = healthy, `●` yellow = unhealthy (3+ consecutive failed polls, or the plugin reported `status: "error"`), `●` red = crashed, `○` gray = starting.
 
 ### Building plugins
 
@@ -434,7 +437,7 @@ cargo build --release -p dofek-docker   # Build Docker plugin
 cargo build --release -p dofek-net-ping # Build net-ping plugin
 ```
 
-Place the built binaries somewhere on your PATH, or use an absolute path in the `command` field.
+Install them with `dofek-tui plugins add <path>` (which copies them into the managed plugins directory), or put an absolute path in the `command` field. `PATH` is deliberately not searched — see [SECURITY.md](SECURITY.md#plugin-security).
 
 ## Process Categories
 

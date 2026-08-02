@@ -8,6 +8,7 @@
 //! The counter wraps at `max_energy_range_uj`; we read that once and use it to
 //! recover the correct delta on overflow.
 
+use crate::data::rate::rate_from_delta;
 use std::time::Instant;
 
 const ENERGY_PATH: &str = "/sys/class/powercap/intel-rapl:0/energy_uj";
@@ -63,7 +64,7 @@ impl RaplTracker {
                             None
                         };
                     };
-                    Some((delta_uj as f64 / 1_000_000.0 / elapsed) as f32)
+                    Some(rate_from_delta(delta_uj as f64 / 1_000_000.0, elapsed) as f32)
                 }
             }
             _ => None,

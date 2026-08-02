@@ -28,12 +28,23 @@ From the repo root:
 cargo build --release -p dofek-docker
 ```
 
-Then copy the binary somewhere on your `PATH`:
+Then register it with Dofek, which copies it into the managed plugin
+directory (`<config_dir>/dofek/plugins/`):
 
-| OS | Suggested install location |
-|----|---|
-| Linux / macOS | `cp target/release/dofek-docker ~/.local/bin/` |
-| Windows | `copy target\release\dofek-docker.exe %LOCALAPPDATA%\Programs\dofek\` (and add that folder to `PATH`) |
+```bash
+dofek-tui plugins add target/release/dofek-docker
+```
+
+The GUI equivalent is **Settings (`?`) → Plugins → + Add plugin**.
+
+`PATH` is never searched — `command` must be either a bare file name in the
+managed directory or an absolute path. See
+[SECURITY.md](../../SECURITY.md#plugin-security) for why.
+
+> **You may not need to build this at all.** `dofek-docker` ships inside the
+> MSI, `.dmg`/`.app` and AppImage, so on those installs a bare
+> `command = "dofek-docker"` resolves to the bundled copy with nothing to
+> install.
 
 ## Configuration
 

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
 #[command(name = "dofek", version, about = "Terminal-native system monitor for Windows, Linux, and macOS")]
@@ -233,8 +233,8 @@ impl Config {
     }
 
     /// Load config from file lookup order:
-    /// 1. --config CLI flag
-    /// 2. ./dofek.toml
+    /// 1. `--config` CLI flag
+    /// 2. `$DOFEK_CONFIG`
     /// 3. user config dir / dofek / dofek.toml
     ///    (Windows: %APPDATA%\dofek\dofek.toml; Linux: ~/.config/dofek/dofek.toml)
     ///
@@ -244,15 +244,11 @@ impl Config {
     /// composed in by the data collector — that lets the collector watch the
     /// file's mtime and hot-reload plugins without restarting the app.
     pub fn load(cli: &Cli) -> Result<Self> {
-        let candidates: Vec<PathBuf> = if let Some(ref path) = cli.config {
-            vec![path.clone()]
-        } else {
-            let mut paths = vec![PathBuf::from("dofek.toml")];
-            if let Some(dir) = dirs::config_dir() {
-                paths.push(dir.join("dofek").join("dofek.toml"));
-            }
-            paths
-        };
+        let candidates = config_candidates(
+            cli.config.as_deref(),
+            std::env::var_os("DOFEK_CONFIG").map(PathBuf::from).as_deref(),
+            dirs::config_dir().as_deref(),
+        );
 
         let mut config = Config::default();
         let mut loaded_from = None;
@@ -268,10 +264,202 @@ impl Config {
         }
 
         config.precompute_lowercase();
+        config.validate();
         match loaded_from {
             Some(path) => log::info!("Loaded config from {}", path.display()),
             None => log::info!("No dofek.toml found, using defaults"),
         }
         Ok(config)
+    }
+
+    /// Sanity-check values that came from a file, repairing anything unsafe.
+    ///
+    /// Only the LHM URL needs this today: it is fed to `ureq::get` on every
+    /// poll, and a config file is not necessarily written by the person
+    /// running dofek.
+    fn validate(&mut self) {
+        if let Err(reason) = validate_lhm_url(&self.lhm.url) {
+            log::warn!(
+                "Ignoring lhm.url {:?} ({reason}) — falling back to {}",
+                self.lhm.url,
+                default_lhm_url()
+            );
+            self.lhm.url = default_lhm_url();
+        }
+    }
+}
+
+/// The config-file search order, as data.
+///
+/// Split out of [`Config::load`] so the ordering is testable without touching
+/// the process's working directory or environment.
+///
+/// **`./dofek.toml` is deliberately absent.** It used to come first, which
+/// meant `cd`-ing into a directory containing a hostile `dofek.toml` and
+/// running dofek would load it — and a config file can declare `[[plugins]]`,
+/// which dofek spawns as child processes. Set `$DOFEK_CONFIG` (or pass
+/// `--config`) to opt into a project-local config explicitly.
+pub fn config_candidates(
+    cli_config: Option<&Path>,
+    env_config: Option<&Path>,
+    config_dir: Option<&Path>,
+) -> Vec<PathBuf> {
+    // An explicit flag wins outright: the user named this file on the command
+    // line, so don't silently fall back to anything else if it's missing.
+    if let Some(path) = cli_config {
+        return vec![path.to_path_buf()];
+    }
+    let mut paths = Vec::new();
+    if let Some(path) = env_config {
+        paths.push(path.to_path_buf());
+    }
+    if let Some(dir) = config_dir {
+        paths.push(dir.join("dofek").join("dofek.toml"));
+    }
+    paths
+}
+
+/// Reject LHM URLs that aren't plainly a local HTTP endpoint.
+///
+/// Returns `Err(reason)` describing the first problem found.
+pub fn validate_lhm_url(url: &str) -> Result<(), &'static str> {
+    if url.is_empty() {
+        return Err("empty");
+    }
+    if url.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        return Err("contains control or whitespace characters");
+    }
+    let rest = match url.split_once("://") {
+        Some(("http", rest)) | Some(("https", rest)) => rest,
+        Some(_) => return Err("scheme must be http or https"),
+        None => return Err("missing scheme"),
+    };
+    if rest.is_empty() {
+        return Err("missing host");
+    }
+    // Credentials in the URL would be sent on every poll, to whatever host
+    // follows the `@`. Nothing legitimate needs them here.
+    if rest.split('/').next().unwrap_or("").contains('@') {
+        return Err("must not embed credentials");
+    }
+    let host = rest
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or("")
+        .rsplit_once(':')
+        .map(|(h, _)| h)
+        .unwrap_or_else(|| rest.split(['/', '?', '#']).next().unwrap_or(""));
+    // Not an error — LHM is documented as a localhost service, but pointing it
+    // at another machine on a trusted LAN is a legitimate (if unusual) setup.
+    if !matches!(host, "localhost" | "127.0.0.1" | "::1" | "[::1]") {
+        log::warn!("lhm.url points at non-loopback host {host:?} — sensor data will be fetched over the network");
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The regression this ordering exists to prevent: a `dofek.toml` sitting
+    /// in the current directory must never be picked up implicitly. A config
+    /// file can declare `[[plugins]]`, which dofek spawns as child processes,
+    /// so `cd`-ing into a hostile directory used to be enough to get code run.
+    #[test]
+    fn cwd_config_is_never_a_candidate() {
+        let cfg = Path::new("/home/u/.config");
+        let candidates = config_candidates(None, None, Some(cfg));
+        for c in &candidates {
+            assert!(
+                c.is_absolute(),
+                "candidate {c:?} is relative, so it resolves against the CWD"
+            );
+        }
+        assert!(!candidates.contains(&PathBuf::from("dofek.toml")));
+        assert!(!candidates.contains(&PathBuf::from("./dofek.toml")));
+    }
+
+    #[test]
+    fn default_order_is_env_then_config_dir() {
+        let cfg = Path::new("/home/u/.config");
+        let env = Path::new("/projects/app/dofek.toml");
+
+        assert_eq!(
+            config_candidates(None, Some(env), Some(cfg)),
+            vec![
+                PathBuf::from("/projects/app/dofek.toml"),
+                PathBuf::from("/home/u/.config/dofek/dofek.toml"),
+            ]
+        );
+
+        // Without the env var, only the user config dir.
+        assert_eq!(
+            config_candidates(None, None, Some(cfg)),
+            vec![PathBuf::from("/home/u/.config/dofek/dofek.toml")]
+        );
+    }
+
+    /// `--config` is an explicit instruction, so it must not silently fall
+    /// back to another file if it doesn't exist.
+    #[test]
+    fn cli_flag_wins_outright() {
+        let cli = Path::new("/tmp/explicit.toml");
+        assert_eq!(
+            config_candidates(Some(cli), Some(Path::new("/env.toml")), Some(Path::new("/cfg"))),
+            vec![PathBuf::from("/tmp/explicit.toml")]
+        );
+    }
+
+    #[test]
+    fn no_config_dir_is_not_a_panic() {
+        assert!(config_candidates(None, None, None).is_empty());
+        assert_eq!(
+            config_candidates(None, Some(Path::new("/env.toml")), None),
+            vec![PathBuf::from("/env.toml")]
+        );
+    }
+
+    #[test]
+    fn accepts_normal_lhm_urls() {
+        for url in [
+            "http://localhost:8085",
+            "http://127.0.0.1:8085",
+            "https://localhost:8085/",
+            "http://[::1]:8085",
+            "http://192.168.1.50:8085", // non-loopback: warns, but allowed
+        ] {
+            assert!(validate_lhm_url(url).is_ok(), "should accept {url}: {:?}", validate_lhm_url(url));
+        }
+    }
+
+    #[test]
+    fn rejects_dangerous_lhm_urls() {
+        for (url, why) in [
+            ("", "empty"),
+            ("localhost:8085", "missing scheme"),
+            ("file:///etc/passwd", "scheme must be http or https"),
+            ("ftp://host/x", "scheme must be http or https"),
+            ("http://", "missing host"),
+            ("http://user:pw@evil.example", "must not embed credentials"),
+            ("http://localhost:8085\nX-Injected: 1", "contains control or whitespace characters"),
+            ("http://local host:8085", "contains control or whitespace characters"),
+        ] {
+            assert_eq!(validate_lhm_url(url), Err(why), "for {url:?}");
+        }
+    }
+
+    /// A bad URL in a config file degrades to the default rather than
+    /// disabling LHM or failing the whole load.
+    #[test]
+    fn bad_lhm_url_falls_back_to_the_default() {
+        let mut cfg = Config::default();
+        cfg.lhm.url = "file:///etc/passwd".to_string();
+        cfg.validate();
+        assert_eq!(cfg.lhm.url, default_lhm_url());
+
+        let mut ok = Config::default();
+        ok.lhm.url = "http://127.0.0.1:9999".to_string();
+        ok.validate();
+        assert_eq!(ok.lhm.url, "http://127.0.0.1:9999");
     }
 }

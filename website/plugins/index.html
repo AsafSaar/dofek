@@ -101,7 +101,7 @@
     <div class="proto-card">
       <span class="proto-icon" style="color:var(--gpu)">◇</span>
       <h3>Stdio Pipes</h3>
-      <p>No ports, no sockets, no service discovery. stdin/stdout pipes are inherited at spawn. Use stderr for your debug logs.</p>
+      <p>No ports, no sockets, no service discovery. stdin/stdout pipes are inherited at spawn. Use stderr for your debug logs — Dofek drains it continuously, so writing a lot to it can't block you.</p>
     </div>
     <div class="proto-card">
       <span class="proto-icon" style="color:var(--mem)">↻</span>
@@ -122,6 +122,8 @@
       <h3>Poll Request <span style="color:var(--muted);font-weight:400;font-size:12px">Dofek → plugin</span></h3>
       <div class="code-block"><span class="code-label">JSON</span>{
   <span class="cs">"type"</span>: <span class="cv">"poll"</span>,
+  <span class="cs">"schema_version"</span>: <span class="cn">1</span>,
+  <span class="cs">"seq"</span>: <span class="cn">42</span>,
   <span class="cs">"timestamp_ms"</span>: <span class="cn">1713020400000</span>,
   <span class="cs">"processes"</span>: [
     {
@@ -134,6 +136,8 @@
       <table class="spec-table">
         <tr><th>FIELD</th><th>TYPE</th><th>DESCRIPTION</th></tr>
         <tr><td>type</td><td><code>"poll"</code></td><td>Always "poll"</td></tr>
+        <tr><td>schema_version</td><td><code>u32</code></td><td>Message-shape version — 1 today, absent on Dofek &lt; 1.6</td></tr>
+        <tr><td>seq</td><td><code>u64</code></td><td>Request counter — echo it back so Dofek can discard late replies</td></tr>
         <tr><td>timestamp_ms</td><td><code>u64</code></td><td>Unix timestamp in milliseconds</td></tr>
         <tr><td>processes</td><td><code>array</code></td><td>Current system processes — ignore if not needed</td></tr>
       </table>
@@ -142,11 +146,12 @@
       <h3>Poll Response <span style="color:var(--muted);font-weight:400;font-size:12px">plugin → Dofek</span></h3>
       <div class="code-block"><span class="code-label">JSON</span>{
   <span class="cs">"status"</span>: <span class="cv">"ok"</span>,
+  <span class="cs">"seq"</span>: <span class="cn">42</span>,
   <span class="cs">"panels"</span>: [<span class="cm">...</span>],
   <span class="cs">"process_annotations"</span>: [<span class="cm">...</span>],
   <span class="cs">"metrics"</span>: [<span class="cm">...</span>]
 }</div>
-      <p style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.7">All three arrays are <strong style="color:var(--text)">optional</strong> — include only what your plugin provides. On the first response, include a <code>manifest</code> field to identify your plugin.</p>
+      <p style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.7">All three arrays are <strong style="color:var(--text)">optional</strong> — include only what your plugin provides. On the first response, include a <code>manifest</code> field to identify your plugin. Echo the request's <code>seq</code> so Dofek can tell a late reply from the answer to the current poll. A <code>status</code> other than <code>"ok"</code> marks your plugin unhealthy in the UI while still showing whatever data it sent.</p>
     </div>
   </div>
 </section>
@@ -172,7 +177,7 @@
 }]</div>
       </div>
       <div>
-        <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:16px">Panel content is rendered in the plugin dock at the bottom of the watchlist. The first panel's values appear inline next to the plugin name.</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:16px">Panel content is rendered in the plugin dock at the bottom of the watchlist. The first panel's values appear inline next to the plugin name; every additional panel gets its own line. Every entry you send is rendered — the TUI dock caps at a third of the watchlist and offers <kbd>P</kbd> to expand, and the GUI dock scrolls.</p>
         <h3 style="margin-bottom:8px">Style values</h3>
         <div class="style-grid">
           <div class="style-swatch"><div class="style-dot" style="background:#94a3b8"></div> normal</div>
@@ -277,7 +282,7 @@
 
 <span class="ck">[[plugins]]</span>
 <span class="cs">name</span> = <span class="cv">"my-plugin"</span>            <span class="cm"># Display name (overridden by manifest)</span>
-<span class="cs">command</span> = <span class="cv">"dofek-my-plugin"</span>   <span class="cm"># Binary name (PATH) or absolute path</span>
+<span class="cs">command</span> = <span class="cv">"dofek-my-plugin"</span>   <span class="cm"># Name in the managed plugins dir, or an absolute path</span>
 <span class="cs">args</span> = [<span class="cv">"--flag"</span>, <span class="cv">"value"</span>]    <span class="cm"># Optional arguments</span>
 <span class="cs">enabled</span> = <span class="cn">true</span>                <span class="cm"># Default: true</span>
 <span class="cs">timeout_ms</span> = <span class="cn">2000</span>             <span class="cm"># Per-poll timeout (default: 2000)</span></div>
@@ -371,6 +376,8 @@
         <li><strong style="color:var(--text)">Respond quickly</strong> — you have <code>timeout_ms</code> (default 2s) to respond to each poll</li>
         <li><strong style="color:var(--text)">Namespace metric IDs</strong> — use <code>plugin_name.metric_name</code> to avoid collisions</li>
         <li><strong style="color:var(--text)">Ignore unknown fields</strong> — Dofek may add new fields to poll requests in the future</li>
+        <li><strong style="color:var(--text)">One response per request</strong> — extra lines are discarded, and a plugin that keeps emitting them is disconnected</li>
+        <li><strong style="color:var(--text)">Stay inside the limits</strong> — 256&nbsp;KiB per line, 8 panels, 16 entries each, 8 metrics, 512 annotations, 64/128 chars per string. Over-limit values are truncated on arrival; an over-long line disconnects you</li>
       </ul>
     </div>
     <div>

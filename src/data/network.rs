@@ -1,3 +1,4 @@
+use crate::data::rate::rate;
 use std::time::Instant;
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
@@ -70,9 +71,10 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
         // Find previous values for this interface by name
         let prev_idx = tracker.prev_names.iter().position(|n| *n == name);
         let (rx_rate, tx_rate) = if let Some(idx) = prev_idx {
-            let drx = rx.saturating_sub(tracker.prev_rx[idx]) as f64;
-            let dtx = tx.saturating_sub(tracker.prev_tx[idx]) as f64;
-            (drx / elapsed, dtx / elapsed)
+            (
+                rate(rx, tracker.prev_rx[idx], elapsed),
+                rate(tx, tracker.prev_tx[idx], elapsed),
+            )
         } else {
             (0.0, 0.0)
         };
@@ -141,9 +143,10 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
 
         let prev_idx = tracker.prev_names.iter().position(|n| n == name);
         let (rx_rate, tx_rate) = if let Some(idx) = prev_idx {
-            let drx = rx.saturating_sub(tracker.prev_rx[idx]) as f64;
-            let dtx = tx.saturating_sub(tracker.prev_tx[idx]) as f64;
-            (drx / elapsed, dtx / elapsed)
+            (
+                rate(rx, tracker.prev_rx[idx], elapsed),
+                rate(tx, tracker.prev_tx[idx], elapsed),
+            )
         } else {
             (0.0, 0.0)
         };

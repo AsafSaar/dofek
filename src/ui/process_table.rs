@@ -6,6 +6,7 @@ use ratatui::Frame;
 
 use crate::app::{App, CategoryFilter, ConfirmKill, ProcessRow};
 use crate::data::process::{AiState, ProcessCategory};
+use crate::ui::text::truncate;
 use crate::ui::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
@@ -420,15 +421,5 @@ fn format_bytes(bytes: u64) -> String {
         format!("{:.0} KB", bytes as f64 / 1024.0)
     } else {
         format!("{} B", bytes)
-    }
-}
-
-fn truncate(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else if max_len > 3 {
-        format!("{}...", &s[..max_len - 3])
-    } else {
-        s[..max_len].to_string()
     }
 }

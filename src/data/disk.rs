@@ -5,6 +5,7 @@
 //! Powered by `sysinfo::Disks`, so it works on Linux, macOS, and Windows
 //! without per-OS branches.
 
+use crate::data::rate::rate;
 use std::time::Instant;
 use sysinfo::Disks;
 
@@ -61,9 +62,10 @@ pub fn query_disk_stats(tracker: &mut DiskTracker) -> DiskStats {
 
         let prev_idx = tracker.prev_names.iter().position(|n| *n == name);
         let (read_rate, write_rate) = if let Some(idx) = prev_idx {
-            let dr = read.saturating_sub(tracker.prev_read[idx]) as f64;
-            let dw = write.saturating_sub(tracker.prev_write[idx]) as f64;
-            (dr / elapsed, dw / elapsed)
+            (
+                rate(read, tracker.prev_read[idx], elapsed),
+                rate(write, tracker.prev_write[idx], elapsed),
+            )
         } else {
             (0.0, 0.0)
         };

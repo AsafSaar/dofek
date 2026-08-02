@@ -82,10 +82,12 @@ The GUI bundles the TUI binary as a Tauri sidecar (`externalBin` in `gui/tauri.c
   - `process.rs` — `ProcessInfo`, `AiState`, `ProcessCategory` definitions
   - `network.rs` — Per-interface rx/tx bytes with delta-based rate computation. Windows uses `GetIfTable2`; Linux and macOS share the `sysinfo::Networks` path. The macOS branch additionally filters Apple-internal pseudo-interfaces (`awdl0`, `llw0`, `gif0`, `stf0`, `anpi0`/`1`, `ap1`). All three platforms share the `NetworkTracker` state struct.
   - `ai_detect.rs` — AI workload + category classification (AI/DEV/WATCH)
-- `src/plugin/` — Plugin system:
-  - `mod.rs` — `PluginManager`: spawn, poll, restart, shutdown
+- `src/plugin/` — Plugin system (one supervisor thread per plugin; `tick()` never blocks the collector):
+  - `mod.rs` — `PluginManager`: fan-out only — swap shared context, nudge supervisors, read statuses
+  - `worker.rs` — `PluginWorker` + supervisor: cadence, real `timeout_ms`, health, crash backoff
+  - `process.rs` — Child process wrapper: contained spawn (Unix `setsid` + `killpg`, Windows Job Object), bounded stdout reads on a reader thread, stderr drainer
+  - `sanitize.rs` — Bounds every plugin string/collection at ingest
   - `protocol.rs` — Serde structs for JSON request/response protocol
-  - `process.rs` — Child process wrapper: stdio pipes, timeout, Job Object
 - `src/ui/` — Rendering layer (trading-terminal layout):
   - `mod.rs` — Master layout: ticker + chart/watchlist split + bottom strip + status bar
   - `theme.rs` — Trading-terminal color palette (sky blue CPU, violet GPU, emerald MEM, etc.)
@@ -132,7 +134,7 @@ The GUI bundles the TUI binary as a Tauri sidecar (`externalBin` in `gui/tauri.c
 
 GPU data flow: `NVML query → GpuDeviceInfo + per_process_vram → GpuSensors` (or LHM fallback if NVML unavailable)
 
-Plugin data flow: `PluginManager.poll() → JSON stdin/stdout → panels + process_annotations + metrics → DataSnapshot`
+Plugin data flow: `PluginManager.tick() → shared context + nudge → supervisor thread → JSON stdin/stdout → sanitize → PluginStatus → DataSnapshot`
 
 ### LHM JSON Structure (optional fallback)
 The `/data.json` endpoint returns a recursive tree of `LhmNode` objects with `Text`, `Value`, `Children` fields. Values are strings like `"64.3 %"` or `"1200 MHz"` that need `parse_lhm_value()` to extract the numeric part.
@@ -152,7 +154,7 @@ See `dofek.toml.example` for all options. Key settings:
 
 Trading-terminal layout with dual interface (TUI + Tauri GUI), candlestick CPU chart, area/horizon charts for GPU/MEM/NET/DISK, multi-GPU support, process categories (AI/DEV/WATCH), top ticker bar, compact bottom strip, plugin system with JSON-over-stdio protocol and a managed plugin store (install via GUI file picker or `dofek-tui plugins add`, hot-reloaded on `plugins.toml` change), system-tray companion (live CPU sparkline icon, close-to-tray, macOS menu-bar text), Linux CPU power via RAPL, cross-platform disk I/O metrics. Custom chart widgets use Buffer manipulation with half-block characters for 2x vertical resolution.
 
-Keybindings (TUI): q/tab/p/c/g/m/n/d/h/1-4/esc/?/+/-/s/a/[/].
+Keybindings (TUI): q/tab/p/P/c/g/m/n/d/h/1-4/esc/?/+/-/s/a/[/].
 
 ### Known Limitations
 - AMD GPU VRAM not supported (NVML is NVIDIA-only; on Windows, the LHM fallback provides basic GPU data)

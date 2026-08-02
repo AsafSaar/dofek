@@ -53,7 +53,7 @@ pub fn os_version_string() -> String {
     use std::process::Command;
 
     let run = |arg: &str| -> Option<String> {
-        Command::new("sw_vers")
+        Command::new("/usr/bin/sw_vers")
             .arg(arg)
             .output()
             .ok()
@@ -107,7 +107,7 @@ pub fn gpu_empty_state() -> &'static GpuEmptyState {
 
 #[cfg(target_os = "macos")]
 fn compute_gpu_empty_state() -> GpuEmptyState {
-    let chip = std::process::Command::new("sysctl")
+    let chip = std::process::Command::new("/usr/sbin/sysctl")
         .args(["-n", "machdep.cpu.brand_string"])
         .output()
         .ok()

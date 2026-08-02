@@ -79,13 +79,19 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER2)));
     }
 
-    // Plugin metrics
-    for status in &app.data.plugin_statuses {
-        if let Some(ref response) = status.response {
-            for metric in &response.metrics {
-                pill(&mut spans, &metric.label, &format!("{:.1}{}", metric.value, metric.unit), theme::TEXT_SECONDARY);
-            }
-        }
+    // Plugin metrics. Bounded at ingest by `plugin::sanitize`, but bounded
+    // again here: the ticker is a single line, and even a legal number of
+    // pills from a legal number of plugins can overrun it.
+    const MAX_TICKER_METRICS: usize = 6;
+    for metric in app
+        .data
+        .plugin_statuses
+        .iter()
+        .filter_map(|s| s.response.as_ref())
+        .flat_map(|r| &r.metrics)
+        .take(MAX_TICKER_METRICS)
+    {
+        pill(&mut spans, &metric.label, &format!("{:.1}{}", metric.value, metric.unit), theme::TEXT_SECONDARY);
     }
 
     // AI badge

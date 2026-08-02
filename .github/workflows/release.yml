@@ -96,6 +96,50 @@ jobs:
           Write-Host "`nArtifacts:"
           Get-ChildItem artifacts | Format-Table Name, Length
 
+      # The VERSIONINFO resource is embedded by each crate's build.rs, which
+      # *warns* rather than aborting when rc.exe fails — a hard failure there
+      # would break every Windows build, and the scripts were written without a
+      # Windows toolchain to test them on. This step is what makes that safe:
+      # it is the one place the metadata is asserted, and it runs before signing
+      # so a silently missing resource fails the release instead of shipping.
+      #
+      # SignPath's OSS terms require product name and version set consistently
+      # across every signed binary — see docs/v1.6-signing-and-notarization.md.
+      - name: Verify Windows version metadata
+        shell: pwsh
+        working-directory: artifacts
+        run: |
+          $missing = @()
+          foreach ($exe in @("dofek-tui.exe","dofek-ollama.exe","dofek-docker.exe","dofek-net-ping.exe")) {
+            if (-not (Test-Path $exe)) {
+              $missing += "$exe (binary itself is absent)"
+              continue
+            }
+            $vi = (Get-Item $exe).VersionInfo
+            Write-Host ("{0,-22} Product='{1}' File='{2}' Company='{3}'" -f `
+              $exe, $vi.ProductName, $vi.FileVersion, $vi.CompanyName)
+
+            if ($vi.ProductName -ne "Dofek") {
+              $missing += "$exe ProductName='$($vi.ProductName)', expected 'Dofek'"
+            }
+            if ([string]::IsNullOrWhiteSpace($vi.FileVersion))  { $missing += "$exe has no FileVersion" }
+            if ([string]::IsNullOrWhiteSpace($vi.CompanyName))  { $missing += "$exe has no CompanyName" }
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Host "`n::error::Windows version metadata is missing or wrong:"
+            $missing | ForEach-Object { Write-Host "  - $_" }
+            # Plain Write-Host rather than a here-string: PowerShell requires the
+            # closing `"@` at column 0, which would terminate this YAML block.
+            Write-Host ""
+            Write-Host "Each crate embeds VERSIONINFO via its build.rs using the winresource"
+            Write-Host "build-dependency, which is host-gated to Windows. Check the build logs"
+            Write-Host "for a 'cargo:warning=failed to embed Windows VERSIONINFO' line - that"
+            Write-Host "means rc.exe (Windows SDK) was unavailable or rejected the resource."
+            exit 1
+          }
+          Write-Host "`nAll Windows binaries carry consistent version metadata."
+
       - name: Generate SHA256 checksums
         shell: pwsh
         working-directory: artifacts

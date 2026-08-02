@@ -43,8 +43,12 @@ fn main() {
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default();
 
-                let response = handle_poll(&host, &processes, first_response);
+                let mut response = handle_poll(&host, &processes, first_response);
                 first_response = false;
+                // Echo the request counter so Dofek can tell a late reply from
+                // the answer to its current poll. Absent on older Dofek builds,
+                // where 0 means "unknown" and it falls back to first-reply-wins.
+                response.seq = request.get("seq").and_then(|v| v.as_u64()).unwrap_or(0);
 
                 let json = serde_json::to_string(&response).unwrap_or_default();
                 let _ = writeln!(stdout, "{json}");
@@ -82,6 +86,7 @@ fn handle_poll(host: &str, processes: &[ProcessContext], include_manifest: bool)
         panels: Vec::new(),
         process_annotations: Vec::new(),
         metrics: Vec::new(),
+        ..PollResponse::default()
     };
 
     let running = query_running_models(host);
