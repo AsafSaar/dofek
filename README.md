@@ -1,3 +1,5 @@
+
+
 # Dofek
 
 **GUI and Terminal-native, AI-aware system monitor for Windows, Linux, and macOS.**
@@ -62,7 +64,7 @@ Dofek v1.5  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDE
                                                                PLUGINS ---
                                                                No plugins connected
 -----------------------------------------------------------------------------------------------
- CPU AMD Ryzen 7 7800X    | GPU NVIDIA RTX 5080   | MEM 21.5/63.2 GB     | NET Hyper-V Virtual
+ CPU AMD Ryzen 7 7800X3D    | GPU NVIDIA RTX 5080   | MEM 21.5/63.2 GB     | NET Hyper-V Virtual
  C0 15% C1 13% C2 19%     | Util     1.0%         | Used [###..] 34.0%   | down 0 B/s
  C3  9% C4 10% C5 12%     | VRAM     1.7 GB       | Swap [.....] 0.0%    | up   0 B/s
  C6 15% C7 12% C8  5%     | Temp    36.0 C        |                      |
@@ -582,7 +584,7 @@ LHM fallback ──> GPU sensors (if NVML unavailable) ────────�
 | Component | Crate | Version |
 |-----------|-------|---------|
 | TUI framework | ratatui | 0.30 |
-| Terminal backend | crossterm | 0.28 |
+| Terminal backend | crossterm | 0.29 |
 | System info | sysinfo | 0.38 |
 | NVIDIA GPU | nvml-wrapper | 0.12 |
 | HTTP client | ureq | 2 |
