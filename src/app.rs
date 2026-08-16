@@ -185,6 +185,10 @@ pub struct App {
     pub kill_status: Option<String>,
     /// Chart/watchlist horizontal split percentage (chart gets this %, watchlist gets the rest).
     pub split_pct: u16,
+    /// Whether the plugin dock is expanded to full height. Collapsed, it is
+    /// capped at a third of the watchlist so it can never starve the process
+    /// table; expanded, it takes everything the table doesn't need.
+    pub plugin_dock_expanded: bool,
     pub telemetry: TelemetryHandle,
     pub telemetry_enabled: bool,
 }
@@ -218,6 +222,7 @@ impl App {
             confirm_kill: None,
             kill_status: None,
             split_pct: 58,
+            plugin_dock_expanded: false,
             telemetry_enabled: false,
             telemetry,
         }
@@ -539,6 +544,11 @@ impl App {
                 };
                 self.telemetry.track(TelemetryEvent::ChartModeToggle { mode: mode.into() });
             }
+            // Expand/collapse the plugin dock. Lowercase `p` is the
+            // full-screen process view, so the dock takes the shifted key.
+            KeyCode::Char('P') => {
+                self.plugin_dock_expanded = !self.plugin_dock_expanded;
+            }
             // Resize chart/watchlist split
             KeyCode::Char('[') => {
                 self.split_pct = self.split_pct.saturating_sub(5).max(30);
@@ -573,85 +583,12 @@ impl App {
 
     /// Build the grouped process row list for the tree view.
     pub fn grouped_rows(&self) -> Vec<ProcessRow<'_>> {
-        let filtered = self.filtered_processes();
-        let mut groups: Vec<(String, Vec<&ProcessInfo>)> = Vec::new();
-        let mut group_map: HashMap<String, usize> = HashMap::new();
-
-        for p in &filtered {
-            if let Some(&idx) = group_map.get(&p.name) {
-                groups[idx].1.push(p);
-            } else {
-                group_map.insert(p.name.clone(), groups.len());
-                groups.push((p.name.clone(), vec![p]));
-            }
-        }
-
-        // Sort groups by the same column as processes (using aggregate values)
-        let asc = self.sort_ascending;
-        groups.sort_by(|a, b| {
-            let cmp = match self.sort_column {
-                SortColumn::Name => a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()),
-                SortColumn::Pid => a.1[0].pid.cmp(&b.1[0].pid),
-                SortColumn::Cpu => {
-                    let sa: f32 = a.1.iter().map(|p| p.cpu_percent).sum();
-                    let sb: f32 = b.1.iter().map(|p| p.cpu_percent).sum();
-                    sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
-                }
-                SortColumn::Memory => {
-                    let sa: u64 = a.1.iter().map(|p| p.memory_bytes).sum();
-                    let sb: u64 = b.1.iter().map(|p| p.memory_bytes).sum();
-                    sa.cmp(&sb)
-                }
-                SortColumn::Vram => {
-                    let sa: u64 = a.1.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
-                    let sb: u64 = b.1.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
-                    sa.cmp(&sb)
-                }
-            };
-            if asc { cmp } else { cmp.reverse() }
-        });
-
-        let mut rows = Vec::new();
-        for (name, procs) in &groups {
-            let expanded = self.expanded_groups.contains(name);
-            let count = procs.len();
-
-            if count == 1 {
-                // Singleton — render as a plain process row
-                rows.push(ProcessRow::Process(procs[0]));
-            } else {
-                // Group header
-                let cpu_total: f32 = procs.iter().map(|p| p.cpu_percent).sum();
-                let mem_total: u64 = procs.iter().map(|p| p.memory_bytes).sum();
-                let vram_total: u64 = procs.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
-                let pids: Vec<u32> = procs.iter().map(|p| p.pid).collect();
-                // Use the highest-priority category from the group
-                let category = procs.iter().map(|p| p.category).min_by_key(|c| match c {
-                    ProcessCategory::Watch => 0,
-                    ProcessCategory::Ai => 1,
-                    ProcessCategory::Dev => 2,
-                    ProcessCategory::None => 3,
-                }).unwrap_or(ProcessCategory::None);
-
-                rows.push(ProcessRow::Group {
-                    name: name.clone(),
-                    count,
-                    cpu_total,
-                    mem_total,
-                    vram_total,
-                    pids,
-                    expanded,
-                    category,
-                });
-
-                if expanded {
-                    for p in procs {
-                        rows.push(ProcessRow::Process(p));
-                    }
-                }
-            }
-        }
-        rows
+        group_rows(
+            &self.filtered_processes(),
+            self.sort_column,
+            self.sort_ascending,
+            &self.expanded_groups,
+        )
     }
 
     fn toggle_group_expand(&mut self, expand: bool) {
@@ -950,4 +887,283 @@ fn chrono_lite_timestamp() -> String {
         .unwrap_or_default()
         .as_secs();
     format!("{secs}")
+}
+
+/// Group a filtered process list into collapsible rows.
+///
+/// Split out of `App::grouped_rows` so the grouping and aggregate-sort logic is
+/// reachable from tests without building an `App` (which needs a live
+/// `TelemetryHandle`). `App::grouped_rows` is now just the argument plumbing.
+pub fn group_rows<'a>(
+    filtered: &[&'a ProcessInfo],
+    sort_column: SortColumn,
+    sort_ascending: bool,
+    expanded_groups: &HashSet<String>,
+) -> Vec<ProcessRow<'a>> {
+    let mut groups: Vec<(String, Vec<&ProcessInfo>)> = Vec::new();
+    let mut group_map: HashMap<String, usize> = HashMap::new();
+
+    for p in filtered {
+        if let Some(&idx) = group_map.get(&p.name) {
+            groups[idx].1.push(p);
+        } else {
+            group_map.insert(p.name.clone(), groups.len());
+            groups.push((p.name.clone(), vec![p]));
+        }
+    }
+
+    // Sort groups by the same column as processes (using aggregate values)
+    let asc = sort_ascending;
+    groups.sort_by(|a, b| {
+        let cmp = match sort_column {
+            SortColumn::Name => a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()),
+            SortColumn::Pid => a.1[0].pid.cmp(&b.1[0].pid),
+            SortColumn::Cpu => {
+                let sa: f32 = a.1.iter().map(|p| p.cpu_percent).sum();
+                let sb: f32 = b.1.iter().map(|p| p.cpu_percent).sum();
+                sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
+            }
+            SortColumn::Memory => {
+                let sa: u64 = a.1.iter().map(|p| p.memory_bytes).sum();
+                let sb: u64 = b.1.iter().map(|p| p.memory_bytes).sum();
+                sa.cmp(&sb)
+            }
+            SortColumn::Vram => {
+                let sa: u64 = a.1.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
+                let sb: u64 = b.1.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
+                sa.cmp(&sb)
+            }
+        };
+        if asc { cmp } else { cmp.reverse() }
+    });
+
+    let mut rows = Vec::new();
+    for (name, procs) in &groups {
+        let expanded = expanded_groups.contains(name);
+        let count = procs.len();
+
+        if count == 1 {
+            // Singleton — render as a plain process row
+            rows.push(ProcessRow::Process(procs[0]));
+        } else {
+            // Group header
+            let cpu_total: f32 = procs.iter().map(|p| p.cpu_percent).sum();
+            let mem_total: u64 = procs.iter().map(|p| p.memory_bytes).sum();
+            let vram_total: u64 = procs.iter().map(|p| p.vram_bytes.unwrap_or(0)).sum();
+            let pids: Vec<u32> = procs.iter().map(|p| p.pid).collect();
+            // Use the highest-priority category from the group
+            let category = procs.iter().map(|p| p.category).min_by_key(|c| match c {
+                ProcessCategory::Watch => 0,
+                ProcessCategory::Ai => 1,
+                ProcessCategory::Dev => 2,
+                ProcessCategory::None => 3,
+            }).unwrap_or(ProcessCategory::None);
+
+            rows.push(ProcessRow::Group {
+                name: name.clone(),
+                count,
+                cpu_total,
+                mem_total,
+                vram_total,
+                pids,
+                expanded,
+                category,
+            });
+
+            if expanded {
+                for p in procs {
+                    rows.push(ProcessRow::Process(p));
+                }
+            }
+        }
+    }
+    rows
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::process::AiState;
+
+    fn proc(pid: u32, name: &str, cpu: f32, mem: u64, vram: Option<u64>) -> ProcessInfo {
+        ProcessInfo {
+            pid,
+            name: name.to_string(),
+            cpu_percent: cpu,
+            memory_bytes: mem,
+            vram_bytes: vram,
+            is_ai_workload: false,
+            ai_state: AiState::None,
+            category: ProcessCategory::None,
+            plugin_label: None,
+        }
+    }
+
+    fn rows<'a>(
+        procs: &'a [ProcessInfo],
+        sort: SortColumn,
+        asc: bool,
+        expanded: &[&str],
+    ) -> Vec<ProcessRow<'a>> {
+        let refs: Vec<&ProcessInfo> = procs.iter().collect();
+        let expanded: HashSet<String> = expanded.iter().map(|s| s.to_string()).collect();
+        group_rows(&refs, sort, asc, &expanded)
+    }
+
+    /// Rendered shape of a row list: group names carry their child count,
+    /// singletons and expanded children carry their pid.
+    fn shape(rows: &[ProcessRow<'_>]) -> Vec<String> {
+        rows.iter()
+            .map(|r| match r {
+                ProcessRow::Group { name, count, .. } => format!("{name} x{count}"),
+                ProcessRow::Process(p) => format!("pid {}", p.pid),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn singletons_render_as_plain_rows_not_groups() {
+        let procs = vec![proc(1, "alpha", 1.0, 100, None)];
+        let r = rows(&procs, SortColumn::Name, true, &[]);
+        assert_eq!(shape(&r), vec!["pid 1"]);
+    }
+
+    #[test]
+    fn same_named_processes_collapse_into_one_group() {
+        let procs = vec![
+            proc(1, "chrome", 5.0, 100, None),
+            proc(2, "chrome", 3.0, 200, None),
+            proc(3, "chrome", 2.0, 300, None),
+            proc(4, "finder", 1.0, 50, None),
+        ];
+        let r = rows(&procs, SortColumn::Name, true, &[]);
+        // Collapsed: the group header stands in for all three children.
+        assert_eq!(shape(&r), vec!["chrome x3", "pid 4"]);
+
+        let ProcessRow::Group { cpu_total, mem_total, pids, expanded, .. } = &r[0] else {
+            panic!("expected a group header");
+        };
+        assert_eq!(*cpu_total, 10.0);
+        assert_eq!(*mem_total, 600);
+        assert_eq!(pids, &vec![1, 2, 3]);
+        assert!(!expanded);
+    }
+
+    #[test]
+    fn expanding_a_group_appends_its_children_after_the_header() {
+        let procs = vec![
+            proc(1, "chrome", 5.0, 100, None),
+            proc(2, "chrome", 3.0, 200, None),
+            proc(3, "finder", 1.0, 50, None),
+        ];
+        let r = rows(&procs, SortColumn::Name, true, &["chrome"]);
+        assert_eq!(shape(&r), vec!["chrome x2", "pid 1", "pid 2", "pid 3"]);
+
+        // Expanding a name that isn't a group changes nothing.
+        let r = rows(&procs, SortColumn::Name, true, &["finder"]);
+        assert_eq!(shape(&r), vec!["chrome x2", "pid 3"]);
+    }
+
+    #[test]
+    fn groups_sort_by_aggregate_not_by_any_single_member() {
+        let procs = vec![
+            // Two small chrome processes that together outweigh ollama.
+            proc(1, "chrome", 10.0, 100, None),
+            proc(2, "chrome", 10.0, 100, None),
+            proc(3, "ollama", 15.0, 150, None),
+        ];
+
+        // Descending CPU: chrome's 20 beats ollama's 15, even though no single
+        // chrome process does.
+        let r = rows(&procs, SortColumn::Cpu, false, &[]);
+        assert_eq!(shape(&r), vec!["chrome x2", "pid 3"]);
+
+        // Ascending flips it.
+        let r = rows(&procs, SortColumn::Cpu, true, &[]);
+        assert_eq!(shape(&r), vec!["pid 3", "chrome x2"]);
+    }
+
+    #[test]
+    fn every_sort_column_orders_as_expected() {
+        let procs = vec![
+            proc(3, "beta", 1.0, 300, Some(10)),
+            proc(1, "alpha", 3.0, 100, Some(30)),
+            proc(2, "gamma", 2.0, 200, Some(20)),
+        ];
+
+        let by = |col, asc| {
+            rows(&procs, col, asc, &[])
+                .iter()
+                .map(|r| match r {
+                    ProcessRow::Process(p) => p.pid,
+                    ProcessRow::Group { pids, .. } => pids[0],
+                })
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(by(SortColumn::Name, true), vec![1, 3, 2]); // alpha, beta, gamma
+        assert_eq!(by(SortColumn::Name, false), vec![2, 3, 1]);
+        assert_eq!(by(SortColumn::Pid, true), vec![1, 2, 3]);
+        assert_eq!(by(SortColumn::Cpu, false), vec![1, 2, 3]); // 3.0, 2.0, 1.0
+        assert_eq!(by(SortColumn::Memory, false), vec![3, 2, 1]); // 300, 200, 100
+        assert_eq!(by(SortColumn::Vram, false), vec![1, 2, 3]); // 30, 20, 10
+    }
+
+    #[test]
+    fn name_sort_is_case_insensitive() {
+        let procs = vec![
+            proc(1, "Zebra", 0.0, 0, None),
+            proc(2, "apple", 0.0, 0, None),
+        ];
+        let r = rows(&procs, SortColumn::Name, true, &[]);
+        assert_eq!(shape(&r), vec!["pid 2", "pid 1"]);
+    }
+
+    #[test]
+    fn missing_vram_counts_as_zero_in_group_totals() {
+        let procs = vec![
+            proc(1, "mixed", 0.0, 0, Some(500)),
+            proc(2, "mixed", 0.0, 0, None),
+        ];
+        let r = rows(&procs, SortColumn::Vram, false, &[]);
+        let ProcessRow::Group { vram_total, .. } = &r[0] else {
+            panic!("expected a group header");
+        };
+        assert_eq!(*vram_total, 500);
+    }
+
+    /// A group's badge shows the highest-priority category among its members:
+    /// Watch > Ai > Dev > None.
+    #[test]
+    fn group_category_takes_the_highest_priority_member() {
+        let cases = [
+            (vec![ProcessCategory::None, ProcessCategory::Dev], ProcessCategory::Dev),
+            (vec![ProcessCategory::Dev, ProcessCategory::Ai], ProcessCategory::Ai),
+            (vec![ProcessCategory::Ai, ProcessCategory::Watch], ProcessCategory::Watch),
+            (vec![ProcessCategory::None, ProcessCategory::None], ProcessCategory::None),
+        ];
+
+        for (members, want) in cases {
+            let procs: Vec<ProcessInfo> = members
+                .iter()
+                .enumerate()
+                .map(|(i, cat)| {
+                    let mut p = proc(i as u32 + 1, "svc", 0.0, 0, None);
+                    p.category = *cat;
+                    p
+                })
+                .collect();
+            let r = rows(&procs, SortColumn::Name, true, &[]);
+            let ProcessRow::Group { category, .. } = &r[0] else {
+                panic!("expected a group header for {members:?}");
+            };
+            assert_eq!(*category, want, "members {members:?}");
+        }
+    }
+
+    #[test]
+    fn empty_input_produces_no_rows() {
+        let r = rows(&[], SortColumn::Cpu, false, &[]);
+        assert!(r.is_empty());
+    }
 }

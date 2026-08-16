@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3T3TQYV5LX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-3T3TQYV5LX');
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="How Dofek's release binaries are code-signed: who signs, what is signed, where signing requests originate, and what Dofek does with your data.">
+  <meta name="theme-color" content="#060810">
+  <link rel="canonical" href="https://dofek.dev/code-signing-policy/">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta property="og:title" content="Dofek — Code Signing Policy">
+  <meta property="og:description" content="Who signs Dofek's binaries, what is signed, and how signing requests are authorised.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://dofek.dev/code-signing-policy/">
+  <title>Dofek — Code Signing Policy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../plugins/style.css">
+  <style>
+    /* Prose page — the shared stylesheet is built for the marketing layout,
+       so this narrows the measure and gives headings/tables reading rhythm. */
+    .doc { max-width: 780px; margin: 0 auto; padding: 112px 24px 96px; }
+    .doc h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 12px; }
+    .doc .lede { font-size: 13px; color: var(--dim); line-height: 1.8; margin-bottom: 8px; }
+    .doc .updated { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; margin-bottom: 48px; }
+    .doc h2 {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: var(--cpu);
+      margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--bdr);
+    }
+    .doc p, .doc li { font-size: 13px; color: var(--dim); line-height: 1.85; }
+    .doc p { margin-bottom: 16px; }
+    .doc ul { padding-left: 20px; margin-bottom: 16px; }
+    .doc li { margin-bottom: 8px; }
+    .doc strong { color: var(--text); font-weight: 600; }
+    .doc code {
+      background: rgba(255,255,255,.04); border: 1px solid var(--bdr);
+      border-radius: 2px; padding: 1px 5px; font-size: 12px; color: var(--text);
+    }
+    .doc table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .doc th, .doc td {
+      text-align: left; padding: 9px 12px; font-size: 12px;
+      border-bottom: 1px solid var(--bdr);
+    }
+    .doc th { color: var(--muted); font-weight: 600; letter-spacing: 0.08em; font-size: 10px; text-transform: uppercase; }
+    .doc td { color: var(--dim); }
+    .doc td code { font-size: 11px; }
+    .callout {
+      border-left: 2px solid var(--cpu); background: rgba(56,189,248,.04);
+      padding: 14px 18px; margin-bottom: 20px;
+    }
+    .callout p:last-child { margin-bottom: 0; }
+    /* The "not signed yet" notice. Amber rather than blue so it reads as a
+       caveat, not a footnote — it is removed with the first signed release. */
+    .callout.pending { border-left-color: #fbbf24; background: rgba(251,191,36,.05); margin-bottom: 32px; }
+    @media (max-width: 640px) {
+      .doc { padding: 96px 20px 72px; }
+      .doc h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="../index.html" class="nav-logo">Dofek</a>
+  <div class="nav-links">
+    <a href="../index.html">Home</a>
+    <a href="../plugins/">Plugins</a>
+    <a href="https://github.com/AsafSaar/dofek" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</nav>
+
+<main class="doc">
+  <h1>Code signing policy</h1>
+  <p class="lede">
+    How Dofek's release binaries are signed, who authorises each signature, and what
+    the signature does and does not vouch for.
+  </p>
+  <p class="updated">Last updated 2026-08-01</p>
+
+  <div class="callout pending">
+    <p>
+      <strong>Status: signing is not active yet.</strong> Dofek's binaries are currently
+      <strong>unsigned</strong> — on Windows SmartScreen may warn, and on macOS Gatekeeper
+      blocks first launch (see the
+      <a href="https://github.com/AsafSaar/dofek#-download" target="_blank" rel="noopener">install notes</a>
+      for the workaround). This page describes the signing process as it will operate once
+      the pending SignPath Foundation and Apple Developer enrolments complete. Everything
+      below about roles, provenance, privacy, and what is in scope is already accurate and
+      binding; only the signatures themselves are outstanding. This notice is removed when
+      the first signed release ships.
+    </p>
+  </div>
+
+  <h2>Signing</h2>
+  <p>
+    Dofek's Windows binaries are code-signed by the
+    <a href="https://signpath.org" target="_blank" rel="noopener">SignPath Foundation</a>
+    using a free certificate provided to open source projects, through the
+    <a href="https://signpath.io" target="_blank" rel="noopener">SignPath.io</a>
+    signing platform.
+  </p>
+  <div class="callout">
+    <p>
+      The certificate's subject is <strong>SignPath Foundation</strong>, not "Dofek" or
+      "Asaf Saar". Windows will show that name as the publisher in the SmartScreen and
+      UAC prompts. This is expected — the Foundation is the certificate holder.
+    </p>
+  </div>
+  <p>
+    macOS binaries are signed with an Apple Developer ID Application certificate and
+    notarized by Apple. Linux packages are not code-signed; verify them against the
+    <code>SHA256SUMS.txt</code> published with each release.
+  </p>
+
+  <h2>Roles</h2>
+  <table>
+    <tr><th>Role</th><th>Held by</th></tr>
+    <tr><td>Committers and reviewers</td><td><a href="https://github.com/AsafSaar" target="_blank" rel="noopener">Asaf Saar</a></td></tr>
+    <tr><td>Approvers</td><td>Asaf Saar</td></tr>
+  </table>
+  <p>
+    Every signing request originates from a GitHub Actions run of
+    <a href="https://github.com/AsafSaar/dofek/blob/main/.github/workflows/release.yml" target="_blank" rel="noopener"><code>release.yml</code></a>
+    against a tagged commit in the public repository, and each request is approved
+    manually by an Approver. <strong>Locally built binaries are never signed.</strong>
+  </p>
+
+  <h2>What is signed</h2>
+  <table>
+    <tr><th>Artifact</th><th>Description</th></tr>
+    <tr><td><code>Dofek_&lt;version&gt;_x64_en-US.msi</code></td><td>Desktop installer</td></tr>
+    <tr><td><code>dofek-tui.exe</code></td><td>Standalone terminal UI</td></tr>
+    <tr><td><code>dofek-ollama.exe</code></td><td>First-party plugin — Ollama model status</td></tr>
+    <tr><td><code>dofek-docker.exe</code></td><td>First-party plugin — Docker containers</td></tr>
+    <tr><td><code>dofek-net-ping.exe</code></td><td>First-party plugin — TCP latency sampler</td></tr>
+  </table>
+  <p>
+    <strong>Third-party plugins are not signed by this certificate.</strong> A plugin is
+    an ordinary executable that Dofek runs as a child process with the same privileges
+    as Dofek itself. Install only plugins you trust — a signature on Dofek says nothing
+    about the plugins you add to it.
+  </p>
+
+  <h2>Privacy</h2>
+  <p>
+    Dofek collects and transmits no telemetry by default. All system metrics — process
+    lists, CPU, GPU, memory, network and disk counters — stay on the local machine and
+    are never sent anywhere.
+  </p>
+  <p>
+    The only outbound network requests Dofek can make are:
+  </p>
+  <ul>
+    <li>An <strong>opt-in update check</strong> against the GitHub releases API, which sends nothing beyond the HTTP request itself.</li>
+    <li>An <strong>opt-in anonymous usage ping</strong>, off unless you enable it, and disclosed on first run.</li>
+    <li>An optional read of <code>http://localhost:8085</code> when you are running LibreHardwareMonitor for CPU temperature and non-NVIDIA GPU data. Local only.</li>
+  </ul>
+  <p>
+    See <a href="https://github.com/AsafSaar/dofek/blob/main/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>
+    for the full threat model and the plugin trust boundary.
+  </p>
+
+  <h2>Privileged behaviour</h2>
+  <p>
+    Dofek reads the full process list and can <strong>terminate a process you
+    select</strong> — the same capability Task Manager provides. It is always initiated
+    by you from the UI, never automatically, and Dofek runs with your privileges and
+    never requests elevation.
+  </p>
+
+  <h2>Reporting a problem</h2>
+  <p>
+    If you believe a signed Dofek binary has been tampered with, or you find a security
+    issue, follow the disclosure process in
+    <a href="https://github.com/AsafSaar/dofek/blob/main/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>.
+    Please do not open a public issue for security reports.
+  </p>
+</main>
+
+<footer>
+  <div>
+    <span class="footer-logo">Dofek</span>
+    <span style="font-size:11px;color:var(--muted);margin-left:12px">Code Signing Policy</span>
+  </div>
+  <div class="footer-links">
+    <a href="../index.html">Home</a>
+    <a href="../plugins/">Plugins</a>
+    <a href="https://github.com/AsafSaar/dofek" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>

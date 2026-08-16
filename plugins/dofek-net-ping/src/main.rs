@@ -76,8 +76,12 @@ fn main() {
         match request.get("type").and_then(|v| v.as_str()).unwrap_or("") {
             "shutdown" => break,
             "poll" => {
-                let response = handle_poll(&host, port, &state, first_response);
+                let mut response = handle_poll(&host, port, &state, first_response);
                 first_response = false;
+                // Echo the request counter so Dofek can tell a late reply from
+                // the answer to its current poll. Absent on older Dofek builds,
+                // where 0 means "unknown" and it falls back to first-reply-wins.
+                response.seq = request.get("seq").and_then(|v| v.as_u64()).unwrap_or(0);
                 if let Ok(json) = serde_json::to_string(&response) {
                     let _ = writeln!(stdout, "{json}");
                     let _ = stdout.flush();

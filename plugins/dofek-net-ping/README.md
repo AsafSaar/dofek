@@ -23,14 +23,23 @@ From the repo root:
 cargo build --release -p dofek-net-ping
 ```
 
-Then drop the binary somewhere on your `PATH`:
+Then register it with Dofek, which copies it into the managed plugin
+directory (`<config_dir>/dofek/plugins/`):
 
-| OS | Suggested install location |
-|----|---|
-| Linux / macOS | `cp target/release/dofek-net-ping ~/.local/bin/` |
-| Windows | `copy target\release\dofek-net-ping.exe %LOCALAPPDATA%\Programs\dofek\` (and add that folder to `PATH`) |
+```bash
+dofek-tui plugins add target/release/dofek-net-ping
+```
 
-You can also point Dofek at the binary directly via an absolute path in `command`.
+The GUI equivalent is **Settings (`?`) → Plugins → + Add plugin**.
+
+`PATH` is never searched — `command` must be either a bare file name in the
+managed directory or an absolute path. See
+[SECURITY.md](../../SECURITY.md#plugin-security) for why.
+
+> **You may not need to build this at all.** `dofek-net-ping` ships inside the
+> MSI, `.dmg`/`.app` and AppImage, so on those installs a bare
+> `command = "dofek-net-ping"` resolves to the bundled copy with nothing to
+> install.
 
 ## Configuration
 

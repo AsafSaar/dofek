@@ -43,7 +43,7 @@ Most system monitors were designed before LLMs ran locally. They treat GPU as an
 <summary>ASCII layout reference</summary>
 
 ```
-Dofek v1.5  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C    BOULDER11  07:33:40
+Dofek v1.7.0  CPU 9.7%  GPU 1.0%  VRAM 1700/16303MB  MEM 34.0%  TEMP 36C  BOULDER11  07:33:40
 -----------------------------------------------------------------------------------------------
  [CPU]  GPU  MEM  NET   CANDLE                                 PROCESSES        CPU [MEM] VRAM
  9.7% AMD Ryzen 7 7800X3D 8-Core - 16-Core    -- warn 80%      ALL  AI  DEV  WATCH    sort:MEM
@@ -113,9 +113,9 @@ Intel Macs are not supported in this release.
 
 `SHA256SUMS.txt` has checksums for every artifact.
 
-> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "Dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix.
+> ⚠️ **Binaries are currently unsigned.** On Windows, SmartScreen may flag the installer (right-click → Properties → "Unblock"). On Linux, AppImages need `chmod +x` before running. On macOS, Gatekeeper shows "Dofek.app is damaged and can't be opened" on first launch — see the macOS callout above for the `xattr` fix. Signing is in progress; the [code signing policy](https://dofek.dev/code-signing-policy/) describes who will sign what, and who authorises each signature.
 
-Verify (Windows): `Get-FileHash .\Dofek_1.5.1_x64_en-US.msi -Algorithm SHA256`
+Verify (Windows): `Get-FileHash .\Dofek_1.7.0_x64_en-US.msi -Algorithm SHA256`
 Verify (Linux): `sha256sum -c SHA256SUMS.txt`
 Verify (macOS): `shasum -a 256 -c SHA256SUMS.txt`
 
@@ -309,6 +309,7 @@ On macOS, set Terminal.app or iTerm2 to a monospace nerd-font face at 10–11pt 
 | `del` / `x` | Kill selected process (with confirmation) |
 | `X` | Kill all matching processes (search/filter) |
 | `[` / `]` | Resize chart / watchlist split |
+| `P` | Expand / collapse the plugin dock |
 | `+` / `-` | Increase / decrease refresh rate |
 | `s` | Save snapshot to `~/dofek-snapshots/` |
 | `a` | About Dofek |
@@ -367,7 +368,7 @@ enabled = true                        # Opt-in anonymous usage telemetry (defaul
 # Plugins (optional — each entry spawns a child process)
 [[plugins]]
 name = "ollama"
-command = "dofek-ollama"              # resolved via PATH or absolute path
+command = "dofek-ollama"              # name in the managed plugins dir, or an absolute path
 args = ["--host", "http://localhost:11434"]
 enabled = true                        # default: true
 timeout_ms = 2000                     # per-poll timeout in ms (default: 2000)
@@ -416,15 +417,17 @@ Plugins are external processes that inject data into the Dofek dashboard. Dofek 
 
 ### How it works
 
-1. Dofek spawns the plugin process on startup
+1. Dofek spawns each plugin on its own supervisor thread at startup
 2. Every refresh cycle, Dofek sends a poll request (with process list) to the plugin's stdin
 3. The plugin responds with panels (dock UI), process annotations (watchlist labels), and metrics (ticker pills)
-4. If the plugin crashes, Dofek restarts it with exponential backoff (1s → 30s)
-5. On shutdown, Dofek sends a shutdown message and waits 2s before killing
+4. Responses are bounded on arrival, so a plugin can't flood the UI or the heap
+5. A plugin that misses its `timeout_ms` costs nothing — plugins are polled concurrently, never on the collector thread. Five consecutive misses and it's restarted
+6. If the plugin crashes, Dofek restarts it with exponential backoff (1s → 30s)
+7. On shutdown, Dofek sends a shutdown message, closes stdin, then terminates the plugin's whole process group — including anything it spawned. All plugins tear down concurrently
 
 ### Plugin status indicators
 
-In the plugin dock: `●` green = healthy, `●` yellow = unhealthy (5+ consecutive errors), `●` red = crashed, `○` gray = starting.
+In the plugin dock: `●` green = healthy, `●` yellow = unhealthy (3+ consecutive failed polls, or the plugin reported `status: "error"`), `●` red = crashed, `○` gray = starting.
 
 ### Building plugins
 
@@ -434,7 +437,7 @@ cargo build --release -p dofek-docker   # Build Docker plugin
 cargo build --release -p dofek-net-ping # Build net-ping plugin
 ```
 
-Place the built binaries somewhere on your PATH, or use an absolute path in the `command` field.
+Install them with `dofek-tui plugins add <path>` (which copies them into the managed plugins directory), or put an absolute path in the `command` field. `PATH` is deliberately not searched — see [SECURITY.md](SECURITY.md#plugin-security).
 
 ## Process Categories
 
@@ -615,9 +618,11 @@ Release build: LTO enabled, symbols stripped, opt-level 3.
 - **v1.2** — macOS (Apple Silicon) support: TUI + unsigned `.app` bundle, `sw_vers`-based OS reporting, macOS-specific network filter, three-platform CI and release pipeline
 - **v1.3** — System-tray companion (live CPU sparkline icon, close-to-tray default, right-click Show/Hide/Settings/Quit on Windows + macOS, icon-only on Linux, macOS menu-bar text); Linux CPU power via RAPL (`/sys/class/powercap/intel-rapl:0`); cross-platform disk I/O metrics with new `DISK` chart tab and ticker pill; backend → frontend snapshot push (Tauri events) replacing per-second IPC polling for lower WebKitGTK CPU on Linux
 - **v1.4** — Notify-only "check for updates" across TUI (`u` key) and GUI (Check now button + topbar update pill), with opt-in startup probe; 3-mode tray display (chart only / chart + text / text only); rebrand of all user-facing display strings from "dofek" to "Dofek" while keeping every identifier (crate names, binaries, paths, URLs, bundle ID) untouched
-- **v1.5** (current) — Managed plugin store: install plugins via the GUI's Settings → Plugins panel (native file picker) or `dofek-tui plugins {list,add,remove,enable,disable}`, with binaries copied into `<config_dir>/dofek/plugins/` and registered in a managed `plugins.toml`; manifest probed automatically; macOS quarantine xattr cleared on install; data collector watches `plugins.toml` mtime and hot-reloads the plugin manager so installs/removes take effect without restart; settings dialog redesigned into a two-pane Shortcuts / Settings layout; new `dofek-plugin-protocol` workspace crate so external plugin authors share canonical serde types; per-plugin READMEs for `dofek-ollama` + `dofek-docker`; build-all scripts now also build the plugin binaries
+- **v1.5** — Managed plugin store: install plugins via the GUI's Settings → Plugins panel (native file picker) or `dofek-tui plugins {list,add,remove,enable,disable}`, with binaries copied into `<config_dir>/dofek/plugins/` and registered in a managed `plugins.toml`; manifest probed automatically; macOS quarantine xattr cleared on install; data collector watches `plugins.toml` mtime and hot-reloads the plugin manager so installs/removes take effect without restart; settings dialog redesigned into a two-pane Shortcuts / Settings layout; new `dofek-plugin-protocol` workspace crate so external plugin authors share canonical serde types; per-plugin READMEs for `dofek-ollama` + `dofek-docker`; build-all scripts now also build the plugin binaries
 - **v1.5.x** (in flight) — Distribution channels: Homebrew tap live at [`AsafSaar/homebrew-dofek`](https://github.com/AsafSaar/homebrew-dofek) (`brew install AsafSaar/dofek/dofek` for CLI, `brew install --cask AsafSaar/dofek/dofek` for GUI); winget submission in review at [winget-pkgs#368026](https://github.com/microsoft/winget-pkgs/pull/368026); 60-second Remotion launch video embedded on dofek.dev; CTA video updated to surface real install commands as channels go live
-- **v1.6+** — Code signing + notarization on macOS and Authenticode on Windows (eliminates Gatekeeper / SmartScreen friction across all install paths); curated plugin registry (one-click install of official plugins from dofek.dev); AMD GPU VRAM; GPU/VRAM/CPU-temp on macOS; Intel-Mac and Linux-aarch64 builds; AMD CPU power (`amd_energy`); apt repo at apt.dofek.dev for `apt install dofek`
+- **v1.6** — Security and plugin-runtime hardening: one supervisor thread per plugin so `timeout_ms` is real and a wedged plugin costs the collector nothing, with health escalation, crash backoff, and process-group containment (Unix `setsid` + `killpg`, Windows Job Object) so a plugin's own children can't orphan; every plugin-supplied string and collection bounded at ingest; `resolve_command` no longer consults `PATH` or the current directory, and `./dofek.toml` is out of the config search order; `'unsafe-inline'` dropped from the GUI's `script-src`; `schema_version` + `seq` added to the plugin protocol; Windows VERSIONINFO embedded across the workspace and the code signing policy published, which unblocks the signing applications
+- **v1.7** (current) — Plugin data surfaced properly: every panel and entry rendered in both docks, budgeted rather than capped, with a `+N more` marker and a `P` key to expand, and `plugin_label` finally shown in the watchlist; the three first-party plugins ship as bundled sidecars so installing one is a single click and works offline; install-channel detection drives a channel-appropriate upgrade hint (`brew upgrade` / `winget upgrade`) in both UIs
+- **Next** — Code signing + notarization on macOS and Authenticode on Windows going live (prerequisites landed in v1.6; the binaries are still unsigned until the applications clear), then the in-app updater that depends on them; curated plugin registry (one-click install of official plugins from dofek.dev); AMD GPU VRAM; GPU/VRAM/CPU-temp on macOS; Intel-Mac and Linux-aarch64 builds; AMD CPU power (`amd_energy`); apt repo at apt.dofek.dev for `apt install dofek`
 
 ## License
 

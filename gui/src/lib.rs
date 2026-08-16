@@ -1,5 +1,6 @@
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use dofek::config::Config;
 use dofek::data::DataSnapshot;
@@ -15,18 +16,72 @@ pub struct AppState {
     pub config: Config,
     pub settings: Arc<Mutex<UserSettings>>,
     pub telemetry: TelemetryHandle,
+    /// Paths the user chose in the native file picker, with the time they
+    /// chose them. `plugins_add` will only install a path recorded here.
+    ///
+    /// Installing a plugin means copying a binary, marking it executable,
+    /// stripping macOS quarantine, spawning it, and persisting it to
+    /// `plugins.toml` so it runs on every launch. Validating the *path* can't
+    /// gate that — every local executable is a legitimate plugin path. What
+    /// distinguishes an install the user asked for is that they picked it in
+    /// a native dialog the page cannot drive, so that is what we require.
+    pub pending_plugin_paths: Mutex<Vec<(PathBuf, Instant)>>,
+}
+
+/// How long a picked path stays installable. Long enough for the user to read
+/// the confirmation, short enough that a stale entry isn't lying around.
+const PLUGIN_PICK_TTL: Duration = Duration::from_secs(300);
+
+impl AppState {
+    /// Record a path the user selected in the native picker.
+    fn record_picked_plugin(&self, path: PathBuf) {
+        let mut pending = lock_or_recover(&self.pending_plugin_paths);
+        let now = Instant::now();
+        pending.retain(|(_, at)| now.duration_since(*at) < PLUGIN_PICK_TTL);
+        pending.push((path, now));
+    }
+
+    /// Consume a pending pick, returning whether `path` was one. Single-use:
+    /// a second `plugins_add` for the same path has to be picked again.
+    fn take_picked_plugin(&self, path: &Path) -> bool {
+        let mut pending = lock_or_recover(&self.pending_plugin_paths);
+        let now = Instant::now();
+        pending.retain(|(_, at)| now.duration_since(*at) < PLUGIN_PICK_TTL);
+        match pending.iter().position(|(p, _)| p == path) {
+            Some(i) => {
+                pending.remove(i);
+                true
+            }
+            None => false,
+        }
+    }
+}
+
+/// Lock a mutex, recovering from poisoning instead of panicking.
+///
+/// Every IPC handler touches one of these. A panic while any lock was held
+/// would otherwise poison it and make every subsequent `lock().unwrap()`
+/// panic too — one transient failure bricking the whole GUI. The data behind
+/// these locks is a snapshot, a settings struct, and a list of picked paths:
+/// none of them has an invariant that a poisoned lock protects, so continuing
+/// with the value is strictly better than dying.
+fn lock_or_recover<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|poisoned| {
+        log::warn!("recovered a poisoned lock — a previous handler panicked");
+        poisoned.into_inner()
+    })
 }
 
 /// Tauri command: returns the latest system data snapshot as JSON.
 #[tauri::command]
 fn get_snapshot(state: tauri::State<'_, AppState>) -> DataSnapshot {
-    state.snapshot.lock().unwrap().clone()
+    lock_or_recover(&state.snapshot).clone()
 }
 
 /// Tauri command: returns GPU device definitions (name + VRAM total) for the frontend.
 #[tauri::command]
 fn get_gpu_info(state: tauri::State<'_, AppState>) -> Vec<GpuDef> {
-    let snap = state.snapshot.lock().unwrap();
+    let snap = lock_or_recover(&state.snapshot);
     snap.gpus.iter().map(|g| GpuDef {
         name: g.name.clone(),
         vram_total_mb: g.vram_total_mb,
@@ -97,7 +152,7 @@ fn open_manual(app: tauri::AppHandle) -> Result<(), String> {
 /// Tauri command: returns the current user settings.
 #[tauri::command]
 fn get_settings(state: tauri::State<'_, AppState>) -> UserSettings {
-    state.settings.lock().unwrap().clone()
+    lock_or_recover(&state.settings).clone()
 }
 
 /// Tauri command: saves UI settings to disk, preserving telemetry/identity fields.
@@ -112,7 +167,7 @@ fn save_settings(
     // each tick, so we must not hold the settings lock while reaching for the
     // snapshot lock here — that would invert the order and risk a deadlock.
     let merged = {
-        let mut current = state.settings.lock().unwrap();
+        let mut current = lock_or_recover(&state.settings);
         // Preserve telemetry and identity fields — only set_telemetry_choice should change these
         let m = UserSettings {
             anonymous_id: current.anonymous_id.clone(),
@@ -129,7 +184,7 @@ fn save_settings(
     // `tray_display_mode` / `tray_show_text` values on the next data-collector
     // tick (≥1 s) — slow enough that users perceived it as "needs a restart".
     if merged.enable_tray {
-        let snap = state.snapshot.lock().unwrap().clone();
+        let snap = lock_or_recover(&state.snapshot).clone();
         tray::update(&app, &snap, &merged);
     }
 
@@ -145,13 +200,13 @@ fn track_event(state: tauri::State<'_, AppState>, event: TelemetryEvent) {
 /// Tauri command: check if the telemetry prompt has been shown.
 #[tauri::command]
 fn get_telemetry_prompted(state: tauri::State<'_, AppState>) -> bool {
-    state.settings.lock().unwrap().telemetry_prompted
+    lock_or_recover(&state.settings).telemetry_prompted
 }
 
 /// Tauri command: save the user's telemetry choice from the frontend prompt.
 #[tauri::command]
 fn set_telemetry_choice(state: tauri::State<'_, AppState>, enabled: bool) -> Result<(), String> {
-    let mut s = state.settings.lock().unwrap();
+    let mut s = lock_or_recover(&state.settings);
     s.telemetry_prompted = true;
     s.telemetry_enabled = enabled;
     s.save().map_err(|e| e.to_string())
@@ -225,13 +280,38 @@ fn plugins_list() -> Result<Vec<PluginEntryView>, String> {
     Ok(list.into_iter().map(Into::into).collect())
 }
 
+/// Install a plugin the user selected via [`plugins_pick_file`].
+///
+/// The path must match a pending pick — see `AppState::pending_plugin_paths`
+/// for why provenance rather than path validation is the gate here. The
+/// `dofek-tui plugins add` CLI has no such restriction: typing that command
+/// *is* the user's intent, and there is no untrusted page in the loop.
+///
+/// Async + `spawn_blocking` because `store::add` copies a file that can be up
+/// to 256 MiB and then spawns the binary to read its manifest — up to a
+/// 2.5 s probe. Running that inline parked an IPC worker for the duration.
 #[tauri::command]
-fn plugins_add(path: String, args: Vec<String>) -> Result<PluginEntryView, String> {
-    let store = dofek::plugin::store::PluginStore::open().map_err(|e| e.to_string())?;
-    let installed = store
-        .add(std::path::Path::new(&path), args)
-        .map_err(|e| format!("{e:#}"))?;
-    Ok(installed.into())
+async fn plugins_add(
+    state: tauri::State<'_, AppState>,
+    path: String,
+    args: Vec<String>,
+) -> Result<PluginEntryView, String> {
+    if !state.take_picked_plugin(std::path::Path::new(&path)) {
+        return Err(
+            "This plugin was not selected through the file picker, or the \
+             selection expired. Click \"+ Add plugin\" and choose it again."
+                .to_string(),
+        );
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = dofek::plugin::store::PluginStore::open().map_err(|e| e.to_string())?;
+        let installed = store
+            .add(std::path::Path::new(&path), args)
+            .map_err(|e| format!("{e:#}"))?;
+        Ok(installed.into())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -250,7 +330,10 @@ fn plugins_set_enabled(name: String, enabled: bool) -> Result<(), String> {
 /// path or `None` if the user cancelled. Doing this server-side keeps the
 /// frontend JS plugin-agnostic — no @tauri-apps/plugin-dialog discovery dance.
 #[tauri::command]
-async fn plugins_pick_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
+async fn plugins_pick_file(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
     let (tx, rx) = std::sync::mpsc::channel();
     app.dialog()
@@ -260,7 +343,13 @@ async fn plugins_pick_file(app: tauri::AppHandle) -> Result<Option<String>, Stri
             let s = path.map(|p| p.to_string());
             let _ = tx.send(s);
         });
-    rx.recv().map_err(|e| e.to_string())
+    let picked = rx.recv().map_err(|e| e.to_string())?;
+    // Remember the choice so `plugins_add` can verify the install actually
+    // came from this dialog.
+    if let Some(ref p) = picked {
+        state.record_picked_plugin(PathBuf::from(p));
+    }
+    Ok(picked)
 }
 
 /// Tauri command: kill a single process by PID.
@@ -349,7 +438,11 @@ pub fn run() {
     let gui_refresh_ms = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(
         config.general.refresh_ms.max(1000),
     ));
-    let data_rx = dofek::data::spawn_collector(config.clone(), std::sync::Arc::clone(&gui_refresh_ms));
+    // The handle is what stops the plugin child processes on exit — see
+    // `dofek::data::CollectorHandle`.
+    let (data_rx, collector) =
+        dofek::data::spawn_collector(config.clone(), std::sync::Arc::clone(&gui_refresh_ms));
+    let collector = Mutex::new(Some(collector));
 
     // Shared snapshot for Tauri commands
     let snapshot = Arc::new(Mutex::new(DataSnapshot::default()));
@@ -361,6 +454,7 @@ pub fn run() {
         config,
         settings: Arc::clone(&settings),
         telemetry: telemetry.clone(),
+        pending_plugin_paths: Mutex::new(Vec::new()),
     };
 
     let snapshot_for_setup = Arc::clone(&snapshot);
@@ -422,7 +516,7 @@ pub fn run() {
                 if window.label() != "main" {
                     return;
                 }
-                let s = close_settings.lock().unwrap();
+                let s = lock_or_recover(&close_settings);
                 if s.enable_tray && s.close_to_tray {
                     let _ = window.hide();
                     api.prevent_close();
@@ -435,7 +529,7 @@ pub fn run() {
 
             // Install the tray companion. Failures are logged and tolerated —
             // a missing tray shouldn't crash the app.
-            let s = settings_for_setup.lock().unwrap().clone();
+            let s = lock_or_recover(&settings_for_setup).clone();
             if let Err(e) = tray::install(app, &s, telemetry_for_setup.clone()) {
                 log::warn!("Failed to install tray icon: {e}");
             }
@@ -461,7 +555,7 @@ pub fn run() {
                 use tauri::Emitter;
                 for snap in rx {
                     {
-                        let mut locked = snapshot_writer.lock().unwrap();
+                        let mut locked = lock_or_recover(&snapshot_writer);
                         *locked = snap.clone();
                     }
                     // Push the snapshot to the frontend instead of having it
@@ -470,7 +564,7 @@ pub fn run() {
                     // remaining cost on WebKitGTK at 1 Hz. get_snapshot is kept
                     // around so the frontend can still hydrate on first paint.
                     let _ = app_handle.emit("dofek://snapshot", &snap);
-                    let s = settings_for_relay.lock().unwrap().clone();
+                    let s = lock_or_recover(&settings_for_relay).clone();
                     if s.enable_tray {
                         tray::update(&app_handle, &snap, &s);
                     }
@@ -483,6 +577,12 @@ pub fn run() {
         .expect("error building Dofek GUI")
         .run(move |_app, event| {
             if let tauri::RunEvent::Exit = event {
+                // Plugins run in their own session / Job Object, so nothing
+                // else will clean them up. Taken out of the Option so a second
+                // Exit event can't join twice.
+                if let Some(mut c) = lock_or_recover(&collector).take() {
+                    c.shutdown();
+                }
                 shutdown_telemetry.track(TelemetryEvent::SessionEnd {
                     duration_secs: session_start.elapsed().as_secs(),
                 });

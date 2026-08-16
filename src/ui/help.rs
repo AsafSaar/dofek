@@ -45,6 +45,7 @@ pub fn render(f: &mut Frame, telemetry_enabled: bool) {
         help_line("esc", "Return to dashboard"),
         help_line("+/-", "Adjust refresh rate"),
         help_line("[ ]", "Resize chart/watchlist"),
+        help_line("P", "Expand/collapse plugin dock"),
         help_line("h", "Toggle horizon chart"),
         help_line("s", "Save snapshot"),
         help_line("u", "Check for updates"),

@@ -9,7 +9,7 @@ members = [
 
 [package]
 name = "dofek"
-version = "1.5.1"
+version = "1.7.0"
 edition = "2024"
 description = "Terminal-native system monitor for Windows, Linux, and macOS (Apple Silicon) — AI-aware, visually stunning"
 
@@ -17,9 +17,19 @@ description = "Terminal-native system monitor for Windows, Linux, and macOS (App
 name = "dofek-tui"
 path = "src/main.rs"
 
+# Misbehaving-plugin fixture for the plugin-runtime tests. Default-off so it
+# never lands in a release build; CI enables it via `--all-features`.
+[[bin]]
+name = "dofek-mock-plugin"
+path = "src/bin/dofek-mock-plugin.rs"
+required-features = ["mock-plugin"]
+
 [lib]
 name = "dofek"
 path = "src/lib.rs"
+
+[features]
+mock-plugin = []
 
 [dependencies]
 # TUI
@@ -58,8 +68,17 @@ dofek-plugin-protocol = { path = "crates/dofek-plugin-protocol", version = "0.1.
 # Local time formatting (cross-platform; replaces the OS-specific clock blocks)
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
+[dev-dependencies]
+# Scratch dirs for tests that exercise plugin install / command resolution.
+tempfile = "3"
+
+# `nix` is not repeated as a dev-dependency: test targets link the normal
+# dependencies too, so the containment test's `kill(pid, None)` resolves
+# against the entry below.
 [target.'cfg(unix)'.dependencies]
-nix = { version = "0.31", features = ["signal"] }
+# `process` is needed for setsid/getpgid: plugin children are put in their own
+# session so `killpg` reaps any grandchildren they spawn.
+nix = { version = "0.31", features = ["signal", "process"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
@@ -72,7 +91,15 @@ windows = { version = "0.62", features = [
     "Win32_Security",
     "Win32_System_Performance",
     "Wdk_System_SystemServices",
+    # Job Objects contain plugin children so their own children can't orphan.
+    "Win32_System_JobObjects",
 ] }
+
+# Embeds VERSIONINFO into dofek-tui.exe — see build.rs. For build dependencies
+# this `cfg` is evaluated against the *host*, so the crate is only fetched when
+# building on Windows and non-Windows builds are untouched.
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 lto = true

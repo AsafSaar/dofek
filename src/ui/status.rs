@@ -31,6 +31,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         ("h", "horizon"),
         ("1-4", "filter"),
         ("[]", "resize"),
+        ("P", "dock"),
         ("s", "snap"),
         ("?", "settings"),
     ];

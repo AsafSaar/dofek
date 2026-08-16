@@ -5,9 +5,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Advisories are published against code that hasn't changed, so poll
+    # weekly rather than only on push. Mondays, 06:00 UTC.
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
+
+# `--workspace` is load-bearing, not decoration. The repo root is both the
+# workspace root *and* a package, so a bare `cargo clippy` / `cargo test` there
+# is scoped to the `dofek` package alone — dofek-gui, the three first-party
+# plugin crates, and dofek-plugin-protocol were never compiled, let alone
+# linted. That went unnoticed because the root package's own suite is where
+# almost all the tests live.
 
 jobs:
   check-windows:
@@ -28,11 +39,15 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Stage placeholder Tauri sidecars
+        shell: bash
+        run: .github/scripts/stage-placeholder-sidecars.sh
+
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Tests
-        run: cargo test
+        run: cargo test --workspace --all-features
 
   check-linux:
     name: Lint & Test (ubuntu-latest)
@@ -62,11 +77,15 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Stage placeholder Tauri sidecars
+        shell: bash
+        run: .github/scripts/stage-placeholder-sidecars.sh
+
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Tests
-        run: cargo test
+        run: cargo test --workspace --all-features
 
   check-macos:
     name: Lint & Test (macos-latest)
@@ -86,8 +105,28 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Stage placeholder Tauri sidecars
+        shell: bash
+        run: .github/scripts/stage-placeholder-sidecars.sh
+
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Tests
-        run: cargo test
+        run: cargo test --workspace --all-features
+
+  # Dependency advisories, licences, and duplicate/banned crates across the
+  # whole tree (686 transitive crates as of v1.5). Runs on the weekly cron too,
+  # so a new advisory fails CI without needing a code change.
+  deny:
+    name: Dependency audit (cargo-deny)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories bans licenses sources

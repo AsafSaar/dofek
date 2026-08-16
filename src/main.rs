@@ -85,8 +85,9 @@ fn main() -> Result<()> {
     // App's `+`/`-` keys, read on every collector iteration.
     let refresh_ms = Arc::new(AtomicU64::new(config.general.refresh_ms));
 
-    // Spawn data collector thread
-    let data_rx = data::spawn_collector(config.clone(), Arc::clone(&refresh_ms));
+    // Spawn data collector thread. The handle is what stops the plugin child
+    // processes on quit — see `CollectorHandle`.
+    let (data_rx, mut collector) = data::spawn_collector(config.clone(), Arc::clone(&refresh_ms));
 
     // Spawn event reader thread
     let tick_rate = Duration::from_millis(16); // ~60fps event polling
@@ -320,6 +321,10 @@ fn main() -> Result<()> {
             break;
         }
     }
+
+    // Stop the collector and every plugin child before anything else. Plugins
+    // run in their own session, so nothing else will clean them up.
+    collector.shutdown();
 
     // Flush telemetry before exit
     telemetry.track(TelemetryEvent::SessionEnd {

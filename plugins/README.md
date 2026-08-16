@@ -18,14 +18,29 @@ Dofek (parent)                    plugin (child process)
   │                                  │
   │   [on exit]                      │
   │── {"type":"shutdown"}\n ───────>│
-  │── kills after 2s ──────────────>│
+  │── closes stdin (EOF) ──────────>│
+  │── kills the process group ─────>│
 ```
 
 - **Pull model**: Dofek writes a request to the plugin's **stdin**, reads a response from **stdout**
 - **Newline-delimited JSON**: one JSON object per line, terminated by `\n`
-- **stderr**: captured by Dofek for logging — use it for debug output
-- **Timeout**: if a plugin doesn't respond within `timeout_ms` (default 2000ms), the poll is skipped
+- **One response per request.** Extra lines are discarded; a plugin that keeps
+  emitting them is disconnected and restarted.
+- **stderr**: drained continuously by Dofek and surfaced as rate-limited debug
+  logging — use it for debug output. Because it is drained, writing a lot to it
+  can't block your plugin.
+- **Timeout**: if a plugin doesn't respond within `timeout_ms` (default 2000ms),
+  that poll is abandoned. Each plugin is polled on its own thread, so a slow
+  plugin never delays Dofek or any other plugin. Five consecutive failed polls
+  and the plugin is restarted.
+- **Output limits**: responses are bounded on arrival — max 256 KiB per line,
+  8 panels, 16 entries per panel, 8 metrics, 512 process annotations, and
+  64/128 characters per string. Control characters are stripped. Anything over
+  a limit is truncated silently (visible under `--debug`); an over-long *line*
+  disconnects the plugin.
 - **Crash recovery**: if the process dies, Dofek restarts it with exponential backoff (1s, 2s, 4s, 8s, 16s, 30s cap)
+- **Containment**: plugins run in their own process group (Unix) or Job Object
+  (Windows), so any process your plugin spawns is cleaned up when it exits.
 
 ## Configuration
 
@@ -34,13 +49,28 @@ Add a `[[plugins]]` entry to `dofek.toml`:
 ```toml
 [[plugins]]
 name = "my-plugin"            # Display name (used if no manifest provided)
-command = "dofek-my-plugin"   # Binary name (resolved via PATH) or absolute path
+command = "dofek-my-plugin"   # Name of a binary in the managed plugins dir, or an absolute path
 args = ["--flag", "value"]    # Optional arguments
 enabled = true                # Default: true
 timeout_ms = 2000             # Per-poll timeout in milliseconds (default: 2000)
 ```
 
 Multiple `[[plugins]]` entries are supported. Order determines dock layout order.
+
+### How `command` is resolved
+
+Exactly two forms are accepted:
+
+- **A bare file name** — looked up in the managed plugins directory
+  (`<config_dir>/dofek/plugins/`), where `dofek-tui plugins add` puts binaries.
+  A symlink there must still point inside that directory.
+- **An absolute path** to an existing regular file.
+
+Anything else — a relative path, or a name that isn't installed — is rejected
+at spawn time with an error. **`PATH` is never searched, and the command is
+never resolved relative to the working directory.** A config file can declare
+plugins, and dofek runs them, so binary lookup deliberately doesn't depend on
+where you happen to have `cd`-ed or what is on your `PATH`.
 
 ## Protocol Reference
 
@@ -51,6 +81,8 @@ Sent to **stdin** on every refresh cycle:
 ```json
 {
   "type": "poll",
+  "schema_version": 1,
+  "seq": 42,
   "timestamp_ms": 1713020400000,
   "processes": [
     { "pid": 1234, "name": "ollama_llama_server.exe", "vram_bytes": 4294967296 },
@@ -62,8 +94,15 @@ Sent to **stdin** on every refresh cycle:
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"poll"` | Always `"poll"` |
+| `schema_version` | `u32` | Message-shape version. `1` today; absent on Dofek < 1.6 |
+| `seq` | `u64` | Request counter. Echo it back on your response — see below |
 | `timestamp_ms` | `u64` | Unix timestamp in milliseconds |
 | `processes` | `array` | Current system processes — ignore if your plugin doesn't need them |
+
+Echoing `seq` is optional but recommended: it lets Dofek tell a reply that
+arrived late (after its request already timed out) from the answer to the
+current poll. A plugin that doesn't echo it gets first-reply-wins instead,
+which is what every plugin written before Dofek 1.6 does.
 
 Each process object:
 
@@ -80,6 +119,7 @@ Write to **stdout** as a single JSON line:
 ```json
 {
   "status": "ok",
+  "seq": 42,
   "panels": [ ... ],
   "process_annotations": [ ... ],
   "metrics": [ ... ]
@@ -87,6 +127,12 @@ Write to **stdout** as a single JSON line:
 ```
 
 All three arrays are **optional** — include only what your plugin provides.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `string` | `"ok"` (or omitted) means healthy. Any other value marks the plugin **unhealthy** in the UI — your data is still shown, with a warning indicator |
+| `seq` | `u64` | Echo of the request's `seq`. Omit (or `0`) if you don't track it |
+| `schema_version` | `u32` | Optional; defaults to `1` |
 
 #### `manifest` (first response only)
 
@@ -124,7 +170,9 @@ Key-value data displayed in the plugin dock at the bottom of the watchlist:
 ]
 ```
 
-The first panel's content is shown inline next to the plugin name in the dock. The `label` is displayed as the panel header.
+The first panel's content is shown inline next to the plugin name; every additional panel gets its own line, prefixed with its `label`. Every entry you send is rendered — nothing is dropped at the render site.
+
+In the TUI the dock is capped at a third of the watchlist so it can't starve the process table; anything that doesn't fit becomes a `+N more` line, and <kbd>P</kbd> expands the dock to full height. In the GUI the dock scrolls.
 
 **Style values:**
 
@@ -154,7 +202,7 @@ Override or add labels to processes in the watchlist:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `pid` | `u32` | yes | Must match a running process PID |
-| `label` | `string` | no | Displayed as `plugin_label` on the process row |
+| `label` | `string` | no | Displayed next to the process name — a dim suffix in the TUI, a badge in the GUI |
 | `category` | `string` | no | Override category: `"ai"`, `"dev"`, or `"watch"` |
 | `ai_state` | `string` | no | Override AI state: `"idle"`, `"loading"`, or `"inferring"` |
 

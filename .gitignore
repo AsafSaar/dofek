@@ -1,6 +1,8 @@
 /target
 .claude/*
 !.claude/skills/
+# Session scratch — intermediates only, always regenerable.
+.tmp/
 dofek.toml
 website/node_modules/
 # macOS Finder metadata

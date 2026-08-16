@@ -1,1 +1,0 @@
-{"default":{"identifier":"default","description":"Default capabilities for Dofek","local":true,"windows":["main"],"permissions":["core:default","shell:allow-open","window-state:default","dialog:allow-open"]}}

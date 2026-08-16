@@ -69,13 +69,26 @@ pub fn extract_memory(system: &System) -> MemorySensors {
 ///   - ARM/embedded:   "cpu_thermal", "cpu-thermal 0"
 #[cfg(target_os = "linux")]
 pub fn pick_cpu_temp(components: &sysinfo::Components) -> Option<f32> {
+    pick_temp_from(components.iter().map(|c| (c.label(), c.temperature())))
+}
+
+/// The label-priority logic behind [`pick_cpu_temp`], over plain
+/// `(label, temperature)` pairs.
+///
+/// Split out from the `sysinfo::Components` call so it is testable — and
+/// tested on every OS, not just the one platform that compiles the caller.
+/// `Components` has no public constructor that lets a test seed labels.
+pub fn pick_temp_from<'a, I>(components: I) -> Option<f32>
+where
+    I: IntoIterator<Item = (&'a str, Option<f32>)> + Clone,
+{
     // Preferred package-level labels in priority order.
     const PACKAGE_LABELS: &[&str] = &["Package id 0", "Tctl", "Tdie", "cpu_thermal", "cpu-thermal"];
 
     for pref in PACKAGE_LABELS {
-        for c in components.iter() {
-            if c.label().contains(pref)
-                && let Some(t) = c.temperature()
+        for (label, temp) in components.clone() {
+            if label.contains(pref)
+                && let Some(t) = temp
             {
                 return Some(t);
             }
@@ -84,9 +97,9 @@ pub fn pick_cpu_temp(components: &sysinfo::Components) -> Option<f32> {
 
     // Fallback: average per-core readings if any are present.
     let cores: Vec<f32> = components
-        .iter()
-        .filter(|c| c.label().starts_with("Core "))
-        .filter_map(|c| c.temperature())
+        .into_iter()
+        .filter(|(label, _)| label.starts_with("Core "))
+        .filter_map(|(_, temp)| temp)
         .collect();
     if cores.is_empty() {
         None
@@ -123,4 +136,65 @@ pub fn enumerate_processes(
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Package-level sensors are preferred, in the declared priority order.
+    #[test]
+    fn prefers_package_labels_in_order() {
+        // Intel coretemp naming.
+        let intel = [("Package id 0", Some(55.0)), ("Core 0", Some(70.0))];
+        assert_eq!(pick_temp_from(intel.iter().copied()), Some(55.0));
+
+        // AMD k10temp: Tctl outranks Tdie.
+        let amd = [("Tdie", Some(48.0)), ("Tctl", Some(60.0))];
+        assert_eq!(pick_temp_from(amd.iter().copied()), Some(60.0));
+
+        // ARM / embedded.
+        let arm = [("cpu_thermal", Some(41.5))];
+        assert_eq!(pick_temp_from(arm.iter().copied()), Some(41.5));
+
+        // Labels match as substrings, the way sysinfo reports them.
+        let suffixed = [("k10temp Tctl temp1", Some(62.0))];
+        assert_eq!(pick_temp_from(suffixed.iter().copied()), Some(62.0));
+    }
+
+    /// A preferred label with no reading must not shadow the fallback.
+    #[test]
+    fn skips_preferred_labels_that_report_no_temperature() {
+        let c = [("Package id 0", None), ("Core 0", Some(70.0)), ("Core 1", Some(80.0))];
+        assert_eq!(pick_temp_from(c.iter().copied()), Some(75.0));
+    }
+
+    #[test]
+    fn averages_per_core_readings_as_a_fallback() {
+        let c = [("Core 0", Some(60.0)), ("Core 1", Some(70.0)), ("Core 2", Some(80.0))];
+        assert_eq!(pick_temp_from(c.iter().copied()), Some(70.0));
+
+        // Cores that report nothing are excluded from the average, not counted
+        // as zero.
+        let partial = [("Core 0", Some(60.0)), ("Core 1", None), ("Core 2", Some(80.0))];
+        assert_eq!(pick_temp_from(partial.iter().copied()), Some(70.0));
+    }
+
+    #[test]
+    fn returns_none_when_nothing_usable_is_present() {
+        let empty: [(&str, Option<f32>); 0] = [];
+        assert_eq!(pick_temp_from(empty.iter().copied()), None);
+
+        // Non-CPU sensors only.
+        let unrelated = [("nvme Composite", Some(38.0)), ("acpitz", Some(45.0))];
+        assert_eq!(pick_temp_from(unrelated.iter().copied()), None);
+
+        // "Core " needs the trailing space — "Corsair" must not match.
+        let lookalike = [("Corsair H100i", Some(30.0))];
+        assert_eq!(pick_temp_from(lookalike.iter().copied()), None);
+
+        // Everything present but unreadable.
+        let no_readings = [("Package id 0", None), ("Core 0", None)];
+        assert_eq!(pick_temp_from(no_readings.iter().copied()), None);
+    }
 }
