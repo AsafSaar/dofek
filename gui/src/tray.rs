@@ -173,10 +173,10 @@ pub fn install(
             if let Err(e) = app_handle.run_on_main_thread(move || {
                 match build_tray_menu(&app_for_main) {
                     Ok(menu) => {
-                        if let Some(tray) = app_for_main.tray_by_id("main") {
-                            if let Err(e) = tray.set_menu(Some(menu)) {
-                                log::warn!("delayed tray.set_menu failed: {e}");
-                            }
+                        if let Some(tray) = app_for_main.tray_by_id("main")
+                            && let Err(e) = tray.set_menu(Some(menu))
+                        {
+                            log::warn!("delayed tray.set_menu failed: {e}");
                         }
                     }
                     Err(e) => log::warn!("delayed tray menu build failed: {e}"),
