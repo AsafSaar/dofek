@@ -2,6 +2,40 @@
 
 All notable changes to Dofek are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-08-16
+
+Security, plugin-runtime, and distribution release. Folds in the v1.5.2 security work, the v1.6 plugin-runtime rework and code-signing prerequisites, and the v1.7 plugin surfacing and bundling. The test suite goes from 5 tests to 208; clippy and cargo-deny are clean across the workspace.
+
+### Added
+- **Per-plugin supervisor threads.** Each plugin now runs under its own supervisor, so `timeout_ms` is enforced for real, latency no longer stacks across plugins, and a wedged plugin costs the collector nothing. Health escalation at 3 consecutive failed polls, restart-with-backoff at 5. The previous `read_line_timeout` could not actually time out, deadlocked on a stderr flood, and orphaned grandchildren.
+- **Process-group containment.** Plugin children are put in their own session on Unix (`setsid`, torn down with `killpg`) and inside a Job Object on Windows, so anything a plugin spawns dies with it. A new `CollectorHandle` means quitting Dofek tears plugins down rather than leaving them running.
+- **Ingest bounds for plugin output** (`plugin/sanitize.rs`). Every plugin-supplied string and collection is capped and stripped of control characters as it is parsed, before anything downstream can see it.
+- **`schema_version` and `seq`** in the plugin protocol, both `serde(default)`, so existing plugins keep working unchanged.
+- **Bundled first-party plugins.** `dofek-ollama`, `dofek-docker`, and `dofek-net-ping` ship as Tauri `externalBin` sidecars, making install one click and offline, and letting them inherit the app's signing.
+- **Install-channel detection.** Dofek infers how it was installed and shows a channel-appropriate upgrade hint (`brew upgrade`, `winget upgrade`, and so on) in both UIs. Package-managed channels are excluded from any future in-app update.
+- **Windows VERSIONINFO** embedded across the workspace via `winresource` build scripts, asserted in `release.yml` before signing. **Code signing policy page** published at [dofek.dev/code-signing-policy](https://dofek.dev/code-signing-policy/), which is what SignPath's terms require — signing is not active yet and the page says so.
+- **`P` key** expands and collapses the plugin dock in the TUI.
+- **`deny.toml` and a cargo-deny CI job** covering advisories, licences, bans, and sources, on a weekly cron as well as on push.
+
+### Changed
+- **Plugin dock renders everything.** Both docks now show every panel and entry, budgeted by available space rather than hard-capped, with a `+N more` marker. `plugin_label` is finally rendered in the watchlist. `plugin_statuses` is serialized to the webview, which the ingest caps and the XSS work above make safe.
+- **`resolve_command` returns `Result<PathBuf>`** and accepts only an absolute path to a regular file or a bare name inside the managed plugins directory. It never consults `PATH` and never resolves against the current directory. Bundled plugins are probed from the executable's directory under a closed allowlist of first-party names, so the probe cannot be turned into a general executable search.
+- **`./dofek.toml` removed from the config search order.** A config file can declare `[[plugins]]`, which Dofek spawns as child processes, so `cd`-ing into a directory containing a hostile `dofek.toml` used to be enough to get code run. Use `$DOFEK_CONFIG` or `--config` to opt into a project-local config.
+- **GUI frontend split** into `app.js` / `overlays.js` / `app.css`, with `'unsafe-inline'` dropped from `script-src` and every HTML sink either escaped or removed. The plugin dock renderer is built entirely from `createElement` + `textContent`, enforced by a test.
+- **Version strings derive from `CARGO_PKG_VERSION`** in both UIs rather than being hand-maintained literals.
+- **Shared `ui::text::truncate` and `data::rate`.** Six private copies of `truncate` byte-sliced `&str` against a column budget and could panic the TUI on a process name containing a multibyte character.
+- **Docs corrected where they had drifted:** `dofek.toml.example` and all three per-plugin READMEs still told users to put plugin binaries on `PATH`, which is no longer possible.
+
+### Fixed
+- `cargo clippy` and `cargo test` in CI ran against the root package only, because the repo root is both the workspace root and a package. `dofek-gui`, the three plugin crates, and `dofek-plugin-protocol` were never compiled or linted. All jobs now pass `--workspace`.
+- `config::tests::cwd_config_is_never_a_candidate` asserted `is_absolute()` against a Unix-shaped fixture, which fails on Windows regardless of the code under test.
+- The plugin teardown timing tests bounded at 500 ms, roughly 200 ms above the floor teardown actually costs, and flaked on shared CI runners.
+
+### Notes
+- The in-app updater is deliberately deferred: pushing unsigned MSIs through an updater re-triggers SmartScreen. It follows signing going live.
+- Binaries remain unsigned in this release.
+- The Windows Job Object is assigned after the child starts, so a plugin that forks in that window escapes containment. Closing it needs `CREATE_SUSPENDED` plus a main-thread handle `std` does not expose; the gap is documented in `Job::containing`.
+
 ## [1.5.1] - 2026-04-30
 
 Patch release — closes Tracks 3 and 4 of the v1.5 plugin-showcase plan. Adds a third first-party plugin, wires plugin binaries into the release pipeline, and unblocks the next CI release tag.
