@@ -585,14 +585,14 @@ LHM fallback ──> GPU sensors (if NVML unavailable) ────────�
 | Component | Crate | Version |
 |-----------|-------|---------|
 | TUI framework | ratatui | 0.30 |
-| Terminal backend | crossterm | 0.28 |
-| System info | sysinfo | 0.38 |
+| Terminal backend | crossterm | 0.29 |
+| System info | sysinfo | 0.39 |
 | NVIDIA GPU | nvml-wrapper | 0.12 |
 | HTTP client | ureq | 2 |
-| Config | toml + clap | 0.8 / 4 |
+| Config | toml + clap | 1.1 / 4 |
 | Serialization | serde + serde_json | 1 |
-| Win32 API (Windows only) | windows | 0.61 |
-| POSIX signals (Unix only) | nix | 0.29 |
+| Win32 API (Windows only) | windows | 0.62 |
+| POSIX signals (Unix only) | nix | 0.31 |
 | Local time formatting | chrono | 0.4 |
 | Error handling | anyhow | 1 |
 | Logging | log + env_logger | 0.4 / 0.11 |
