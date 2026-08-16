@@ -31,6 +31,21 @@ const TICK_INTERVAL: Duration = Duration::from_millis(50);
 /// independent of what any plugin is doing.
 const TICK_BUDGET: Duration = Duration::from_millis(50);
 
+/// The budget a whole-set teardown (`shutdown` / `replace`) gets, however many
+/// wedged plugins it has to reap.
+///
+/// The property under test is that teardown does not *stack*: the old code
+/// slept a flat 2 s per plugin on the collector thread, so three plugins cost
+/// 6 s. Any bound comfortably under 2 s proves that.
+///
+/// The floor is one plugin's own teardown, which is serial by construction:
+/// `IDLE_SLICE` (50 ms) for the supervisor to notice the stop flag, plus
+/// `TERM_GRACE` (150 ms), plus `GROUP_TERM_GRACE` (100 ms) — about 300 ms. A
+/// 500 ms bound left only 200 ms of headroom and duly flaked on CI's shared
+/// macOS runners at 507 ms and 551 ms. This sits well clear of the floor while
+/// still failing loudly if teardown ever goes back to being per-plugin.
+const TEARDOWN_BUDGET: Duration = Duration::from_millis(1500);
+
 fn plugin(name: &str, args: &[&str], timeout_ms: u64) -> PluginConfig {
     PluginConfig {
         name: name.to_string(),
@@ -264,8 +279,8 @@ fn shutdown_is_prompt() {
     mgr.shutdown();
     let elapsed = t.elapsed();
     assert!(
-        elapsed < Duration::from_millis(500),
-        "shutting down three wedged plugins took {elapsed:?}"
+        elapsed < TEARDOWN_BUDGET,
+        "shutting down three wedged plugins took {elapsed:?}, over the {TEARDOWN_BUDGET:?} budget"
     );
 }
 
@@ -282,7 +297,10 @@ fn replace_swaps_the_plugin_set_promptly() {
     let t = Instant::now();
     mgr.replace(&[plugin("new", &[], 2000)]);
     let elapsed = t.elapsed();
-    assert!(elapsed < Duration::from_millis(500), "replace took {elapsed:?}");
+    assert!(
+        elapsed < TEARDOWN_BUDGET,
+        "replace took {elapsed:?}, over the {TEARDOWN_BUDGET:?} budget"
+    );
 
     let healthy = tick_until(&mgr, Duration::from_secs(5), |s| {
         s.len() == 1 && state_of(s, "new") == Some(PluginState::Healthy)

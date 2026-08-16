@@ -361,14 +361,25 @@ pub fn validate_lhm_url(url: &str) -> Result<(), &'static str> {
 mod tests {
     use super::*;
 
+    /// A config-dir fixture that is genuinely absolute on the host running the
+    /// test. `/home/u/.config` is not absolute on Windows — `Path::is_absolute`
+    /// there wants a drive letter or a UNC prefix — so a Unix-shaped literal
+    /// would fail `cwd_config_is_never_a_candidate` regardless of what
+    /// [`config_candidates`] does.
+    #[cfg(windows)]
+    const CONFIG_DIR_FIXTURE: &str = r"C:\Users\u\AppData\Roaming";
+    #[cfg(not(windows))]
+    const CONFIG_DIR_FIXTURE: &str = "/home/u/.config";
+
     /// The regression this ordering exists to prevent: a `dofek.toml` sitting
     /// in the current directory must never be picked up implicitly. A config
     /// file can declare `[[plugins]]`, which dofek spawns as child processes,
     /// so `cd`-ing into a hostile directory used to be enough to get code run.
     #[test]
     fn cwd_config_is_never_a_candidate() {
-        let cfg = Path::new("/home/u/.config");
+        let cfg = Path::new(CONFIG_DIR_FIXTURE);
         let candidates = config_candidates(None, None, Some(cfg));
+        assert!(!candidates.is_empty(), "the fixture should produce a candidate to check");
         for c in &candidates {
             assert!(
                 c.is_absolute(),

@@ -7,22 +7,26 @@ $triple = (rustc -vV | Select-String "^host:").ToString().Split(" ")[1]
 Write-Host "Target: $triple"
 
 Write-Host ""
-Write-Host "=== Building dofek-tui (release) ==="
-cargo build --release -p dofek --bin dofek-tui
-if ($LASTEXITCODE -ne 0) { exit 1 }
-
-# Tauri externalBin expects the binary name with the target triple appended
-Write-Host "Copying dofek-tui.exe -> dofek-tui-$triple.exe"
-Copy-Item "target\release\dofek-tui.exe" "target\release\dofek-tui-$triple.exe" -Force
-
-Write-Host ""
-Write-Host "=== Building first-party plugins (release) ==="
-cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
-if ($LASTEXITCODE -ne 0) { exit 1 }
-Write-Host "Plugin binaries:"
-Write-Host "  target\release\dofek-ollama.exe"
-Write-Host "  target\release\dofek-docker.exe"
-Write-Host "  target\release\dofek-net-ping.exe"
+Write-Host "=== Building dofek-tui + first-party plugins (release) ==="
+# Delegated rather than repeated here: since v1.7 there are four externalBin
+# sidecars (dofek-tui plus the three plugins), and prep-sidecar.ps1 is the one
+# place that list lives. This script used to build the TUI and stage only its
+# suffixed copy, which silently covered one sidecar out of four.
+#
+# `cargo tauri build` below re-runs this via the beforeBuildCommand hook, which
+# is a no-op second time round. Running it up front keeps a build failure in a
+# plugin crate from surfacing as an opaque Tauri hook error.
+#
+# Push/Pop-Location because prep-sidecar.ps1 anchors itself to the repo root
+# with Set-Location, which would otherwise persist into this script and change
+# how the relative paths below resolve.
+Push-Location
+try {
+    & (Join-Path $PSScriptRoot "gui\prep-sidecar.ps1")
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+} finally {
+    Pop-Location
+}
 
 Write-Host ""
 Write-Host "=== Building dofek-gui + MSI bundle ==="

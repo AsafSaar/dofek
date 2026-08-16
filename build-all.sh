@@ -14,22 +14,16 @@ case "$TARGET_TRIPLE" in
 esac
 
 echo ""
-echo "=== Building dofek-tui (release) ==="
-cargo build --release -p dofek --bin dofek-tui
-
-# Tauri externalBin expects the binary name with the target triple appended
-SRC="target/release/dofek-tui${EXT}"
-DST="target/release/dofek-tui-${TARGET_TRIPLE}${EXT}"
-echo "Copying ${SRC} → ${DST}"
-cp "$SRC" "$DST"
-
-echo ""
-echo "=== Building first-party plugins (release) ==="
-cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
-echo "Plugin binaries:"
-echo "  target/release/dofek-ollama${EXT}"
-echo "  target/release/dofek-docker${EXT}"
-echo "  target/release/dofek-net-ping${EXT}"
+echo "=== Building dofek-tui + first-party plugins (release) ==="
+# Delegated rather than repeated here: since v1.7 there are four externalBin
+# sidecars (dofek-tui plus the three plugins), and prep-sidecar.sh is the one
+# place that list lives. This script used to build the TUI and stage only its
+# suffixed copy, which silently covered one sidecar out of four.
+#
+# `cargo tauri build` below re-runs this via the beforeBuildCommand hook, which
+# is a no-op second time round. Running it up front keeps a build failure in a
+# plugin crate from surfacing as an opaque Tauri hook error.
+./gui/prep-sidecar.sh
 
 echo ""
 echo "=== Building dofek-gui + native bundles ==="

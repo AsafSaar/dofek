@@ -453,6 +453,17 @@ mod job {
         /// containment" with a warning rather than failing the spawn — a
         /// plugin that runs uncontained is still better than a monitor that
         /// refuses to load it.
+        ///
+        /// **Known gap:** the child is already running by the time it is
+        /// assigned, so anything it spawns in that window escapes the job.
+        /// Closing it properly means `CREATE_SUSPENDED` plus a `ResumeThread`
+        /// on the main thread, and `std::process::Command` exposes no handle
+        /// to that thread — it would mean enumerating threads by hand. The
+        /// window is the few microseconds between `CreateProcess` returning
+        /// and the next statement, and a plugin has to fork inside it to slip
+        /// out, so this is a race a hostile plugin could work at rather than
+        /// one an ordinary one hits. The Unix path has no equivalent gap:
+        /// `setsid` runs in `pre_exec`, before the child's own code does.
         pub fn containing(child: &Child) -> Self {
             let job = match unsafe { CreateJobObjectW(None, None) } {
                 Ok(h) => h,

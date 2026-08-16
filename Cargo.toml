@@ -72,11 +72,9 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Scratch dirs for tests that exercise plugin install / command resolution.
 tempfile = "3"
 
-# Integration tests don't inherit normal dependencies, and the containment
-# test needs `kill(pid, None)` to ask whether a grandchild is still alive.
-[target.'cfg(unix)'.dev-dependencies]
-nix = { version = "0.31", features = ["signal"] }
-
+# `nix` is not repeated as a dev-dependency: test targets link the normal
+# dependencies too, so the containment test's `kill(pid, None)` resolves
+# against the entry below.
 [target.'cfg(unix)'.dependencies]
 # `process` is needed for setsid/getpgid: plugin children are put in their own
 # session so `killpg` reaps any grandchildren they spawn.

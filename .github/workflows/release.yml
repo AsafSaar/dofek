@@ -40,20 +40,16 @@ jobs:
       - name: Tests
         run: cargo test --release
 
-      - name: Build TUI
-        run: cargo build --release -p dofek --bin dofek-tui
-
-      - name: Build first-party plugins
-        run: cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
-
-      # Tauri's externalBin expects the binary name suffixed with the target triple.
-      # Mirrors the local build-all.ps1 step.
-      - name: Stage TUI binary for Tauri externalBin
+      # Builds dofek-tui plus the three first-party plugins and stages each
+      # under the target-triple-suffixed name Tauri's externalBin expects.
+      #
+      # This replaced a hand-rolled `Build TUI` / `Build plugins` / `Copy-Item
+      # dofek-tui-$triple.exe` trio that staged one sidecar out of the four the
+      # bundle now declares. `cargo tauri build` below re-runs the same script
+      # via its beforeBuildCommand hook, so the two can no longer disagree.
+      - name: Build binaries and stage Tauri sidecars
         shell: pwsh
-        run: |
-          $triple = (rustc -vV | Select-String "^host:").ToString().Split(" ")[1]
-          Write-Host "Target: $triple"
-          Copy-Item "target/release/dofek-tui.exe" "target/release/dofek-tui-$triple.exe" -Force
+        run: .\gui\prep-sidecar.ps1
 
       - name: Install tauri-cli
         run: cargo install tauri-cli --version '^2.0' --locked
@@ -200,18 +196,15 @@ jobs:
       - name: Tests
         run: cargo test --release
 
-      - name: Build TUI
-        run: cargo build --release -p dofek --bin dofek-tui
-
-      - name: Build first-party plugins
-        run: cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
-
-      # Tauri externalBin expects the binary name suffixed with the host target triple.
-      - name: Stage TUI binary for Tauri externalBin
-        run: |
-          triple=$(rustc -vV | sed -n 's/^host: //p')
-          echo "Target: $triple"
-          cp "target/release/dofek-tui" "target/release/dofek-tui-${triple}"
+      # Builds dofek-tui plus the three first-party plugins and stages each
+      # under the target-triple-suffixed name Tauri's externalBin expects.
+      #
+      # This replaced a hand-rolled `Build TUI` / `Build plugins` / `cp
+      # dofek-tui-$triple` trio that staged one sidecar out of the four the
+      # bundle now declares. `cargo tauri build` below re-runs the same script
+      # via its beforeBuildCommand hook, so the two can no longer disagree.
+      - name: Build binaries and stage Tauri sidecars
+        run: ./gui/prep-sidecar.sh
 
       - name: Install tauri-cli
         run: cargo install tauri-cli --version '^2.0' --locked
@@ -298,18 +291,15 @@ jobs:
       - name: Tests
         run: cargo test --release
 
-      - name: Build TUI
-        run: cargo build --release -p dofek --bin dofek-tui
-
-      - name: Build first-party plugins
-        run: cargo build --release -p dofek-ollama -p dofek-docker -p dofek-net-ping
-
-      # Tauri externalBin expects the binary name suffixed with the host target triple.
-      - name: Stage TUI binary for Tauri externalBin
-        run: |
-          triple=$(rustc -vV | sed -n 's/^host: //p')
-          echo "Target: $triple"
-          cp "target/release/dofek-tui" "target/release/dofek-tui-${triple}"
+      # Builds dofek-tui plus the three first-party plugins and stages each
+      # under the target-triple-suffixed name Tauri's externalBin expects.
+      #
+      # This replaced a hand-rolled `Build TUI` / `Build plugins` / `cp
+      # dofek-tui-$triple` trio that staged one sidecar out of the four the
+      # bundle now declares. `cargo tauri build` below re-runs the same script
+      # via its beforeBuildCommand hook, so the two can no longer disagree.
+      - name: Build binaries and stage Tauri sidecars
+        run: ./gui/prep-sidecar.sh
 
       - name: Install tauri-cli
         run: cargo install tauri-cli --version '^2.0' --locked
