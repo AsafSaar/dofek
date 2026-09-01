@@ -140,10 +140,12 @@ pub fn check() -> Result<UpdateInfo> {
     // GitHub rejects unauthenticated API requests without a User-Agent.
     let user_agent = format!("dofek/{current} (+https://github.com/{REPO})");
 
-    let resp = ureq::get(RELEASES_URL)
-        .set("User-Agent", &user_agent)
-        .set("Accept", "application/vnd.github+json")
-        .timeout(HTTP_TIMEOUT)
+    let mut resp = ureq::get(RELEASES_URL)
+        .header("User-Agent", &user_agent)
+        .header("Accept", "application/vnd.github+json")
+        .config()
+        .timeout_global(Some(HTTP_TIMEOUT))
+        .build()
         .call()
         .context("GitHub Releases API request failed")?;
 
@@ -154,7 +156,10 @@ pub fn check() -> Result<UpdateInfo> {
         #[serde(default)]
         body: String,
     }
-    let body = resp.into_string().context("reading GitHub response body")?;
+    let body = resp
+        .body_mut()
+        .read_to_string()
+        .context("reading GitHub response body")?;
     let rel: Release = serde_json::from_str(&body).context("parsing GitHub release JSON")?;
 
     let latest_clean = rel.tag_name.trim_start_matches('v').to_string();

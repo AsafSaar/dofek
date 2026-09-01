@@ -206,9 +206,11 @@ fn flush(endpoint: &str, anonymous_id: &str, batch: &mut Vec<TelemetryEnvelope>)
     };
 
     match ureq::post(endpoint)
-        .timeout(Duration::from_secs(5))
-        .set("Content-Type", "application/json")
-        .send_string(&json)
+        .config()
+        .timeout_global(Some(Duration::from_secs(5)))
+        .build()
+        .header("Content-Type", "application/json")
+        .send(json.as_str())
     {
         Ok(_) => log::debug!("Telemetry: flushed {count} events"),
         Err(e) => log::debug!("Telemetry flush failed (dropping batch): {e}"),

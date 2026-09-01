@@ -188,11 +188,16 @@ struct DockerContainer {
 
 fn query_containers(host: &str) -> Result<Vec<DockerContainer>, String> {
     let url = format!("{host}/containers/json?all=false");
-    let resp = ureq::get(&url)
-        .timeout(std::time::Duration::from_millis(1000))
+    let mut resp = ureq::get(&url)
+        .config()
+        .timeout_global(Some(std::time::Duration::from_millis(1000)))
+        .build()
         .call()
         .map_err(|e| e.to_string())?;
-    let body_str = resp.into_string().map_err(|e| e.to_string())?;
+    let body_str = resp
+        .body_mut()
+        .read_to_string()
+        .map_err(|e| e.to_string())?;
     let containers: Vec<DockerContainer> =
         serde_json::from_str(&body_str).map_err(|e| e.to_string())?;
     Ok(containers)

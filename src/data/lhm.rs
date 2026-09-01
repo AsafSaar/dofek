@@ -76,13 +76,16 @@ const MAX_LHM_BODY_BYTES: u64 = 8 * 1024 * 1024;
 pub fn fetch_lhm_data(base_url: &str) -> Result<LhmNode> {
     let url = format!("{}/data.json", base_url.trim_end_matches('/'));
     let response = ureq::get(&url)
-        .timeout(std::time::Duration::from_secs(2))
+        .config()
+        .timeout_global(Some(std::time::Duration::from_secs(2)))
+        .build()
         .call()
         .with_context(|| format!("Failed to connect to LHM at {url}"))?;
-    // `into_string()` reads to EOF with no limit. Cap it instead: a truncated
+    // `into_reader()` reads to EOF with no limit. Cap it instead: a truncated
     // body fails to parse as JSON, which is the correct outcome.
     let mut body = String::new();
     response
+        .into_body()
         .into_reader()
         .take(MAX_LHM_BODY_BYTES)
         .read_to_string(&mut body)
