@@ -208,22 +208,32 @@ struct OllamaRunningModel {
 
 fn query_available_models(host: &str) -> Result<Vec<OllamaModel>, String> {
     let url = format!("{host}/api/tags");
-    let resp = ureq::get(&url)
-        .timeout(std::time::Duration::from_millis(1000))
+    let mut resp = ureq::get(&url)
+        .config()
+        .timeout_global(Some(std::time::Duration::from_millis(1000)))
+        .build()
         .call()
         .map_err(|e| e.to_string())?;
-    let body_str = resp.into_string().map_err(|e| e.to_string())?;
+    let body_str = resp
+        .body_mut()
+        .read_to_string()
+        .map_err(|e| e.to_string())?;
     let body: OllamaTagsResponse = serde_json::from_str(&body_str).map_err(|e| e.to_string())?;
     Ok(body.models.unwrap_or_default())
 }
 
 fn query_running_models(host: &str) -> Result<Vec<OllamaRunningModel>, String> {
     let url = format!("{host}/api/ps");
-    let resp = ureq::get(&url)
-        .timeout(std::time::Duration::from_millis(1000))
+    let mut resp = ureq::get(&url)
+        .config()
+        .timeout_global(Some(std::time::Duration::from_millis(1000)))
+        .build()
         .call()
         .map_err(|e| e.to_string())?;
-    let body_str = resp.into_string().map_err(|e| e.to_string())?;
+    let body_str = resp
+        .body_mut()
+        .read_to_string()
+        .map_err(|e| e.to_string())?;
     let body: OllamaPsResponse = serde_json::from_str(&body_str).map_err(|e| e.to_string())?;
     Ok(body.models.unwrap_or_default())
 }

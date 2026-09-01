@@ -112,34 +112,33 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let table_h = inner.height.saturating_sub(1 + search_bar_height as u16);
 
     // Build rows — grouped or flat
-    let rows: Vec<Row>;
-    let total: usize;
-
-    if app.grouped_view {
+    let (rows, total): (Vec<Row>, usize) = if app.grouped_view {
         let grouped = app.grouped_rows();
-        total = grouped.len();
+        let total = grouped.len();
         let selected = app.selected_process.unwrap_or(0).min(total.saturating_sub(1));
         let scroll = compute_scroll(app.process_scroll, selected, max_visible, total);
 
-        rows = grouped.iter()
+        let rows = grouped.iter()
             .enumerate()
             .skip(scroll)
             .take(max_visible)
             .map(|(i, row)| render_grouped_row(row, i, app, name_width, show_vram))
             .collect();
+        (rows, total)
     } else {
         let filtered = app.filtered_processes();
-        total = filtered.len();
+        let total = filtered.len();
         let selected = app.selected_process.unwrap_or(0).min(total.saturating_sub(1));
         let scroll = compute_scroll(app.process_scroll, selected, max_visible, total);
 
-        rows = filtered.iter()
+        let rows = filtered.iter()
             .enumerate()
             .skip(scroll)
             .take(max_visible)
             .map(|(i, p)| render_flat_row(p, i, app, name_width, show_vram))
             .collect();
-    }
+        (rows, total)
+    };
 
     if total == 0 {
         let table_area = Rect::new(inner.x, table_y, inner.width, table_h);
