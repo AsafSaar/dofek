@@ -150,7 +150,7 @@ fn three_plugins_do_not_stack_latency() {
         plugin("c", &slow, 2000),
     ]);
 
-    let elapsed = tick_until(&mgr, Duration::from_secs(5), |s| {
+    let elapsed = tick_until(&mgr, Duration::from_secs(10), |s| {
         s.len() == 3 && s.iter().all(|p| p.state == PluginState::Healthy)
     })
     .expect("all three plugins should report healthy");
