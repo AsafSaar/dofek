@@ -1,6 +1,6 @@
 {
   "private": true,
   "dependencies": {
-    "@neondatabase/serverless": "^1.1"
+    "@neondatabase/serverless": "^1.2"
   }
 }
