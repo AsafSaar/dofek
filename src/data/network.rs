@@ -145,7 +145,7 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
         let rx = data.total_received();
         let tx = data.total_transmitted();
 
-        let prev_idx = tracker.prev_names.iter().position(|n| n == name);
+        let prev_idx = tracker.prev_names.iter().position(|n| n == &name);
         let (rx_rate, tx_rate) = if let Some(idx) = prev_idx {
             (
                 rate(rx, tracker.prev_rx[idx], elapsed),
