@@ -32,7 +32,9 @@ pub struct DiskTracker {
 }
 
 pub fn query_disk_stats(tracker: &mut DiskTracker) -> DiskStats {
-    let disks = Disks::new_with_refreshed_list();
+    let Ok(disks) = Disks::new_with_refreshed_list() else {
+        return DiskStats::default();
+    };
 
     let now = Instant::now();
     let elapsed = tracker
