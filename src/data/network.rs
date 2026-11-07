@@ -124,6 +124,8 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
     let mut curr_names = Vec::new();
 
     for (name, data) in &networks {
+        let name = name.to_string_lossy().into_owned();
+
         // Skip loopback. We keep virtual interfaces (docker0, veth*, etc.) — the sort
         // by traffic below pushes idle ones to the bottom, and users on container
         // hosts often want them visible.
