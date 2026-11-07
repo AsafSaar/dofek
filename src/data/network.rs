@@ -111,7 +111,9 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
 pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
     use sysinfo::Networks;
 
-    let networks = Networks::new_with_refreshed_list();
+    let Ok(networks) = Networks::new_with_refreshed_list() else {
+        return NetworkStats::default();
+    };
 
     let now = Instant::now();
     let elapsed = tracker.prev_time.map(|t| now.duration_since(t).as_secs_f64()).unwrap_or(1.0);
