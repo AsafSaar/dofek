@@ -13,7 +13,7 @@ pub fn extract_cpu(system: &System) -> CpuSensors {
         .unwrap_or_default();
 
     let per_core_load: Vec<f32> = cpus.iter()
-        .map(|c| c.cpu_usage())
+        .map(|c| c.usage())
         .collect();
 
     let total_load = if per_core_load.is_empty() {

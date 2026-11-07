@@ -111,7 +111,9 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
 pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
     use sysinfo::Networks;
 
-    let networks = Networks::new_with_refreshed_list();
+    let Ok(networks) = Networks::new_with_refreshed_list() else {
+        return NetworkStats::default();
+    };
 
     let now = Instant::now();
     let elapsed = tracker.prev_time.map(|t| now.duration_since(t).as_secs_f64()).unwrap_or(1.0);
@@ -122,6 +124,8 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
     let mut curr_names = Vec::new();
 
     for (name, data) in &networks {
+        let name = name.to_string_lossy().into_owned();
+
         // Skip loopback. We keep virtual interfaces (docker0, veth*, etc.) — the sort
         // by traffic below pushes idle ones to the bottom, and users on container
         // hosts often want them visible.
@@ -141,7 +145,7 @@ pub fn query_network_stats(tracker: &mut NetworkTracker) -> NetworkStats {
         let rx = data.total_received();
         let tx = data.total_transmitted();
 
-        let prev_idx = tracker.prev_names.iter().position(|n| n == name);
+        let prev_idx = tracker.prev_names.iter().position(|n| n == &name);
         let (rx_rate, tx_rate) = if let Some(idx) = prev_idx {
             (
                 rate(rx, tracker.prev_rx[idx], elapsed),
