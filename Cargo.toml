@@ -51,7 +51,7 @@ nvml-wrapper = "0.13"
 clap = { version = "4", features = ["derive"] }
 
 # System info (CPU, memory, processes — no elevation needed)
-sysinfo = "0.39"
+sysinfo = "0.40"
 
 # Error handling
 anyhow = "1"
