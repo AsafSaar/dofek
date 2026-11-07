@@ -154,12 +154,18 @@ pub fn spawn_collector(
         let hostname = System::host_name().unwrap_or_default();
 
         // sysinfo::System persists across polls for CPU% delta computation
-        let mut system = System::new();
+        let mut system = match System::new() {
+            Ok(system) => system,
+            Err(error) => {
+                log::error!("failed to initialize system information: {error}");
+                return;
+            }
+        };
 
         // Linux: read CPU package temperature from /sys/class/hwmon via sysinfo.
         // Components is platform-specific in sysinfo 0.33 — only useful on Linux/macOS.
         #[cfg(target_os = "linux")]
-        let mut components = sysinfo::Components::new_with_refreshed_list();
+        let mut components = sysinfo::Components::new_with_refreshed_list().ok();
 
         #[cfg(target_os = "linux")]
         let mut rapl = rapl::RaplTracker::default();
@@ -197,9 +203,11 @@ pub fn spawn_collector(
             // Linux: enrich CPU temperature from hwmon (Windows uses LHM below).
             #[cfg(target_os = "linux")]
             {
-                components.refresh(true);
-                if cpu.temperature.is_none() {
-                    cpu.temperature = sysinfo_source::pick_cpu_temp(&components);
+                if let Some(components) = components.as_mut() {
+                    components.refresh(true);
+                    if cpu.temperature.is_none() {
+                        cpu.temperature = sysinfo_source::pick_cpu_temp(components);
+                    }
                 }
                 if cpu.power.is_none()
                     && let Some(w) = rapl.read_watts()
