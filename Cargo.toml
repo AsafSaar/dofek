@@ -66,7 +66,7 @@ uuid = { version = "1", features = ["v4"] }
 dofek-plugin-protocol = { path = "crates/dofek-plugin-protocol", version = "0.1.0" }
 
 # Local time formatting (cross-platform; replaces the OS-specific clock blocks)
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
+jiff = "1"
 
 [dev-dependencies]
 # Scratch dirs for tests that exercise plugin install / command resolution.

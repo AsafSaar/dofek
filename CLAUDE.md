@@ -91,7 +91,7 @@ The GUI bundles the TUI binary as a Tauri sidecar (`externalBin` in `gui/tauri.c
 - `src/ui/` — Rendering layer (trading-terminal layout):
   - `mod.rs` — Master layout: ticker + chart/watchlist split + bottom strip + status bar
   - `theme.rs` — Trading-terminal color palette (sky blue CPU, violet GPU, emerald MEM, etc.)
-  - `ticker.rs` — Top ticker bar with metric pills, AI badge, hostname, clock (uses `chrono::Local` cross-platform)
+  - `ticker.rs` — Top ticker bar with metric pills, AI badge, hostname, clock (uses `jiff::ZonedDateTime` cross-platform)
   - `chart.rs` — Main chart panel with tab switching (CPU/GPU/MEM/NET)
   - `candlestick.rs` — Custom candlestick widget (Buffer manipulation, half-blocks)
   - `area_chart.rs` — Custom area chart widget (filled, multi-series, thresholds)
