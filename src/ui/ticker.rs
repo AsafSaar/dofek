@@ -177,7 +177,7 @@ fn format_clock() -> String {
         let elapsed = cache.1.elapsed();
         if elapsed.as_millis() >= 900 || cache.0.is_empty() {
             cache.1 = Instant::now();
-            cache.0 = chrono::Local::now().format("%H:%M:%S").to_string();
+            cache.0 = jiff::ZonedDateTime::now().strftime("%H:%M:%S").to_string();
         }
         cache.0.clone()
     })

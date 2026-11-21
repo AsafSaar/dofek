@@ -593,7 +593,7 @@ LHM fallback ──> GPU sensors (if NVML unavailable) ────────�
 | Serialization | serde + serde_json | 1 |
 | Win32 API (Windows only) | windows | 0.62 |
 | POSIX signals (Unix only) | nix | 0.31 |
-| Local time formatting | chrono | 0.4 |
+| Local time formatting | jiff | 1 |
 | Error handling | anyhow | 1 |
 | Logging | log + env_logger | 0.4 / 0.11 |
 | Home directory | dirs | 6 |
