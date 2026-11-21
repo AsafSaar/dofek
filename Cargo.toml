@@ -78,7 +78,7 @@ tempfile = "3"
 [target.'cfg(unix)'.dependencies]
 # `process` is needed for setsid/getpgid: plugin children are put in their own
 # session so `killpg` reaps any grandchildren they spawn.
-nix = { version = "0.31", features = ["signal", "process"] }
+nix = { version = "0.32", features = ["signal", "process"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
